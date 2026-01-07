@@ -9,12 +9,20 @@ if (!apiKey) {
 
 const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key-for-build' });
 
+// Model Distribution Strategy to avoid quota exhaustion
+// - ANALYSIS_MODEL: Simple tasks (sentiment analysis) - High quota (14.4K RPD)
+// - CHAT_MODEL: Chat & context-based Q&A - Medium quota (1K RPD)
+// - PREMIUM_MODEL: Complex tasks (forecasting, deep search) - Limited quota (20 RPD)
+const ANALYSIS_MODEL = "gemma-3-4b";           // 14,400 RPD - For simple analysis
+const CHAT_MODEL = "gemini-2.5-flash-lite";    // 1,000 RPD - For chat & context
+const PREMIUM_MODEL = "gemini-3-flash";        // 20 RPD - For critical forecasting
+
 /**
  * Analyzes a specific news article to determine sentiment and summary.
  */
 export const analyzeArticle = async (article: NewsArticle): Promise<Partial<NewsArticle>> => {
-  const model = "gemini-2.5-flash-native-audio-dialog";
-  
+  const model = ANALYSIS_MODEL; // Simple sentiment analysis - High quota
+
   const prompt = `
     Analyze the following crypto news article snippet for financial sentiment.
     
@@ -73,7 +81,7 @@ export const analyzeArticle = async (article: NewsArticle): Promise<Partial<News
  * Generates a market forecast report based on provided market data.
  */
 export const generateMarketForecast = async (coinName: string, recentTrend: string, currentPrice: number): Promise<ForecastResult> => {
-  const model = "gemini-2.5-flash-native-audio-dialog";
+  const model = PREMIUM_MODEL; // Critical forecasting with deep search - Limited quota
 
   const prompt = `
     Act as a senior technical analyst at a top quantitative trading firm.
@@ -119,14 +127,14 @@ export const generateMarketForecast = async (coinName: string, recentTrend: stri
             reasoning: { type: Type.STRING },
             trend: { type: Type.STRING, enum: ["Bullish", "Bearish", "Neutral"] },
             recommendation: {
-                type: Type.OBJECT,
-                properties: {
-                    action: { type: Type.STRING, enum: ["Buy", "Sell", "Hold"] },
-                    entryZone: { type: Type.STRING },
-                    targetPrice: { type: Type.STRING },
-                    stopLoss: { type: Type.STRING }
-                },
-                required: ["action", "entryZone", "targetPrice", "stopLoss"]
+              type: Type.OBJECT,
+              properties: {
+                action: { type: Type.STRING, enum: ["Buy", "Sell", "Hold"] },
+                entryZone: { type: Type.STRING },
+                targetPrice: { type: Type.STRING },
+                stopLoss: { type: Type.STRING }
+              },
+              required: ["action", "entryZone", "targetPrice", "stopLoss"]
             }
           },
           required: ["predictedPrices", "confidenceScore", "reasoning", "trend", "recommendation"],
@@ -135,7 +143,7 @@ export const generateMarketForecast = async (coinName: string, recentTrend: stri
     });
 
     const jsonStr = response.text?.trim();
-    
+
     // Extract grounding sources
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     const sources = groundingChunks
@@ -165,7 +173,7 @@ export const generateMarketForecast = async (coinName: string, recentTrend: stri
  */
 export const createChatSession = (): Chat => {
   return ai.chats.create({
-    model: 'gemini-2.5-flash-native-audio-dialog',
+    model: CHAT_MODEL, // Chat session - Medium quota
     config: {
       systemInstruction: "You are Sibyl, an AI assistant specialized in Cryptocurrency and Financial Markets. You provide data-backed answers, explain technical concepts clearly, and always warn about risks. Use Google Search to find real-time info. Do not give financial advice (NFA). At the end of your response, if relevant, briefly suggest 1-2 related topics or questions the user might want to explore next.",
       tools: [{ googleSearch: {} }],
@@ -177,7 +185,7 @@ export const createChatSession = (): Chat => {
  *  Context-Aware Question Answering for Charts
  */
 export const askChartAnalyst = async (coinSymbol: string, chartData: any[], question: string): Promise<string> => {
-  const model = "gemini-2.5-flash-native-audio-dialog";
+  const model = ANALYSIS_MODEL; // Technical analysis - High quota
 
   // Simplify data to save tokens, taking last 20 points
   const recentData = chartData.slice(-20).map(p => ({
@@ -215,7 +223,7 @@ export const askChartAnalyst = async (coinSymbol: string, chartData: any[], ques
  * Context-Aware Question Answering for News
  */
 export const askNewsContext = async (contextText: string, question: string): Promise<string> => {
-  const model = "gemini-2.5-flash-native-audio-dialog";
+  const model = CHAT_MODEL; // Context-based Q&A - Medium quota
 
   const prompt = `
     You are an AI news analyst.
@@ -245,8 +253,8 @@ export const askNewsContext = async (contextText: string, question: string): Pro
  * Search for historical news and return structured NewsArticle objects
  */
 export const getHistoricalNews = async (coinName: string, dateStr: string): Promise<NewsArticle[]> => {
-  const model = "gemini-2.5-flash-native-audio-dialog";
-  
+  const model = PREMIUM_MODEL; // Deep historical search - Limited quota
+
   const prompt = `
     Search for major crypto news headlines specifically for ${coinName} that happened on or around ${dateStr}.
     Focus on market-moving events (hacks, regulations, partnerships, price milestones).
@@ -268,23 +276,23 @@ export const getHistoricalNews = async (coinName: string, dateStr: string): Prom
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
         responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-                articles: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            title: { type: Type.STRING },
-                            source: { type: Type.STRING },
-                            snippet: { type: Type.STRING },
-                            sentiment: { type: Type.STRING, enum: ["Positive", "Negative", "Neutral"] },
-                            impactScore: { type: Type.INTEGER }
-                        },
-                        required: ["title", "source", "snippet", "sentiment", "impactScore"]
-                    }
-                }
+          type: Type.OBJECT,
+          properties: {
+            articles: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  source: { type: Type.STRING },
+                  snippet: { type: Type.STRING },
+                  sentiment: { type: Type.STRING, enum: ["Positive", "Negative", "Neutral"] },
+                  impactScore: { type: Type.INTEGER }
+                },
+                required: ["title", "source", "snippet", "sentiment", "impactScore"]
+              }
             }
+          }
         }
       },
     });
@@ -293,18 +301,18 @@ export const getHistoricalNews = async (coinName: string, dateStr: string): Prom
     if (jsonStr) {
       const data = JSON.parse(jsonStr);
       if (data.articles && Array.isArray(data.articles)) {
-          // Map to NewsArticle interface
-          return data.articles.map((item: any, index: number) => ({
-              id: `hist-${index}-${Date.now()}`,
-              title: item.title,
-              source: item.source,
-              snippet: item.snippet,
-              timestamp: dateStr,
-              url: '#', // Placeholder, user will rely on AI Chat or Google Search grounding in detail view
-              sentiment: item.sentiment,
-              impactScore: item.impactScore,
-              summary: item.snippet // Initial summary
-          }));
+        // Map to NewsArticle interface
+        return data.articles.map((item: any, index: number) => ({
+          id: `hist-${index}-${Date.now()}`,
+          title: item.title,
+          source: item.source,
+          snippet: item.snippet,
+          timestamp: dateStr,
+          url: '#', // Placeholder, user will rely on AI Chat or Google Search grounding in detail view
+          sentiment: item.sentiment,
+          impactScore: item.impactScore,
+          summary: item.snippet // Initial summary
+        }));
       }
     }
     return [];
