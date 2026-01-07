@@ -114,6 +114,13 @@ Neu gap van de:
 ## GHI CHU QUAN TRONG
 
 - WebSocket da hoat dong tot, du lieu dang cap nhat realtime
-- Dashboard da co Live badge (xanh la) de hien thi trang thai
+- Dashboard co cac visual feedback:
+  - **Connection Status Badge**: Hien thi trang thai ket noi (Live/Connecting/Offline) voi mau sac tuong ung
+  - **Price Flash Animation**: Gia nhap nhay mau xanh khi tang, do khi giam
+  - **Smooth Transitions**: Chuyen doi mau sac muot ma
 - Price cap nhat lien tuc theo du lieu tu Binance
 - Chart candlestick cap nhat theo kline 1m interval
+- Badge Live badge tu dong doi mau theo trang thai ket noi:
+  - Xanh la (Connected): Dang nhan du lieu realtime
+  - Vang (Connecting): Dang ket noi lai
+  - Do (Offline): Mat ket noi
