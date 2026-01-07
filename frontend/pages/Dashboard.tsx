@@ -192,7 +192,7 @@ const Dashboard: React.FC = () => {
 
         // Throttle trade updates to avoid excessive re-renders
         let lastTradeUpdate = 0;
-        const TRADE_THROTTLE_MS = 200; // Update max 5 times/sec
+        const TRADE_THROTTLE_MS = 100; // Update max 10 times/sec for smooth appearance
 
         socket.on('trade', (message: any) => {
             // message format: { e: 'trade', s: 'BTCUSDT', p: '91234.56', ... }
@@ -509,10 +509,10 @@ const Dashboard: React.FC = () => {
                                     <div className="flex items-center gap-2 mb-1">
                                         <h1 className="text-2xl font-bold text-slate-900 dark:text-white leading-none">{selectedCoin.name} / U.S. Dollar</h1>
                                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border transition-all ${wsStatus === 'connected'
-                                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-                                                : wsStatus === 'connecting'
-                                                    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800'
-                                                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
+                                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                            : wsStatus === 'connecting'
+                                                ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800'
+                                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
                                             }`}>
                                             <span className={`w-1.5 h-1.5 rounded-full ${wsStatus === 'connected' ? 'bg-emerald-600 animate-pulse' : wsStatus === 'connecting' ? 'bg-yellow-600 animate-pulse' : 'bg-red-600'
                                                 }`}></span>

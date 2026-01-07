@@ -711,9 +711,7 @@ const MarketChart: React.FC<MarketChartProps> = ({
               fill={`url(#color${color})`}
               strokeWidth={2}
               activeDot={{ r: 6, strokeWidth: 0 }}
-              isAnimationActive={true}
-              animationDuration={300}
-              animationEasing="ease-in-out"
+              isAnimationActive={false}
             />
           )}
 
@@ -722,9 +720,7 @@ const MarketChart: React.FC<MarketChartProps> = ({
               yAxisId="right"
               dataKey="candleRange"
               shape={<Candle />}
-              isAnimationActive={true}
-              animationDuration={300}
-              animationEasing="ease-in-out"
+              isAnimationActive={false}
             />
           )}
 
