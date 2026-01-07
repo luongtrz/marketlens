@@ -28,7 +28,7 @@ const Candle = (props: any) => {
 
   const isUp = close >= open;
   // Vietnamese/Asian convention: Red = Up (bullish), Green = Down (bearish)
-  const color = isUp ? '#f43f5e' : '#10b981';
+  const color = isUp ? '#10b981' : '#f43f5e';
 
   const range = high - low;
   if (range === 0) return null;

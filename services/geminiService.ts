@@ -13,7 +13,7 @@ const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key-for-build' });
  * Analyzes a specific news article to determine sentiment and summary.
  */
 export const analyzeArticle = async (article: NewsArticle): Promise<Partial<NewsArticle>> => {
-  const model = "gemini-3-flash-preview";
+  const model = "gemini-2.5-flash-native-audio-dialog";
   
   const prompt = `
     Analyze the following crypto news article snippet for financial sentiment.
@@ -73,7 +73,7 @@ export const analyzeArticle = async (article: NewsArticle): Promise<Partial<News
  * Generates a market forecast report based on provided market data.
  */
 export const generateMarketForecast = async (coinName: string, recentTrend: string, currentPrice: number): Promise<ForecastResult> => {
-  const model = "gemini-3-flash-preview";
+  const model = "gemini-2.5-flash-native-audio-dialog";
 
   const prompt = `
     Act as a senior technical analyst at a top quantitative trading firm.
@@ -165,7 +165,7 @@ export const generateMarketForecast = async (coinName: string, recentTrend: stri
  */
 export const createChatSession = (): Chat => {
   return ai.chats.create({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-2.5-flash-native-audio-dialog',
     config: {
       systemInstruction: "You are Sibyl, an AI assistant specialized in Cryptocurrency and Financial Markets. You provide data-backed answers, explain technical concepts clearly, and always warn about risks. Use Google Search to find real-time info. Do not give financial advice (NFA). At the end of your response, if relevant, briefly suggest 1-2 related topics or questions the user might want to explore next.",
       tools: [{ googleSearch: {} }],
@@ -177,7 +177,7 @@ export const createChatSession = (): Chat => {
  *  Context-Aware Question Answering for Charts
  */
 export const askChartAnalyst = async (coinSymbol: string, chartData: any[], question: string): Promise<string> => {
-  const model = "gemini-3-flash-preview";
+  const model = "gemini-2.5-flash-native-audio-dialog";
 
   // Simplify data to save tokens, taking last 20 points
   const recentData = chartData.slice(-20).map(p => ({
@@ -215,7 +215,7 @@ export const askChartAnalyst = async (coinSymbol: string, chartData: any[], ques
  * Context-Aware Question Answering for News
  */
 export const askNewsContext = async (contextText: string, question: string): Promise<string> => {
-  const model = "gemini-3-flash-preview";
+  const model = "gemini-2.5-flash-native-audio-dialog";
 
   const prompt = `
     You are an AI news analyst.
@@ -245,7 +245,7 @@ export const askNewsContext = async (contextText: string, question: string): Pro
  * Search for historical news and return structured NewsArticle objects
  */
 export const getHistoricalNews = async (coinName: string, dateStr: string): Promise<NewsArticle[]> => {
-  const model = "gemini-3-flash-preview";
+  const model = "gemini-2.5-flash-native-audio-dialog";
   
   const prompt = `
     Search for major crypto news headlines specifically for ${coinName} that happened on or around ${dateStr}.
