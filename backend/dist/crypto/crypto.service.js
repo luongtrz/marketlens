@@ -79,7 +79,7 @@ let CryptoService = class CryptoService {
                 return [];
             }
             return data.Data.map((item) => ({
-                time: item.time * 1000,
+                ts: item.time * 1000,
                 price: item.close,
                 open: item.open,
                 high: item.high,

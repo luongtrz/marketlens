@@ -45,10 +45,15 @@ let RealtimeGateway = class RealtimeGateway {
             try {
                 const message = JSON.parse(data.toString());
                 if (message.e === 'trade') {
-                    this.server.to(`trade:${message.s}`).emit('trade', message);
+                    let symbol = message.s;
+                    if (symbol.endsWith('USDT'))
+                        symbol = symbol.replace('USDT', '');
+                    this.server.to(`trade:${symbol}`).emit('trade', message);
                 }
                 else if (message.e === 'kline') {
-                    const symbol = message.s;
+                    let symbol = message.s;
+                    if (symbol.endsWith('USDT'))
+                        symbol = symbol.replace('USDT', '');
                     const kline = {
                         time: message.k.t,
                         open: parseFloat(message.k.o),
@@ -74,10 +79,12 @@ let RealtimeGateway = class RealtimeGateway {
         });
     }
     handleJoinRoom(client, payload) {
-        const room = `${payload.type}:${payload.symbol.toUpperCase()}`;
+        const symbol = payload.symbol.toUpperCase();
+        const room = `${payload.type}:${symbol}`;
         client.join(room);
         this.logger.log(`Client ${client.id} joined ${room}`);
-        const binanceStreamName = `${payload.symbol.toLowerCase()}@${payload.type === 'kline' ? 'kline_1m' : 'trade'}`;
+        const pair = `${symbol}USDT`.toLowerCase();
+        const binanceStreamName = `${pair}@${payload.type === 'kline' ? 'kline_1m' : 'trade'}`;
         if (!this.activeSubscriptions.has(binanceStreamName)) {
             this.activeSubscriptions.add(binanceStreamName);
             this.updateBinanceSubscriptions();

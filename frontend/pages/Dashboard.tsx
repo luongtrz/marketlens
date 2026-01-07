@@ -183,20 +183,45 @@ const Dashboard: React.FC = () => {
                 const kline = payload.data;
                 const klineTime = new Date(kline.time);
 
-                // If we have forecast points (future), we need to handle them carefully.
-                // Current strategy: Update the latest "real" point.
+                // Find index of the last real candle (has price)
+                let targetIndex = -1;
+                for (let i = newData.length - 1; i >= 0; i--) {
+                    if (newData[i].price !== undefined) {
+                        targetIndex = i;
+                        break;
+                    }
+                }
 
-                // Find index of the real candle matching this time or the last real candle
-                const lastRealIndex = newData.findIndex(p => p.forecast !== undefined && p.price === undefined) - 1;
-                const targetIndex = lastRealIndex >= 0 ? lastRealIndex : newData.length - 1;
+                if (targetIndex === -1) targetIndex = newData.length - 1;
 
                 const targetPoint = newData[targetIndex];
 
-                // Simple update logic: if timestamp matches, update. If new, push (if strict real-time needed).
-                // For now, we just update the latest candle to prevent chart jumping too much in this demo
-                if (targetPoint && Math.abs(targetPoint.ts - kline.time) < 60000) { // Within 1 min
+                // Debug log
+                console.log('WS Update:', {
+                    symbol,
+                    klineTime: new Date(kline.time).toLocaleTimeString(),
+                    targetTime: new Date(targetPoint.ts).toLocaleTimeString(),
+                    klinePrice: kline.close,
+                    currentPrice: targetPoint.price
+                });
+
+                // Update if within the same minute
+                if (targetPoint && Math.abs(targetPoint.ts - kline.time) < 60000) {
                     newData[targetIndex] = {
                         ...targetPoint,
+                        price: kline.close,
+                        open: kline.open,
+                        high: kline.high,
+                        low: kline.low,
+                        volume: kline.volume
+                    };
+                } else if (targetPoint && kline.time > targetPoint.ts) {
+                    // Update the latest point to reflect live price even if it's a new candle
+                    // Ideally we should push a new candle, but for simplicity in this view we ensure the "HEAD" moves.
+                    newData[targetIndex] = {
+                        ...targetPoint,
+                        ts: kline.time,
+                        time: new Date(kline.time).toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }),
                         price: kline.close,
                         open: kline.open,
                         high: kline.high,
@@ -213,7 +238,7 @@ const Dashboard: React.FC = () => {
             socket.emit('leave-room', { symbol, type: 'kline' });
             socket.disconnect();
         };
-    }, [selectedCoin]);
+    }, [selectedCoin?.symbol]);
 
     // Sidebar Resizing Logic
     const startResizing = (e: React.MouseEvent) => {
@@ -316,8 +341,15 @@ const Dashboard: React.FC = () => {
     const headerStats = useMemo(() => {
         if (!selectedCoin) return { price: 0, change: 0, percent: 0 };
 
-        // Always use live price for display
-        const currentPrice = selectedCoin.price;
+        // Use latest price from chart if available (real-time), otherwise fallback to initial API data
+        let currentPrice = selectedCoin.price;
+        if (combinedChartData.length > 0) {
+            // Find the last "real" data point (not forecast only)
+            const realPoints = combinedChartData.filter(p => p.price !== undefined);
+            if (realPoints.length > 0) {
+                currentPrice = realPoints[realPoints.length - 1].price!;
+            }
+        }
 
         if (combinedChartData.length === 0) {
             return {
@@ -327,11 +359,22 @@ const Dashboard: React.FC = () => {
             };
         }
 
-        // Calculate change from the start of the visible time range to current live price
+        // Calculate change: Current Price - Start Price of the view
+        // Note: For "Change 24h", we ideally want the Close price from 24h ago. 
+        // But for chart view context, we often show change relative to the chart period.
+        // However, the UI label usually implies 24h change. 
+        // If we want 24h change to update, we need to know the open/close of 24h ago even if chart is 1m.
+        // Compromise: Update "current price" but keep "change" relative to the loaded chart range OR 
+        // keep using selectedCoin.change24h but adjust it by the difference in current price.
+
+        // Option A: Just update Price. Keep Change static (misleading).
+        // Option B: Calculate dynamic change based on Chart Start (Good for 'Period Change').
+        // The existing code calculated change from start of visible range. Let's stick to that but use dynamic currentPrice.
+
         const historicalPoints = combinedChartData.filter(p => p.forecast === undefined || (p.price !== undefined && p.forecast !== undefined));
         const startPrice = historicalPoints[0]?.price || currentPrice;
         const change = currentPrice - startPrice;
-        const percent = (change / startPrice) * 100;
+        const percent = startPrice !== 0 ? (change / startPrice) * 100 : 0;
 
         return { price: currentPrice, change, percent };
     }, [combinedChartData, selectedCoin]);

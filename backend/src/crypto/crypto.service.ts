@@ -11,7 +11,7 @@ export interface CoinData {
 }
 
 export interface HistoryPoint {
-    time: number;
+    ts: number;
     price: number;
     open: number;
     high: number;
@@ -102,7 +102,7 @@ export class CryptoService {
             }
 
             return data.Data.map((item: any) => ({
-                time: item.time * 1000,
+                ts: item.time * 1000,
                 price: item.close,
                 open: item.open,
                 high: item.high,

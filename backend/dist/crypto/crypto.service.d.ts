@@ -8,7 +8,7 @@ export interface CoinData {
     marketCap: string;
 }
 export interface HistoryPoint {
-    time: number;
+    ts: number;
     price: number;
     open: number;
     high: number;
