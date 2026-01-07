@@ -10,8 +10,6 @@ import { getTopCoins, getHistoricalData, generateMarketForecast, getHistoricalNe
 // Limit: Number of points. Aggregate: steps to combine. Type: minute/hour/day.
 const getRangeParams = (range: string) => {
     switch (range) {
-        // 1 Minute: 2 points (Current + 1 past) to show a line
-        case '1m': return { limit: 2, aggregate: 1, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
         // 30 Minutes: 30 minutes, 1-min candles
         case '30m': return { limit: 30, aggregate: 1, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
         // 1 Hour: 60 minutes, 1-min candles
