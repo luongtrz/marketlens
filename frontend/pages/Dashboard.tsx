@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CoinData, ForecastResult, HistoryPoint, NewsArticle, PriceAlert } from '../types';
-import MarketChart from '../components/MarketChart';
+import LightweightChart from '../components/LightweightChart';
 import NewsCard from '../components/NewsCard';
 import ArticleDetailModal from '../components/ArticleDetailModal';
 import { RefreshCw, Zap, Search, BarChart2, TrendingUp, Globe, List, Loader2, Layers, Check, GripHorizontal, PanelRightClose, PanelRightOpen, Star, ArrowUp, ArrowDown, X, Bell, CheckCircle, Calendar, Trash2, BellRing, ChevronLeft, ChevronRight, Target, ShieldAlert, ArrowRight, BrainCircuit, Sparkles } from 'lucide-react';
@@ -44,15 +44,8 @@ const Dashboard: React.FC = () => {
     const [forecastResult, setForecastResult] = useState<ForecastResult | null>(null);
     const [loadingForecast, setLoadingForecast] = useState(false);
     const [combinedChartData, setCombinedChartData] = useState<any[]>([]);
-    const [chartType, setChartType] = useState<'area' | 'candle'>('candle');
     const [timeRange, setTimeRange] = useState('1D');
     const [loadingMarket, setLoadingMarket] = useState(true);
-
-    const [showRSI, setShowRSI] = useState(false);
-    const [showMACD, setShowMACD] = useState(false);
-    const [showBB, setShowBB] = useState(false);
-    const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
-    const indicatorMenuRef = useRef<HTMLDivElement>(null);
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [watchlistHeight, setWatchlistHeight] = useState(50);
@@ -100,15 +93,7 @@ const Dashboard: React.FC = () => {
         fetchMarket();
     }, []);
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (indicatorMenuRef.current && !indicatorMenuRef.current.contains(event.target as Node)) {
-                setShowIndicatorMenu(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+
 
     // Update Chart Data (History + Forecast Merging)
     useEffect(() => {
@@ -558,421 +543,374 @@ const Dashboard: React.FC = () => {
                                 ))}
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <div className="relative" ref={indicatorMenuRef}>
-                                    <button
-                                        onClick={() => setShowIndicatorMenu(!showIndicatorMenu)}
-                                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${showIndicatorMenu || showRSI || showMACD || showBB ? 'bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                                    >
-                                        <Layers size={14} />
-                                        <span className="hidden sm:inline">Indicators</span>
-                                    </button>
-
-                                    {showIndicatorMenu && (
-                                        <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
-                                            <div className="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Overlays</div>
-                                            <button
-                                                onClick={() => setShowBB(!showBB)}
-                                                className="w-full flex items-center justify-between px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                                            >
-                                                <span>Bollinger Bands</span>
-                                                {showBB && <Check size={14} className="text-indigo-600 dark:text-indigo-400" />}
-                                            </button>
-
-                                            <div className="px-3 py-2 mt-1 text-xs font-bold text-slate-400 uppercase tracking-wider border-t border-slate-100 dark:border-slate-800">Oscillators</div>
-                                            <button
-                                                onClick={() => setShowRSI(!showRSI)}
-                                                className="w-full flex items-center justify-between px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                                            >
-                                                <span>RSI (14)</span>
-                                                {showRSI && <Check size={14} className="text-indigo-600 dark:text-indigo-400" />}
-                                            </button>
-                                            <button
-                                                onClick={() => setShowMACD(!showMACD)}
-                                                className="w-full flex items-center justify-between px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                                            >
-                                                <span>MACD</span>
-                                                {showMACD && <Check size={14} className="text-indigo-600 dark:text-indigo-400" />}
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-800 pl-4 ml-2">
-                                    <button onClick={() => setChartType('area')} className={`p-1.5 rounded transition-all ${chartType === 'area' ? 'bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`} title="Line">
-                                        <TrendingUp size={16} />
-                                    </button>
-                                    <button onClick={() => setChartType('candle')} className={`p-1.5 rounded transition-all ${chartType === 'candle' ? 'bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`} title="Candles">
-                                        <BarChart2 size={16} />
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                     </div>
-                </div>
-
-                {/* Chart Content */}
-                <div className="flex-1 relative bg-white dark:bg-slate-900">
-                    <MarketChart
-                        data={combinedChartData}
-                        color={headerStats.change >= 0 ? '#10b981' : '#f43f5e'}
-                        type={chartType}
-                        showRSI={showRSI}
-                        showMACD={showMACD}
-                        showBB={showBB}
-                        onTimeRangeChange={setTimeRange}
-                        onAddAlert={handleChartAlert}
-                        onAnalyzeHistory={handleChartHistory}
-                    />
                 </div>
             </div>
 
-            {/* RIGHT: Sidebar Panel (Collapsible & Resizable) */}
-            {isSidebarOpen && (
-                <div
-                    ref={sidebarRef}
-                    className="w-full md:w-80 lg:w-96 flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800"
-                >
+            {/* Chart Content */}
+            <div className="flex-1 relative bg-white dark:bg-slate-900">
+                <LightweightChart
+                    data={combinedChartData}
+                    color={headerStats.change >= 0 ? '#10b981' : '#f43f5e'}
+                />
+            </div>
+        </div>
 
-                    {/* SECTION 1: Watchlist */}
-                    <div style={{ height: `${watchlistHeight}%` }} className="flex flex-col border-b border-slate-200 dark:border-slate-800 min-h-[180px]">
-                        {/* Watchlist Header */}
-                        <div className="p-3 border-b border-slate-200 dark:border-slate-800 space-y-3 bg-white dark:bg-slate-900">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-2">
-                                    {activeTab === 'alerts' ? <BellRing size={14} /> : <List size={14} />}
-                                    {activeTab === 'alerts' ? 'Active Alerts' : 'Watchlist'}
-                                </h3>
-                                {/* Tab Switcher */}
-                                <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
-                                    <button
-                                        onClick={() => setActiveTab('all')}
-                                        className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${activeTab === 'all' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                                    >
-                                        All
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveTab('favs')}
-                                        className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${activeTab === 'favs' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                                    >
-                                        Favs
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveTab('alerts')}
-                                        className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${activeTab === 'alerts' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                                    >
-                                        Alerts
-                                    </button>
-                                </div>
-                            </div>
+            {/* RIGHT: Sidebar Panel (Collapsible & Resizable) */ }
+    {
+        isSidebarOpen && (
+            <div
+                ref={sidebarRef}
+                className="w-full md:w-80 lg:w-96 flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800"
+            >
 
-                            {/* Search Bar */}
-                            <div className="relative">
-                                <Search size={14} className="absolute left-2.5 top-2 text-slate-400" />
-                                <input
-                                    type="text"
-                                    placeholder={activeTab === 'alerts' ? "Search alerts..." : "Search coin..."}
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-colors placeholder-slate-400 dark:placeholder-slate-500"
-                                />
-                            </div>
-
-                            {activeTab !== 'alerts' && (
-                                <div className="flex justify-between items-center px-3 pt-1 text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider">
-                                    <div className="w-[30%] text-left">Asset</div>
-                                    <div className="w-[25%] text-right cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" onClick={() => handleSort('price')}>Price <SortIcon colKey="price" /></div>
-                                    <div className="w-[20%] text-right cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" onClick={() => handleSort('change')}>Chg <SortIcon colKey="change" /></div>
-                                    <div className="w-[20%] text-right cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" onClick={() => handleSort('percent')}>% <SortIcon colKey="percent" /></div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Content Area */}
-                        <div className="flex-1 overflow-y-auto">
-                            {activeTab === 'alerts' ? (
-                                groupedAlerts.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                                        <BellRing size={24} className="mb-2 opacity-50" />
-                                        <p className="text-xs">No active alerts</p>
-                                        <button onClick={() => setAlertModalOpen(true)} className="mt-2 text-indigo-600 dark:text-indigo-400 text-xs font-bold hover:underline">Create one</button>
-                                    </div>
-                                ) : (
-                                    <div className="p-3 space-y-3">
-                                        {groupedAlerts
-                                            .filter(({ symbol }) => symbol.toLowerCase().includes(searchQuery.toLowerCase()))
-                                            .map(({ symbol, alerts }) => (
-                                                <div key={symbol} className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
-                                                    <div className="bg-slate-50 dark:bg-slate-800 px-3 py-2 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${symbol === 'BTC' ? 'bg-orange-500' : symbol === 'ETH' ? 'bg-blue-600' : symbol === 'SOL' ? 'bg-purple-600' : 'bg-slate-700'}`}>
-                                                                {symbol[0]}
-                                                            </div>
-                                                            <span className="font-bold text-xs text-slate-700 dark:text-slate-300">{symbol}</span>
-                                                        </div>
-                                                        <span className="text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded-full font-bold">{alerts.length}</span>
-                                                    </div>
-                                                    <div>
-                                                        {alerts.map(alert => (
-                                                            <div key={alert.id} className="flex justify-between items-center p-3 border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800 group">
-                                                                <div>
-                                                                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1">
-                                                                        {alert.condition === 'above' ? <ArrowUp size={12} className="text-green-500" /> : <ArrowDown size={12} className="text-red-500" />}
-                                                                        ${alert.targetPrice.toLocaleString()}
-                                                                    </div>
-                                                                    <div className="text-[9px] text-slate-400">Created just now</div>
-                                                                </div>
-                                                                <button onClick={() => deleteAlert(alert.id)} className="text-slate-300 dark:text-slate-600 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                    </div>
-                                )
-                            ) : (
-                                processedCoins.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                                        <Search size={24} className="mb-2 opacity-50" />
-                                        <p className="text-xs">No coins found</p>
-                                    </div>
-                                ) : (
-                                    processedCoins.map(coin => (
-                                        <div
-                                            key={coin.symbol}
-                                            onClick={() => { setSelectedCoinSymbol(coin.symbol); setForecastResult(null); }}
-                                            className={`flex items-center justify-between p-3 cursor-pointer border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group ${selectedCoinSymbol === coin.symbol ? 'bg-indigo-50 dark:bg-slate-800/50 border-l-2 border-l-indigo-600 dark:border-l-indigo-400' : 'border-l-2 border-l-transparent'}`}
-                                        >
-                                            <div className="flex items-center gap-2 w-[30%]">
-                                                <button onClick={(e) => toggleFavorite(e, coin.symbol)} className="text-slate-300 dark:text-slate-600 hover:text-amber-400 transition-colors">
-                                                    <Star size={14} fill={favorites.has(coin.symbol) ? "#fbbf24" : "none"} className={favorites.has(coin.symbol) ? "text-amber-400" : ""} />
-                                                </button>
-                                                <div>
-                                                    <div className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-none">{coin.symbol}</div>
-                                                    <div className="text-[9px] text-slate-400">{coin.name}</div>
-                                                </div>
-                                            </div>
-                                            <div className="w-[25%] text-right text-sm font-medium text-slate-700 dark:text-slate-300">${coin.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-                                            <div className={`w-[20%] text-right text-xs ${coin.change24h >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>{coin.change24h > 0 ? '+' : ''}{Math.abs(coin.change24h).toFixed(2)}</div>
-                                            <div className={`w-[20%] text-right`}>
-                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${coin.change24h >= 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
-                                                    {((coin.change24h / (coin.price - coin.change24h)) * 100).toFixed(2)}%
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))
-                                )
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Resize Handle */}
-                    <div
-                        onMouseDown={startResizing}
-                        className="h-3 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 cursor-row-resize flex items-center justify-center hover:bg-indigo-50 dark:hover:bg-slate-800 transition-colors group z-10"
-                    >
-                        <GripHorizontal size={14} className="text-slate-300 dark:text-slate-600 group-hover:text-indigo-400" />
-                    </div>
-
-                    {/* SECTION 2: AI Intelligence */}
-                    <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
-                        <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
-                            <h3 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase flex items-center gap-2">
-                                <Zap size={14} /> MarketLens Intelligence
+                {/* SECTION 1: Watchlist */}
+                <div style={{ height: `${watchlistHeight}%` }} className="flex flex-col border-b border-slate-200 dark:border-slate-800 min-h-[180px]">
+                    {/* Watchlist Header */}
+                    <div className="p-3 border-b border-slate-200 dark:border-slate-800 space-y-3 bg-white dark:bg-slate-900">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-2">
+                                {activeTab === 'alerts' ? <BellRing size={14} /> : <List size={14} />}
+                                {activeTab === 'alerts' ? 'Active Alerts' : 'Watchlist'}
                             </h3>
-                            {forecastResult && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${forecastResult.trend === 'Bullish' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
-                                    {forecastResult.trend}
-                                </span>
-                            )}
+                            {/* Tab Switcher */}
+                            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
+                                <button
+                                    onClick={() => setActiveTab('all')}
+                                    className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${activeTab === 'all' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                >
+                                    All
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('favs')}
+                                    className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${activeTab === 'favs' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                >
+                                    Favs
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('alerts')}
+                                    className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${activeTab === 'alerts' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                >
+                                    Alerts
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                            {forecastResult ? (
-                                <div className="space-y-4 animate-in fade-in">
+                        {/* Search Bar */}
+                        <div className="relative">
+                            <Search size={14} className="absolute left-2.5 top-2 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder={activeTab === 'alerts' ? "Search alerts..." : "Search coin..."}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-colors placeholder-slate-400 dark:placeholder-slate-500"
+                            />
+                        </div>
 
-                                    {/* Action Recommendation Card */}
-                                    {forecastResult.recommendation && (
-                                        <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-800 dark:to-slate-900 p-4 rounded-xl border border-indigo-100 dark:border-slate-700 shadow-sm">
-                                            <div className="flex justify-between items-center mb-3">
-                                                <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide flex items-center gap-1">
-                                                    <Target size={14} /> Trade Signal
-                                                </h4>
-                                                <span className={`px-2 py-0.5 rounded text-xs font-bold ${forecastResult.recommendation.action === 'Buy' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                                    forecastResult.recommendation.action === 'Sell' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                                        'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                                                    }`}>
-                                                    {forecastResult.recommendation.action}
-                                                </span>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2 text-xs">
-                                                <div className="bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
-                                                    <span className="text-[10px] text-slate-500 block mb-0.5">Entry Zone</span>
-                                                    <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{forecastResult.recommendation.entryZone}</span>
-                                                </div>
-                                                <div className="bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
-                                                    <span className="text-[10px] text-slate-500 block mb-0.5">Target</span>
-                                                    <span className="font-mono font-semibold text-green-600 dark:text-green-400">{forecastResult.recommendation.targetPrice}</span>
-                                                </div>
-                                            </div>
-                                            <div className="mt-2 flex items-center gap-2 text-[10px] text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-1.5 rounded border border-red-100 dark:border-red-900/30">
-                                                <ShieldAlert size={10} />
-                                                <span>Stop Loss: {forecastResult.recommendation.stopLoss}</span>
-                                            </div>
-                                        </div>
-                                    )}
+                        {activeTab !== 'alerts' && (
+                            <div className="flex justify-between items-center px-3 pt-1 text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider">
+                                <div className="w-[30%] text-left">Asset</div>
+                                <div className="w-[25%] text-right cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" onClick={() => handleSort('price')}>Price <SortIcon colKey="price" /></div>
+                                <div className="w-[20%] text-right cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" onClick={() => handleSort('change')}>Chg <SortIcon colKey="change" /></div>
+                                <div className="w-[20%] text-right cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" onClick={() => handleSort('percent')}>% <SortIcon colKey="percent" /></div>
+                            </div>
+                        )}
+                    </div>
 
-                                    {/* Confidence */}
-                                    <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-xs text-slate-500 dark:text-slate-400">Confidence</span>
-                                            <span className="text-xs font-bold text-slate-900 dark:text-white">{forecastResult.confidenceScore}%</span>
-                                        </div>
-                                        <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div className={`h-full rounded-full ${forecastResult.confidenceScore > 70 ? 'bg-green-500' : 'bg-yellow-500'}`} style={{ width: `${forecastResult.confidenceScore}%` }}></div>
-                                        </div>
-                                    </div>
-
-                                    {/* Reasoning */}
-                                    <div>
-                                        <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase">Analysis</h4>
-                                        <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-                                            {forecastResult.reasoning}
-                                        </p>
-                                    </div>
-
-                                    {/* Sources */}
-                                    {forecastResult.sources && forecastResult.sources.length > 0 && (
-                                        <div>
-                                            <h4 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase flex items-center gap-1">
-                                                <Globe size={10} /> Grounding
-                                            </h4>
-                                            <div className="space-y-1">
-                                                {forecastResult.sources.slice(0, 2).map((s, i) => (
-                                                    <a key={i} href={s.url} target="_blank" className="block text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline truncate">
-                                                        {s.title}
-                                                    </a>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <button
-                                        onClick={handleForecast}
-                                        className="w-full py-1.5 mt-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded text-xs transition flex items-center justify-center gap-2"
-                                    >
-                                        <RefreshCw size={12} /> Refresh Analysis
-                                    </button>
-                                </div>
-                            ) : loadingForecast ? (
-                                // Skeleton Loading State
-                                <div className="space-y-4 animate-pulse">
-                                    <div className="h-32 bg-slate-100 dark:bg-slate-800 rounded-xl"></div>
-                                    <div className="space-y-2">
-                                        <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-3/4"></div>
-                                        <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-1/2"></div>
-                                    </div>
-                                    <div className="h-20 bg-slate-100 dark:bg-slate-800 rounded-lg"></div>
+                    {/* Content Area */}
+                    <div className="flex-1 overflow-y-auto">
+                        {activeTab === 'alerts' ? (
+                            groupedAlerts.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                                    <BellRing size={24} className="mb-2 opacity-50" />
+                                    <p className="text-xs">No active alerts</p>
+                                    <button onClick={() => setAlertModalOpen(true)} className="mt-2 text-indigo-600 dark:text-indigo-400 text-xs font-bold hover:underline">Create one</button>
                                 </div>
                             ) : (
-                                // No forecast - show generate button
-                                <div className="flex flex-col items-center justify-center py-12">
-                                    <BrainCircuit size={48} className="text-slate-300 dark:text-slate-700 mb-4" />
-                                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">No forecast generated yet</p>
-                                    <button
-                                        onClick={handleForecast}
-                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                                    >
-                                        <Sparkles size={16} />
-                                        Generate AI Forecast
-                                    </button>
+                                <div className="p-3 space-y-3">
+                                    {groupedAlerts
+                                        .filter(({ symbol }) => symbol.toLowerCase().includes(searchQuery.toLowerCase()))
+                                        .map(({ symbol, alerts }) => (
+                                            <div key={symbol} className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+                                                <div className="bg-slate-50 dark:bg-slate-800 px-3 py-2 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${symbol === 'BTC' ? 'bg-orange-500' : symbol === 'ETH' ? 'bg-blue-600' : symbol === 'SOL' ? 'bg-purple-600' : 'bg-slate-700'}`}>
+                                                            {symbol[0]}
+                                                        </div>
+                                                        <span className="font-bold text-xs text-slate-700 dark:text-slate-300">{symbol}</span>
+                                                    </div>
+                                                    <span className="text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded-full font-bold">{alerts.length}</span>
+                                                </div>
+                                                <div>
+                                                    {alerts.map(alert => (
+                                                        <div key={alert.id} className="flex justify-between items-center p-3 border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800 group">
+                                                            <div>
+                                                                <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1">
+                                                                    {alert.condition === 'above' ? <ArrowUp size={12} className="text-green-500" /> : <ArrowDown size={12} className="text-red-500" />}
+                                                                    ${alert.targetPrice.toLocaleString()}
+                                                                </div>
+                                                                <div className="text-[9px] text-slate-400">Created just now</div>
+                                                            </div>
+                                                            <button onClick={() => deleteAlert(alert.id)} className="text-slate-300 dark:text-slate-600 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
                                 </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* --- MODALS --- */}
-
-            {/* Alert Modal */}
-            {alertModalOpen && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl relative animate-in zoom-in-95 duration-200">
-                        <button onClick={() => setAlertModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={20} /></button>
-
-                        {alertSuccess ? (
-                            <div className="flex flex-col items-center justify-center py-8 text-green-600">
-                                <CheckCircle size={48} className="mb-4" />
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Alert Confirmed!</h3>
-                                <p className="text-slate-500 dark:text-slate-400 text-sm">We'll notify you when price hits ${alertTargetPrice.toLocaleString()}</p>
-                            </div>
+                            )
                         ) : (
-                            <>
-                                <div className="flex items-center gap-2 mb-4 text-slate-900 dark:text-white">
-                                    <Bell className="text-indigo-600 dark:text-indigo-400" />
-                                    <h3 className="font-bold text-lg">Set Chart Alert</h3>
+                            processedCoins.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                                    <Search size={24} className="mb-2 opacity-50" />
+                                    <p className="text-xs">No coins found</p>
                                 </div>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Asset</label>
-                                        <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-sm font-medium">
-                                            {selectedCoin.name} ({selectedCoin.symbol})
+                            ) : (
+                                processedCoins.map(coin => (
+                                    <div
+                                        key={coin.symbol}
+                                        onClick={() => { setSelectedCoinSymbol(coin.symbol); setForecastResult(null); }}
+                                        className={`flex items-center justify-between p-3 cursor-pointer border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group ${selectedCoinSymbol === coin.symbol ? 'bg-indigo-50 dark:bg-slate-800/50 border-l-2 border-l-indigo-600 dark:border-l-indigo-400' : 'border-l-2 border-l-transparent'}`}
+                                    >
+                                        <div className="flex items-center gap-2 w-[30%]">
+                                            <button onClick={(e) => toggleFavorite(e, coin.symbol)} className="text-slate-300 dark:text-slate-600 hover:text-amber-400 transition-colors">
+                                                <Star size={14} fill={favorites.has(coin.symbol) ? "#fbbf24" : "none"} className={favorites.has(coin.symbol) ? "text-amber-400" : ""} />
+                                            </button>
+                                            <div>
+                                                <div className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-none">{coin.symbol}</div>
+                                                <div className="text-[9px] text-slate-400">{coin.name}</div>
+                                            </div>
+                                        </div>
+                                        <div className="w-[25%] text-right text-sm font-medium text-slate-700 dark:text-slate-300">${coin.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                                        <div className={`w-[20%] text-right text-xs ${coin.change24h >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>{coin.change24h > 0 ? '+' : ''}{Math.abs(coin.change24h).toFixed(2)}</div>
+                                        <div className={`w-[20%] text-right`}>
+                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${coin.change24h >= 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
+                                                {((coin.change24h / (coin.price - coin.change24h)) * 100).toFixed(2)}%
+                                            </span>
                                         </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Target Price ($)</label>
-                                        <input type="number" value={alertTargetPrice} onChange={(e) => setAlertTargetPrice(parseFloat(e.target.value))} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-                                    </div>
-                                    <button onClick={handleSaveAlert} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">Save Alert</button>
-                                </div>
-                            </>
+                                ))
+                            )
                         )}
                     </div>
                 </div>
-            )}
 
-            {/* Historical News Modal */}
-            {historyModalOpen && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl relative animate-in zoom-in-95 duration-200">
-                        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 rounded-t-2xl z-10">
-                            <div className="flex items-center gap-2">
-                                <Calendar className="text-indigo-600 dark:text-indigo-400" size={20} />
+                {/* Resize Handle */}
+                <div
+                    onMouseDown={startResizing}
+                    className="h-3 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 cursor-row-resize flex items-center justify-center hover:bg-indigo-50 dark:hover:bg-slate-800 transition-colors group z-10"
+                >
+                    <GripHorizontal size={14} className="text-slate-300 dark:text-slate-600 group-hover:text-indigo-400" />
+                </div>
+
+                {/* SECTION 2: AI Intelligence */}
+                <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+                    <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
+                        <h3 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase flex items-center gap-2">
+                            <Zap size={14} /> MarketLens Intelligence
+                        </h3>
+                        {forecastResult && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${forecastResult.trend === 'Bullish' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
+                                {forecastResult.trend}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                        {forecastResult ? (
+                            <div className="space-y-4 animate-in fade-in">
+
+                                {/* Action Recommendation Card */}
+                                {forecastResult.recommendation && (
+                                    <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-800 dark:to-slate-900 p-4 rounded-xl border border-indigo-100 dark:border-slate-700 shadow-sm">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide flex items-center gap-1">
+                                                <Target size={14} /> Trade Signal
+                                            </h4>
+                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${forecastResult.recommendation.action === 'Buy' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                                forecastResult.recommendation.action === 'Sell' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                                    'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                                }`}>
+                                                {forecastResult.recommendation.action}
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                            <div className="bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
+                                                <span className="text-[10px] text-slate-500 block mb-0.5">Entry Zone</span>
+                                                <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{forecastResult.recommendation.entryZone}</span>
+                                            </div>
+                                            <div className="bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
+                                                <span className="text-[10px] text-slate-500 block mb-0.5">Target</span>
+                                                <span className="font-mono font-semibold text-green-600 dark:text-green-400">{forecastResult.recommendation.targetPrice}</span>
+                                            </div>
+                                        </div>
+                                        <div className="mt-2 flex items-center gap-2 text-[10px] text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-1.5 rounded border border-red-100 dark:border-red-900/30">
+                                            <ShieldAlert size={10} />
+                                            <span>Stop Loss: {forecastResult.recommendation.stopLoss}</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Confidence */}
+                                <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-xs text-slate-500 dark:text-slate-400">Confidence</span>
+                                        <span className="text-xs font-bold text-slate-900 dark:text-white">{forecastResult.confidenceScore}%</span>
+                                    </div>
+                                    <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                        <div className={`h-full rounded-full ${forecastResult.confidenceScore > 70 ? 'bg-green-500' : 'bg-yellow-500'}`} style={{ width: `${forecastResult.confidenceScore}%` }}></div>
+                                    </div>
+                                </div>
+
+                                {/* Reasoning */}
                                 <div>
-                                    <h3 className="font-bold text-slate-900 dark:text-white">Historical Context</h3>
-                                    <p className="text-xs text-slate-500">News around {historyDate.split(',')[0]}</p>
+                                    <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase">Analysis</h4>
+                                    <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                                        {forecastResult.reasoning}
+                                    </p>
                                 </div>
-                            </div>
-                            <button onClick={() => setHistoryModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={20} /></button>
-                        </div>
 
-                        <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-950 rounded-b-2xl custom-scrollbar">
-                            {loadingHistory ? (
-                                <div className="flex flex-col items-center justify-center h-64 space-y-3">
-                                    <Loader2 className="animate-spin text-indigo-600 dark:text-indigo-400" size={32} />
-                                    <p className="text-sm text-slate-500">Searching archives...</p>
+                                {/* Sources */}
+                                {forecastResult.sources && forecastResult.sources.length > 0 && (
+                                    <div>
+                                        <h4 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase flex items-center gap-1">
+                                            <Globe size={10} /> Grounding
+                                        </h4>
+                                        <div className="space-y-1">
+                                            {forecastResult.sources.slice(0, 2).map((s, i) => (
+                                                <a key={i} href={s.url} target="_blank" className="block text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline truncate">
+                                                    {s.title}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={handleForecast}
+                                    className="w-full py-1.5 mt-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded text-xs transition flex items-center justify-center gap-2"
+                                >
+                                    <RefreshCw size={12} /> Refresh Analysis
+                                </button>
+                            </div>
+                        ) : loadingForecast ? (
+                            // Skeleton Loading State
+                            <div className="space-y-4 animate-pulse">
+                                <div className="h-32 bg-slate-100 dark:bg-slate-800 rounded-xl"></div>
+                                <div className="space-y-2">
+                                    <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-3/4"></div>
+                                    <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-1/2"></div>
                                 </div>
-                            ) : historicalNews.length === 0 ? (
-                                <div className="text-center py-20 text-slate-500 text-sm">No specific news found for this exact timeframe.</div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {historicalNews.map((news) => (
-                                        <NewsCard key={news.id} article={news} onClick={(article) => setSelectedHistoryArticle(article)} />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                                <div className="h-20 bg-slate-100 dark:bg-slate-800 rounded-lg"></div>
+                            </div>
+                        ) : (
+                            // No forecast - show generate button
+                            <div className="flex flex-col items-center justify-center py-12">
+                                <BrainCircuit size={48} className="text-slate-300 dark:text-slate-700 mb-4" />
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">No forecast generated yet</p>
+                                <button
+                                    onClick={handleForecast}
+                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                >
+                                    <Sparkles size={16} />
+                                    Generate AI Forecast
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
-            )}
+            </div>
+        )
+    }
 
-            {/* Detail Article Modal for History */}
-            {selectedHistoryArticle && (
-                <ArticleDetailModal article={selectedHistoryArticle} onClose={() => setSelectedHistoryArticle(null)} />
-            )}
+    {/* --- MODALS --- */ }
 
-        </div>
+    {/* Alert Modal */ }
+    {
+        alertModalOpen && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl relative animate-in zoom-in-95 duration-200">
+                    <button onClick={() => setAlertModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={20} /></button>
+
+                    {alertSuccess ? (
+                        <div className="flex flex-col items-center justify-center py-8 text-green-600">
+                            <CheckCircle size={48} className="mb-4" />
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Alert Confirmed!</h3>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm">We'll notify you when price hits ${alertTargetPrice.toLocaleString()}</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-2 mb-4 text-slate-900 dark:text-white">
+                                <Bell className="text-indigo-600 dark:text-indigo-400" />
+                                <h3 className="font-bold text-lg">Set Chart Alert</h3>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Asset</label>
+                                    <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-sm font-medium">
+                                        {selectedCoin.name} ({selectedCoin.symbol})
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Target Price ($)</label>
+                                    <input type="number" value={alertTargetPrice} onChange={(e) => setAlertTargetPrice(parseFloat(e.target.value))} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                                </div>
+                                <button onClick={handleSaveAlert} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">Save Alert</button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+        )
+    }
+
+    {/* Historical News Modal */ }
+    {
+        historyModalOpen && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl relative animate-in zoom-in-95 duration-200">
+                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 rounded-t-2xl z-10">
+                        <div className="flex items-center gap-2">
+                            <Calendar className="text-indigo-600 dark:text-indigo-400" size={20} />
+                            <div>
+                                <h3 className="font-bold text-slate-900 dark:text-white">Historical Context</h3>
+                                <p className="text-xs text-slate-500">News around {historyDate.split(',')[0]}</p>
+                            </div>
+                        </div>
+                        <button onClick={() => setHistoryModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={20} /></button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-950 rounded-b-2xl custom-scrollbar">
+                        {loadingHistory ? (
+                            <div className="flex flex-col items-center justify-center h-64 space-y-3">
+                                <Loader2 className="animate-spin text-indigo-600 dark:text-indigo-400" size={32} />
+                                <p className="text-sm text-slate-500">Searching archives...</p>
+                            </div>
+                        ) : historicalNews.length === 0 ? (
+                            <div className="text-center py-20 text-slate-500 text-sm">No specific news found for this exact timeframe.</div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {historicalNews.map((news) => (
+                                    <NewsCard key={news.id} article={news} onClick={(article) => setSelectedHistoryArticle(article)} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    {/* Detail Article Modal for History */ }
+    {
+        selectedHistoryArticle && (
+            <ArticleDetailModal article={selectedHistoryArticle} onClose={() => setSelectedHistoryArticle(null)} />
+        )
+    }
+
+        </div >
     );
 };
 
