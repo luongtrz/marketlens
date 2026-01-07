@@ -906,14 +906,12 @@ const Dashboard: React.FC = () => {
     }
 
 
-    {/* Detail Article Modal for History */ }
-    {
-        selectedHistoryArticle && (
-            <ArticleDetailModal article={selectedHistoryArticle} onClose={() => setSelectedHistoryArticle(null)} />
-        )
-    }
+    {/* Detail Article Modal for History */}
+    {selectedHistoryArticle && (
+        <ArticleDetailModal article={selectedHistoryArticle} onClose={() => setSelectedHistoryArticle(null)} />
+    )}
 
-        </div >
+        </div>
     );
 };
 
