@@ -910,8 +910,8 @@ const Dashboard: React.FC = () => {
         <ArticleDetailModal article={selectedHistoryArticle} onClose={() => setSelectedHistoryArticle(null)} />
     )}
 
-        </div>
     );
+        </div>
 };
 
 export default Dashboard;
