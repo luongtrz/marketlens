@@ -18,6 +18,8 @@ const getRangeParams = (range: string) => {
         case '1H': return { limit: 60, aggregate: 1, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
         // 12 Hours: 720 minutes. 5-min candles => 144 points
         case '12H': return { limit: 144, aggregate: 5, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
+        // 1 Minute view: Last 60 candles (1 hour of 1-minute candles)
+        case '1m': return { limit: 60, aggregate: 1, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
         // 24 Hours. Limit 1440 if we want full minute data or 144 points with aggregate 10
         case '1D': return { limit: 144, aggregate: 10, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
         // 1 Month = 30 days = 720 hours. Limit 720, type hour
