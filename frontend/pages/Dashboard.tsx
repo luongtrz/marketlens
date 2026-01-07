@@ -168,8 +168,51 @@ const Dashboard: React.FC = () => {
 
         socket.on('connect', () => {
             console.log('Connected to Realtime Socket');
-            // Request to join room for kline updates
+            // Request to join room for kline and trade updates
             socket.emit('join-room', { symbol, type: 'kline' });
+            socket.emit('join-room', { symbol, type: 'trade' });
+        });
+
+
+        // Throttle trade updates to avoid excessive re-renders
+        let lastTradeUpdate = 0;
+        const TRADE_THROTTLE_MS = 200; // Update max 5 times/sec
+
+        socket.on('trade', (message: any) => {
+            // message format: { e: 'trade', s: 'BTCUSDT', p: '91234.56', ... }
+            const now = Date.now();
+            if (now - lastTradeUpdate < TRADE_THROTTLE_MS) return;
+            lastTradeUpdate = now;
+
+            const price = parseFloat(message.p);
+
+            setCombinedChartData(prevData => {
+                if (prevData.length === 0) return prevData;
+
+                const newData = [...prevData];
+
+                // Find latest real candle
+                let targetIndex = -1;
+                for (let i = newData.length - 1; i >= 0; i--) {
+                    if (newData[i].price !== undefined) {
+                        targetIndex = i;
+                        break;
+                    }
+                }
+                if (targetIndex === -1) return prevData;
+
+                const targetPoint = newData[targetIndex];
+
+                // Update close price and high/low if needed
+                newData[targetIndex] = {
+                    ...targetPoint,
+                    price: price,
+                    high: Math.max(targetPoint.high || price, price),
+                    low: Math.min(targetPoint.low || price, price),
+                };
+
+                return newData;
+            });
         });
 
         socket.on('kline', (payload: { symbol: string; data: any }) => {
@@ -236,6 +279,7 @@ const Dashboard: React.FC = () => {
 
         return () => {
             socket.emit('leave-room', { symbol, type: 'kline' });
+            socket.emit('leave-room', { symbol, type: 'trade' });
             socket.disconnect();
         };
     }, [selectedCoin?.symbol]);
