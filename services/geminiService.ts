@@ -92,7 +92,7 @@ export const generateMarketForecast = async (coinName: string, recentTrend: stri
     1. Search for the latest news in the last 24 hours regarding ${coinName}.
     2. Generate a forecast for the next 5 time periods.
     3. Generate a concrete trading recommendation.
-    4. Return a JSON object.
+    4. Return ONLY a valid JSON object (no markdown, no code blocks, just raw JSON).
     
     CRITICAL: In the 'reasoning' field, you MUST include specific technical analysis references:
     - Estimate current RSI levels (e.g., "RSI is hovering at 65").
@@ -118,27 +118,7 @@ export const generateMarketForecast = async (coinName: string, recentTrend: stri
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            predictedPrices: { type: Type.ARRAY, items: { type: Type.NUMBER } },
-            confidenceScore: { type: Type.NUMBER },
-            reasoning: { type: Type.STRING },
-            trend: { type: Type.STRING, enum: ["Bullish", "Bearish", "Neutral"] },
-            recommendation: {
-              type: Type.OBJECT,
-              properties: {
-                action: { type: Type.STRING, enum: ["Buy", "Sell", "Hold"] },
-                entryZone: { type: Type.STRING },
-                targetPrice: { type: Type.STRING },
-                stopLoss: { type: Type.STRING }
-              },
-              required: ["action", "entryZone", "targetPrice", "stopLoss"]
-            }
-          },
-          required: ["predictedPrices", "confidenceScore", "reasoning", "trend", "recommendation"],
-        },
+        // Note: responseMimeType is incompatible with tools, so we parse JSON manually
       },
     });
 
