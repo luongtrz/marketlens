@@ -3,7 +3,7 @@ import { CoinData, ForecastResult, HistoryPoint, NewsArticle, PriceAlert } from 
 import MarketChart from '../components/MarketChart';
 import NewsCard from '../components/NewsCard';
 import ArticleDetailModal from '../components/ArticleDetailModal';
-import { RefreshCw, Zap, Search, BarChart2, TrendingUp, Globe, List, Loader2, Layers, Check, GripHorizontal, PanelRightClose, PanelRightOpen, Star, ArrowUp, ArrowDown, X, Bell, CheckCircle, Calendar, Trash2, BellRing, ChevronLeft, ChevronRight, Target, ShieldAlert, ArrowRight } from 'lucide-react';
+import { RefreshCw, Zap, Search, BarChart2, TrendingUp, Globe, List, Loader2, Layers, Check, GripHorizontal, PanelRightClose, PanelRightOpen, Star, ArrowUp, ArrowDown, X, Bell, CheckCircle, Calendar, Trash2, BellRing, ChevronLeft, ChevronRight, Target, ShieldAlert, ArrowRight, BrainCircuit, Sparkles } from 'lucide-react';
 import { getTopCoins, getHistoricalData } from '../services/cryptoCompareService';
 import { generateMarketForecast, getHistoricalNews } from '../services/geminiService';
 
@@ -686,8 +686,8 @@ const Dashboard: React.FC = () => {
                                         <RefreshCw size={12} /> Refresh Analysis
                                     </button>
                                 </div>
-                            ) : (
-                                // Skeleton Loading State for initial load
+                            ) : loadingForecast ? (
+                                // Skeleton Loading State
                                 <div className="space-y-4 animate-pulse">
                                     <div className="h-32 bg-slate-100 dark:bg-slate-800 rounded-xl"></div>
                                     <div className="space-y-2">
@@ -695,6 +695,19 @@ const Dashboard: React.FC = () => {
                                         <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-1/2"></div>
                                     </div>
                                     <div className="h-20 bg-slate-100 dark:bg-slate-800 rounded-lg"></div>
+                                </div>
+                            ) : (
+                                // No forecast - show generate button
+                                <div className="flex flex-col items-center justify-center py-12">
+                                    <BrainCircuit size={48} className="text-slate-300 dark:text-slate-700 mb-4" />
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">No forecast generated yet</p>
+                                    <button
+                                        onClick={handleForecast}
+                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                    >
+                                        <Sparkles size={16} />
+                                        Generate AI Forecast
+                                    </button>
                                 </div>
                             )}
                         </div>
