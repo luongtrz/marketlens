@@ -152,7 +152,7 @@ export const createChatSession = () => {
                 // Return fallback so UI doesn't crash
                 return {
                     response: {
-                        text: "I'm having trouble connecting to the server.",
+                        text: () => "I'm having trouble connecting to the server.",
                         candidates: []
                     }
                 };
