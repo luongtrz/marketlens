@@ -15,7 +15,7 @@ const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key-for-build' });
 // - PREMIUM_MODEL: Complex tasks (forecasting, deep search) - Limited quota (20 RPD)
 const ANALYSIS_MODEL = "gemma-3-4b";           // 14,400 RPD - For simple analysis
 const CHAT_MODEL = "gemini-2.5-flash-lite";    // 1,000 RPD - For chat & context
-const PREMIUM_MODEL = "gemini-3-flash";        // 20 RPD - For critical forecasting
+const PREMIUM_MODEL = "gemini-2.5-flash";      // 20 RPD - For critical forecasting
 
 /**
  * Analyzes a specific news article to determine sentiment and summary.
