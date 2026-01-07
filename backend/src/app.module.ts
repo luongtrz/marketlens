@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { CryptoModule } from './crypto/crypto.module';
 import { AiModule } from './ai/ai.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { AiModule } from './ai/ai.module';
     }),
     CryptoModule,
     AiModule,
+    RealtimeModule,
   ],
 })
 export class AppModule { }

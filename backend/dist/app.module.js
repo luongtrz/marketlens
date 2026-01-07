@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const crypto_module_1 = require("./crypto/crypto.module");
 const ai_module_1 = require("./ai/ai.module");
+const realtime_module_1 = require("./realtime/realtime.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -23,6 +24,7 @@ exports.AppModule = AppModule = __decorate([
             }),
             crypto_module_1.CryptoModule,
             ai_module_1.AiModule,
+            realtime_module_1.RealtimeModule,
         ],
     })
 ], AppModule);

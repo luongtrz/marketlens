@@ -4,7 +4,7 @@ import MarketChart from '../components/MarketChart';
 import NewsCard from '../components/NewsCard';
 import ArticleDetailModal from '../components/ArticleDetailModal';
 import { RefreshCw, Zap, Search, BarChart2, TrendingUp, Globe, List, Loader2, Layers, Check, GripHorizontal, PanelRightClose, PanelRightOpen, Star, ArrowUp, ArrowDown, X, Bell, CheckCircle, Calendar, Trash2, BellRing, ChevronLeft, ChevronRight, Target, ShieldAlert, ArrowRight, BrainCircuit, Sparkles } from 'lucide-react';
-import { getTopCoins, getHistoricalData, generateMarketForecast, getHistoricalNews } from '../services/apiService';
+import { getTopCoins, getHistoricalData, generateMarketForecast, getHistoricalNews, createSocketConnection } from '../services/apiService';
 
 // Range Configuration for CryptoCompare
 // Limit: Number of points. Aggregate: steps to combine. Type: minute/hour/day.
@@ -158,6 +158,62 @@ const Dashboard: React.FC = () => {
 
         fetchChart();
     }, [selectedCoin, forecastResult, timeRange]);
+
+    // Real-time updates via WebSocket
+    useEffect(() => {
+        if (!selectedCoin) return;
+
+        const socket = createSocketConnection();
+        const symbol = selectedCoin.symbol;
+
+        socket.on('connect', () => {
+            console.log('Connected to Realtime Socket');
+            // Request to join room for kline updates
+            socket.emit('join-room', { symbol, type: 'kline' });
+        });
+
+        socket.on('kline', (payload: { symbol: string; data: any }) => {
+            if (payload.symbol !== symbol) return;
+
+            setCombinedChartData(prevData => {
+                if (prevData.length === 0) return prevData;
+
+                const newData = [...prevData];
+                const lastPoint = newData[newData.length - 1];
+                const kline = payload.data;
+                const klineTime = new Date(kline.time);
+
+                // If we have forecast points (future), we need to handle them carefully.
+                // Current strategy: Update the latest "real" point.
+
+                // Find index of the real candle matching this time or the last real candle
+                const lastRealIndex = newData.findIndex(p => p.forecast !== undefined && p.price === undefined) - 1;
+                const targetIndex = lastRealIndex >= 0 ? lastRealIndex : newData.length - 1;
+
+                const targetPoint = newData[targetIndex];
+
+                // Simple update logic: if timestamp matches, update. If new, push (if strict real-time needed).
+                // For now, we just update the latest candle to prevent chart jumping too much in this demo
+                if (targetPoint && Math.abs(targetPoint.ts - kline.time) < 60000) { // Within 1 min
+                    newData[targetIndex] = {
+                        ...targetPoint,
+                        price: kline.close,
+                        open: kline.open,
+                        high: kline.high,
+                        low: kline.low,
+                        volume: kline.volume
+                    };
+                }
+
+                return newData;
+            });
+        });
+
+        return () => {
+            socket.emit('leave-room', { symbol, type: 'kline' });
+            socket.disconnect();
+        };
+    }, [selectedCoin]);
 
     // Sidebar Resizing Logic
     const startResizing = (e: React.MouseEvent) => {

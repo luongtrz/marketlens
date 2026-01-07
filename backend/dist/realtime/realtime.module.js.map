@@ -1,0 +1,1 @@
+{"version":3,"file":"realtime.module.js","sourceRoot":"","sources":["../../src/realtime/realtime.module.ts"],"names":[],"mappings":";;;;;;;;;AAAA,2CAAwC;AACxC,yDAAqD;AAM9C,IAAM,cAAc,GAApB,MAAM,cAAc;CAAI,CAAA;AAAlB,wCAAc;yBAAd,cAAc;IAJ1B,IAAA,eAAM,EAAC;QACJ,SAAS,EAAE,CAAC,kCAAe,CAAC;QAC5B,OAAO,EAAE,CAAC,kCAAe,CAAC;KAC7B,CAAC;GACW,cAAc,CAAI"}
