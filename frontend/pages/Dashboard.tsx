@@ -79,6 +79,11 @@ const Dashboard: React.FC = () => {
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [selectedHistoryArticle, setSelectedHistoryArticle] = useState<NewsArticle | null>(null);
 
+    // WebSocket connection status and visual feedback
+    const [wsStatus, setWsStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
+    const [priceFlash, setPriceFlash] = useState<'up' | 'down' | null>(null);
+    const [lastPrice, setLastPrice] = useState<number>(0);
+
     const selectedCoin = coins.find(c => c.symbol === selectedCoinSymbol) || coins[0];
 
     useEffect(() => {
@@ -165,14 +170,25 @@ const Dashboard: React.FC = () => {
 
         const socket = createSocketConnection();
         const symbol = selectedCoin.symbol;
+        setWsStatus('connecting');
 
         socket.on('connect', () => {
             console.log('Connected to Realtime Socket');
+            setWsStatus('connected');
             // Request to join room for kline and trade updates
             socket.emit('join-room', { symbol, type: 'kline' });
             socket.emit('join-room', { symbol, type: 'trade' });
         });
 
+        socket.on('disconnect', () => {
+            console.log('Disconnected from Realtime Socket');
+            setWsStatus('disconnected');
+        });
+
+        socket.on('reconnect', () => {
+            console.log('Reconnected to Realtime Socket');
+            setWsStatus('connected');
+        });
 
         // Throttle trade updates to avoid excessive re-renders
         let lastTradeUpdate = 0;
@@ -186,6 +202,17 @@ const Dashboard: React.FC = () => {
 
             const price = parseFloat(message.p);
             console.log('Trade Update:', { price, symbol: message.s });
+
+            // Trigger price flash animation
+            if (lastPrice > 0) {
+                if (price > lastPrice) {
+                    setPriceFlash('up');
+                } else if (price < lastPrice) {
+                    setPriceFlash('down');
+                }
+                setTimeout(() => setPriceFlash(null), 300);
+            }
+            setLastPrice(price);
 
             setCombinedChartData(prevData => {
                 if (prevData.length === 0) return prevData;
@@ -282,6 +309,7 @@ const Dashboard: React.FC = () => {
             socket.emit('leave-room', { symbol, type: 'kline' });
             socket.emit('leave-room', { symbol, type: 'trade' });
             socket.disconnect();
+            setWsStatus('disconnected');
         };
     }, [selectedCoin?.symbol]);
 
@@ -480,13 +508,20 @@ const Dashboard: React.FC = () => {
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
                                         <h1 className="text-2xl font-bold text-slate-900 dark:text-white leading-none">{selectedCoin.name} / U.S. Dollar</h1>
-                                        <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200 dark:border-emerald-800">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                                            Live
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border transition-all ${wsStatus === 'connected'
+                                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                                : wsStatus === 'connecting'
+                                                    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800'
+                                                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
+                                            }`}>
+                                            <span className={`w-1.5 h-1.5 rounded-full ${wsStatus === 'connected' ? 'bg-emerald-600 animate-pulse' : wsStatus === 'connecting' ? 'bg-yellow-600 animate-pulse' : 'bg-red-600'
+                                                }`}></span>
+                                            {wsStatus === 'connected' ? 'Live' : wsStatus === 'connecting' ? 'Connecting' : 'Offline'}
                                         </span>
                                     </div>
                                     <div className="flex items-baseline gap-3">
-                                        <span className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">
+                                        <span className={`text-4xl font-bold text-slate-900 dark:text-white tracking-tight transition-all duration-300 ${priceFlash === 'up' ? 'text-emerald-500' : priceFlash === 'down' ? 'text-red-500' : ''
+                                            }`}>
                                             ${headerStats.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </span>
                                         <span className={`text-lg font-bold flex items-center ${headerStats.change >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
