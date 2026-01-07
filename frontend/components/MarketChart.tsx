@@ -183,45 +183,23 @@ const MarketChart: React.FC<MarketChartProps> = ({
   const [hoveredDataPoint, setHoveredDataPoint] = useState<any>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, data: any } | null>(null);
 
-  // Initialize Zoom State on Data Change
-  // We only reset zoom if the data length changes significantly (indicating a range switch)
-  // or if it's the first load. For small real-time updates (same length or +1), we preserve the view.
-  useEffect(() => {
-    if (data.length > 0) {
-      if (endIndex === 0 || Math.abs(data.length - (endIndex - startIndex + 1)) > 5) {
-        setStartIndex(0);
-        setEndIndex(data.length - 1);
-      } else {
-        // Real-time update: preserve window or scroll to right if at edge
-        if (endIndex === data.length - 2) { // Was at previous end
-          setEndIndex(data.length - 1);
-        }
-      }
-    }
-  }, [data.length]); // Only trigger on length change? No, data content changes too.
-  // Actually, we want to detect if it's a "Range Switch" vs "Real-time Update".
-  // A simple way is to check if data length changed drastically.
-
-  // Better approach: Use a ref to store previous data length.
+  // Initialize Zoom State - only reset on significant data length changes
   const prevDataLengthRef = useRef(0);
   useEffect(() => {
     const prevLen = prevDataLengthRef.current;
+
     if (data.length > 0) {
-      // If length changed significantly (e.g. > 2 points), it's likely a range switch or new coin
-      if (Math.abs(data.length - prevLen) > 2) {
+      // First load or significant change (range switch, new coin)
+      if (prevLen === 0 || Math.abs(data.length - prevLen) > 2) {
         setStartIndex(0);
         setEndIndex(data.length - 1);
-      } else {
-        // Real-time update (0 or 1 point diff)
-        // If user was looking at the end, keep looking at the end
-        if (endIndex >= prevLen - 1) {
-          setEndIndex(data.length - 1);
-          // Optionally shift start if we want to maintain window size, but fixed start is usually fine for 1m chart
-        }
       }
+      // For real-time updates (same length or +/-1), keep current view
+      // No action needed - visibleData will update automatically
     }
+
     prevDataLengthRef.current = data.length;
-  }, [data]);
+  }, [data.length]); // Only check length to avoid excessive re-runs
 
   // Handle Global Click to close context menu
   useEffect(() => {

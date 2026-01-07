@@ -185,6 +185,7 @@ const Dashboard: React.FC = () => {
             lastTradeUpdate = now;
 
             const price = parseFloat(message.p);
+            console.log('Trade Update:', { price, symbol: message.s });
 
             setCombinedChartData(prevData => {
                 if (prevData.length === 0) return prevData;
