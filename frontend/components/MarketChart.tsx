@@ -620,6 +620,7 @@ const MarketChart: React.FC<MarketChartProps> = ({
 
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
+          key={`chart-${visibleData.length > 0 ? visibleData[visibleData.length - 1]?.price || Date.now() : Date.now()}`}
           data={visibleData}
           margin={{ top: 10, right: 0, left: 0, bottom: 0 }}
           onMouseMove={(e: any) => {
