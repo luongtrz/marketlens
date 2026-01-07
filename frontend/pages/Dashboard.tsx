@@ -905,6 +905,7 @@ const Dashboard: React.FC = () => {
         )
     }
 
+
     {/* Detail Article Modal for History */ }
     {
         selectedHistoryArticle && (
