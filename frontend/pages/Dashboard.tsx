@@ -558,6 +558,7 @@ const Dashboard: React.FC = () => {
         </div>
 
 
+
             {/* RIGHT: Sidebar Panel (Collapsible & Resizable) */ }
     {
         isSidebarOpen && (
