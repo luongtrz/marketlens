@@ -208,19 +208,10 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    // Auto-run Forecast on Coin Change & Periodic Update
+    // Clear forecast when coin changes (user must manually trigger new forecast)
     useEffect(() => {
-        // We clear forecastResult only on coin change to trigger the initial skeleton load for the new coin
         setForecastResult(null);
-        handleForecast();
-
-        // Set up polling interval (e.g., every 60 seconds)
-        const intervalId = setInterval(() => {
-            handleForecast();
-        }, 60000);
-
-        return () => clearInterval(intervalId);
-    }, [selectedCoinSymbol]); // Re-run when symbol changes
+    }, [selectedCoinSymbol]);
 
     const processedCoins = useMemo(() => {
         let result = [...coins];
