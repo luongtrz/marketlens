@@ -4,8 +4,7 @@ import MarketChart from '../components/MarketChart';
 import NewsCard from '../components/NewsCard';
 import ArticleDetailModal from '../components/ArticleDetailModal';
 import { RefreshCw, Zap, Search, BarChart2, TrendingUp, Globe, List, Loader2, Layers, Check, GripHorizontal, PanelRightClose, PanelRightOpen, Star, ArrowUp, ArrowDown, X, Bell, CheckCircle, Calendar, Trash2, BellRing, ChevronLeft, ChevronRight, Target, ShieldAlert, ArrowRight, BrainCircuit, Sparkles } from 'lucide-react';
-import { getTopCoins, getHistoricalData } from '../services/cryptoCompareService';
-import { generateMarketForecast, getHistoricalNews } from '../services/geminiService';
+import { getTopCoins, getHistoricalData, generateMarketForecast, getHistoricalNews } from '../services/apiService';
 
 // Range Configuration for CryptoCompare
 // Limit: Number of points. Aggregate: steps to combine. Type: minute/hour/day.

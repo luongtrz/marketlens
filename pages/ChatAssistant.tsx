@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
-import { createChatSession } from '../services/geminiService';
+import { createChatSession } from '../services/apiService';
 import { Send, Bot, User, Loader2, Info, ExternalLink, Globe } from 'lucide-react';
 
 const ChatAssistant: React.FC = () => {
@@ -40,7 +40,7 @@ const ChatAssistant: React.FC = () => {
     try {
       const result = await chatSession.current.sendMessage(userMsg.content);
       const response = result.response;
-      const responseText = response.text; 
+      const responseText = response.text();
 
       const botMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -90,7 +90,7 @@ const ChatAssistant: React.FC = () => {
         </div>
         <div className="flex flex-wrap gap-2">
           {Array.from(uniqueSources.entries()).map(([uri, title], idx) => (
-            <a 
+            <a
               key={idx}
               href={uri}
               target="_blank"
@@ -108,25 +108,25 @@ const ChatAssistant: React.FC = () => {
 
   return (
     <div className="h-[calc(100vh-2rem)] md:h-[calc(100vh-3rem)] flex flex-col bg-white rounded-2xl border border-slate-200 overflow-hidden m-4 shadow-sm">
-        {/* Chat Header */}
-        <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-            <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <Bot className="text-white" size={24} />
-                </div>
-                <div>
-                    <h2 className="font-bold text-slate-900">Sibyl Assistant</h2>
-                    <p className="text-xs text-indigo-600 flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Online
-                    </p>
-                </div>
-            </div>
-            <div className="hidden md:block">
-                <span className="text-xs bg-white text-slate-500 px-3 py-1 rounded-full border border-slate-200 flex items-center gap-1 shadow-sm">
-                   <Globe size={10} /> Google Search Grounding
-                </span>
-            </div>
+      {/* Chat Header */}
+      <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <Bot className="text-white" size={24} />
+          </div>
+          <div>
+            <h2 className="font-bold text-slate-900">Sibyl Assistant</h2>
+            <p className="text-xs text-indigo-600 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Online
+            </p>
+          </div>
         </div>
+        <div className="hidden md:block">
+          <span className="text-xs bg-white text-slate-500 px-3 py-1 rounded-full border border-slate-200 flex items-center gap-1 shadow-sm">
+            <Globe size={10} /> Google Search Grounding
+          </span>
+        </div>
+      </div>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50" ref={scrollRef}>
@@ -136,14 +136,13 @@ const ChatAssistant: React.FC = () => {
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[90%] md:max-w-[75%] rounded-2xl px-5 py-4 ${
-                msg.role === 'user'
-                  ? 'bg-indigo-600 text-white rounded-tr-none shadow-lg shadow-indigo-500/10'
-                  : 'bg-white text-slate-800 rounded-tl-none shadow-sm border border-slate-100'
-              }`}
+              className={`max-w-[90%] md:max-w-[75%] rounded-2xl px-5 py-4 ${msg.role === 'user'
+                ? 'bg-indigo-600 text-white rounded-tr-none shadow-lg shadow-indigo-500/10'
+                : 'bg-white text-slate-800 rounded-tl-none shadow-sm border border-slate-100'
+                }`}
             >
               <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</div>
-              
+
               {/* Render Search Sources */}
               {msg.role === 'model' && renderGroundingSources(msg.groundingMetadata)}
 
@@ -183,8 +182,8 @@ const ChatAssistant: React.FC = () => {
           </button>
         </div>
         <div className="mt-2 flex items-center justify-center gap-1 text-[10px] text-slate-400">
-            <Info size={10} />
-            <span>AI responses are grounded in Google Search but may vary.</span>
+          <Info size={10} />
+          <span>AI responses are grounded in Google Search but may vary.</span>
         </div>
       </div>
     </div>

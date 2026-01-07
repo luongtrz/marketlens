@@ -4,7 +4,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 import { CoinData, HistoryPoint } from '../types';
 import { RotateCcw, ZoomIn, MessageCircle, X, Send, Sparkles, Loader2, Hand, Bell, History, BrainCircuit, Eye, EyeOff } from 'lucide-react';
-import { askChartAnalyst } from '../services/geminiService';
+import { askChartAnalyst } from '../services/apiService';
 
 interface MarketChartProps {
   data: CoinData['history'];
