@@ -13,9 +13,9 @@ const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key-for-build' });
 // - ANALYSIS_MODEL: Simple tasks (sentiment analysis) - High quota (14.4K RPD)
 // - CHAT_MODEL: Chat & context-based Q&A - Medium quota (1K RPD)
 // - PREMIUM_MODEL: Complex tasks (forecasting, deep search) - Limited quota (20 RPD)
-const ANALYSIS_MODEL = "gemma-3-4b";           // 14,400 RPD - For simple analysis
-const CHAT_MODEL = "gemini-2.5-flash-lite";    // 1,000 RPD - For chat & context
-const PREMIUM_MODEL = "gemini-2.5-flash";      // 20 RPD - For critical forecasting
+const ANALYSIS_MODEL = "gemma-3-4b";              // 14,400 RPD - For simple analysis
+const CHAT_MODEL = "gemini-2.5-flash-lite";       // 1,000 RPD - For chat & context
+const PREMIUM_MODEL = "gemini-3-flash-preview";   // 20 RPD - For critical forecasting (supports tools + responseSchema)
 
 /**
  * Analyzes a specific news article to determine sentiment and summary.
@@ -118,7 +118,27 @@ export const generateMarketForecast = async (coinName: string, recentTrend: stri
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        // Note: responseMimeType is incompatible with tools, so we parse JSON manually
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            predictedPrices: { type: Type.ARRAY, items: { type: Type.NUMBER } },
+            confidenceScore: { type: Type.NUMBER },
+            reasoning: { type: Type.STRING },
+            trend: { type: Type.STRING, enum: ["Bullish", "Bearish", "Neutral"] },
+            recommendation: {
+              type: Type.OBJECT,
+              properties: {
+                action: { type: Type.STRING, enum: ["Buy", "Sell", "Hold"] },
+                entryZone: { type: Type.STRING },
+                targetPrice: { type: Type.STRING },
+                stopLoss: { type: Type.STRING }
+              },
+              required: ["action", "entryZone", "targetPrice", "stopLoss"]
+            }
+          },
+          required: ["predictedPrices", "confidenceScore", "reasoning", "trend", "recommendation"],
+        },
       },
     });
 
