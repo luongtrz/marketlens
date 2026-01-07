@@ -559,9 +559,8 @@ const Dashboard: React.FC = () => {
 
 
 
-            {/* RIGHT: Sidebar Panel (Collapsible & Resizable) */ }
-    {
-        isSidebarOpen && (
+            {/* RIGHT: Sidebar Panel (Collapsible & Resizable) */}
+            {isSidebarOpen && (
             <div
                 ref={sidebarRef}
                 className="w-full md:w-80 lg:w-96 flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800"
