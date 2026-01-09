@@ -468,16 +468,7 @@ const Dashboard: React.FC = () => {
 
 
 
-    const handleChartHistory = async (date: string) => {
-        setHistoryDate(date);
-        setHistoryModalOpen(true);
-        setLoadingHistory(true);
-        setHistoricalNews([]);
-        try {
-            const news = await getHistoricalNews(selectedCoin.name, date);
-            setHistoricalNews(news);
-        } catch (e) { console.error(e); } finally { setLoadingHistory(false); }
-    };
+
 
     const handleSaveAlert = () => {
         const condition = alertTargetPrice > selectedCoin.price ? 'above' : 'below';
@@ -487,9 +478,7 @@ const Dashboard: React.FC = () => {
         setTimeout(() => { setAlertSuccess(false); setAlertModalOpen(false); }, 1500);
     };
 
-    const deleteAlert = (id: string) => {
-        setPriceAlerts(prev => prev.filter(a => a.id !== id));
-    };
+
 
     const handleChartClick = (time: number) => {
         if (!isRangeSelecting) return;
