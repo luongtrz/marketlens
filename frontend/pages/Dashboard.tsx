@@ -406,14 +406,7 @@ const Dashboard: React.FC = () => {
         return result;
     }, [coins, searchQuery, favorites, sortKey, sortDirection]);
 
-    const groupedAlerts = useMemo(() => {
-        const groups: Record<string, PriceAlert[]> = {};
-        priceAlerts.forEach(alert => {
-            if (!groups[alert.symbol]) groups[alert.symbol] = [];
-            groups[alert.symbol].push(alert);
-        });
-        return Object.entries(groups).map(([symbol, alerts]) => ({ symbol, alerts }));
-    }, [priceAlerts]);
+
 
     const toggleFavorite = (e: React.MouseEvent, symbol: string) => {
         e.stopPropagation();
