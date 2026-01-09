@@ -182,7 +182,7 @@ const Dashboard: React.FC = () => {
     useEffect(() => {
         if (!selectedCoin) return;
 
-        const socket = createSocketConnection();
+        const socket = createSocketConnection('realtime');
         const symbol = selectedCoin.symbol;
         setWsStatus('connecting');
 

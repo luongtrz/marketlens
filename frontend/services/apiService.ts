@@ -164,7 +164,7 @@ export const createChatSession = () => {
 // Real-time WebSocket Stub
 import { io, Socket } from 'socket.io-client';
 
-export const createSocketConnection = (namespace: string = 'realtime'): Socket => { // Default to realtime namespace
+export const createSocketConnection = (namespace: string): Socket => { // Require explicit namespace
     const socketUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
     return io(`${socketUrl}/${namespace}`, {
         transports: ['websocket'],
