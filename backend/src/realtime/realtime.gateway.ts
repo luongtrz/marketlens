@@ -22,6 +22,8 @@ export class RealtimeGateway
     private logger: Logger = new Logger('RealtimeGateway');
     private binanceWs: WebSocket;
     private activeSubscriptions: Set<string> = new Set();
+    private subscriptionCounts: Map<string, number> = new Map();
+    private clientSubscriptions: Map<string, Set<string>> = new Map();
     private binanceStreamUrl = 'wss://stream.binance.com:9443/ws';
 
     afterInit(server: Server) {
@@ -31,10 +33,12 @@ export class RealtimeGateway
 
     handleConnection(client: Socket) {
         this.logger.log(`Client connected: ${client.id}`);
+        this.clientSubscriptions.set(client.id, new Set());
     }
 
     handleDisconnect(client: Socket) {
         this.logger.log(`Client disconnected: ${client.id}`);
+        this.handleClientDisconnect(client.id);
     }
 
     private connectToBinance() {
@@ -99,17 +103,80 @@ export class RealtimeGateway
         const pair = `${symbol}USDT`.toLowerCase();
         const binanceStreamName = `${pair}@${payload.type === 'kline' ? 'kline_1m' : 'trade'}`;
 
-        if (!this.activeSubscriptions.has(binanceStreamName)) {
-            this.activeSubscriptions.add(binanceStreamName);
-            this.updateBinanceSubscriptions();
-        }
+        this.addSubscription(client.id, binanceStreamName);
     }
 
     @SubscribeMessage('leave-room')
     handleLeaveRoom(client: Socket, payload: { symbol: string; type: 'trade' | 'kline' }) {
-        const room = `${payload.type}:${payload.symbol.toUpperCase()}`;
+        const symbol = payload.symbol.toUpperCase();
+        const room = `${payload.type}:${symbol}`;
         client.leave(room);
         this.logger.log(`Client ${client.id} left ${room}`);
+
+        const pair = `${symbol}USDT`.toLowerCase();
+        const binanceStreamName = `${pair}@${payload.type === 'kline' ? 'kline_1m' : 'trade'}`;
+
+        this.removeSubscription(client.id, binanceStreamName);
+    }
+
+    private addSubscription(clientId: string, streamName: string) {
+        // Track client subscription
+        let clientSubs = this.clientSubscriptions.get(clientId);
+        if (!clientSubs) {
+            clientSubs = new Set();
+            this.clientSubscriptions.set(clientId, clientSubs);
+        }
+        clientSubs.add(streamName);
+
+        // Increment global count
+        const count = (this.subscriptionCounts.get(streamName) || 0) + 1;
+        this.subscriptionCounts.set(streamName, count);
+
+        // Subscribe to Binance if it's the first client
+        if (count === 1) {
+            this.activeSubscriptions.add(streamName);
+            this.sendBinanceAction('SUBSCRIBE', [streamName]);
+        }
+    }
+
+    private removeSubscription(clientId: string, streamName: string) {
+        // Remove from client tracking
+        const clientSubs = this.clientSubscriptions.get(clientId);
+        if (clientSubs) {
+            clientSubs.delete(streamName);
+        }
+
+        // Decrement global count
+        const count = (this.subscriptionCounts.get(streamName) || 0) - 1;
+        if (count <= 0) {
+            this.subscriptionCounts.delete(streamName);
+            this.activeSubscriptions.delete(streamName);
+            this.sendBinanceAction('UNSUBSCRIBE', [streamName]);
+        } else {
+            this.subscriptionCounts.set(streamName, count);
+        }
+    }
+
+    private handleClientDisconnect(clientId: string) {
+        const clientSubs = this.clientSubscriptions.get(clientId);
+        if (clientSubs) {
+            clientSubs.forEach(streamName => {
+                this.removeSubscription(clientId, streamName);
+            });
+            this.clientSubscriptions.delete(clientId);
+        }
+    }
+
+    private sendBinanceAction(method: 'SUBSCRIBE' | 'UNSUBSCRIBE', params: string[]) {
+        if (this.binanceWs && this.binanceWs.readyState === WebSocket.OPEN && params.length > 0) {
+            const payload = {
+                method,
+                params,
+                id: Date.now(),
+            };
+            this.binanceWs.send(JSON.stringify(payload));
+            this.logger.log(`Sent ${method} to Binance for: ${params.join(', ')}`);
+        }
     }
 
     private updateBinanceSubscriptions() {
