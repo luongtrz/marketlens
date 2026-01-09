@@ -1,11 +1,10 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { CoinData, ForecastResult, HistoryPoint, NewsArticle, PriceAlert } from '../types';
+import { CoinData, ForecastResult, HistoryPoint } from '../types';
 import LightweightChart from '../components/LightweightChart';
-import NewsCard from '../components/NewsCard';
-import ArticleDetailModal from '../components/ArticleDetailModal';
-import { Search, BellRing, Bell, Trash2, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, GripHorizontal, Globe, BrainCircuit, Sparkles, RefreshCw, Zap, Target, ShieldAlert, Check, Calendar, Loader2, X, SlidersHorizontal, Activity, BarChart2, Star, ChevronDown, List, Hand, CheckCircle } from 'lucide-react';
-import { getTopCoins, getHistoricalData, generateMarketForecast, getHistoricalNews, createSocketConnection } from '../services/apiService';
+
+import { Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, GripHorizontal, Globe, BrainCircuit, Sparkles, RefreshCw, Zap, Target, ShieldAlert, Check, Loader2, X, SlidersHorizontal, Activity, BarChart2, Star, ChevronDown, List, Hand } from 'lucide-react';
+import { getTopCoins, getHistoricalData, generateMarketForecast, createSocketConnection } from '../services/apiService';
 
 // Range Configuration for CryptoCompare
 // Limit: Number of points. Aggregate: steps to combine. Type: minute/hour/day.
@@ -87,24 +86,13 @@ const Dashboard: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const [alertModalOpen, setAlertModalOpen] = useState(false);
-    const [alertTargetPrice, setAlertTargetPrice] = useState<number>(0);
-    const [alertSuccess, setAlertSuccess] = useState(false);
-    const [priceAlerts, setPriceAlerts] = useState<PriceAlert[]>([
-        { id: 'a1', symbol: 'BTC', targetPrice: 100000, condition: 'above', createdAt: Date.now() },
-        { id: 'a2', symbol: 'ETH', targetPrice: 3200, condition: 'below', createdAt: Date.now() }
-    ]);
 
-    const [historyModalOpen, setHistoryModalOpen] = useState(false);
-    const [historyDate, setHistoryDate] = useState<string>('');
-    const [historicalNews, setHistoricalNews] = useState<NewsArticle[]>([]);
-    const [loadingHistory, setLoadingHistory] = useState(false);
-    const [selectedHistoryArticle, setSelectedHistoryArticle] = useState<NewsArticle | null>(null);
+
+
 
     // WebSocket connection status and visual feedback
     const [wsStatus, setWsStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
     const [priceFlash, setPriceFlash] = useState<'up' | 'down' | null>(null);
-    const [lastPrice, setLastPrice] = useState<number>(0);
     const lastPriceRef = useRef<number>(0);
     const throttleRef = useRef<{ timeout: NodeJS.Timeout | null; lastRun: number; pendingArg: any }>({
         timeout: null,
@@ -230,7 +218,7 @@ const Dashboard: React.FC = () => {
                 setTimeout(() => setPriceFlash(null), 300);
             }
 
-            setLastPrice(price);
+
             lastPriceRef.current = price;
 
             throttleRef.current.lastRun = Date.now();
@@ -291,8 +279,6 @@ const Dashboard: React.FC = () => {
             }
         });
 
-
-
         socket.on('kline', (payload: { symbol: string; data: any }) => {
             if (payload.symbol !== symbol) return;
 
@@ -315,9 +301,6 @@ const Dashboard: React.FC = () => {
                 if (targetIndex === -1) targetIndex = newData.length - 1;
 
                 const targetPoint = newData[targetIndex];
-
-                // Debug log
-
 
                 // Update if within the same minute
                 if (targetPoint && Math.abs(targetPoint.ts - kline.time) < 60000) {
@@ -464,13 +447,7 @@ const Dashboard: React.FC = () => {
 
 
 
-    const handleSaveAlert = () => {
-        const condition = alertTargetPrice > selectedCoin.price ? 'above' : 'below';
-        const newAlert: PriceAlert = { id: Date.now().toString(), symbol: selectedCoin.symbol, targetPrice: alertTargetPrice, condition: condition, createdAt: Date.now() };
-        setPriceAlerts(prev => [newAlert, ...prev]);
-        setAlertSuccess(true);
-        setTimeout(() => { setAlertSuccess(false); setAlertModalOpen(false); }, 1500);
-    };
+
 
 
 
@@ -977,88 +954,7 @@ const Dashboard: React.FC = () => {
             {/* -- MODALS -- */}
 
             {/* Alert Modal */}
-            {
-                alertModalOpen && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl relative animate-in zoom-in-95 duration-200">
-                            <button onClick={() => setAlertModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={20} /></button>
 
-                            {alertSuccess ? (
-                                <div className="flex flex-col items-center justify-center py-8 text-green-600">
-                                    <CheckCircle size={48} className="mb-4" />
-                                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Alert Confirmed!</h3>
-                                    <p className="text-slate-500 dark:text-slate-400 text-sm">We'll notify you when price hits ${alertTargetPrice.toLocaleString()}</p>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="flex items-center gap-2 mb-4 text-slate-900 dark:text-white">
-                                        <Bell className="text-indigo-600 dark:text-indigo-400" />
-                                        <h3 className="font-bold text-lg">Set Chart Alert</h3>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Asset</label>
-                                            <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-sm font-medium">
-                                                {selectedCoin.name} ({selectedCoin.symbol})
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Target Price ($)</label>
-                                            <input type="number" value={alertTargetPrice} onChange={(e) => setAlertTargetPrice(parseFloat(e.target.value))} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-                                        </div>
-                                        <button onClick={handleSaveAlert} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">Save Alert</button>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                )
-            }
-
-            {/* Historical News Modal */}
-            {
-                historyModalOpen && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl relative animate-in zoom-in-95 duration-200">
-                            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 rounded-t-2xl z-10">
-                                <div className="flex items-center gap-2">
-                                    <Calendar className="text-indigo-600 dark:text-indigo-400" size={20} />
-                                    <div>
-                                        <h3 className="font-bold text-slate-900 dark:text-white">Historical Context</h3>
-                                        <p className="text-xs text-slate-500">News around {historyDate.split(',')[0]}</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setHistoryModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={20} /></button>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-950 rounded-b-2xl custom-scrollbar">
-                                {loadingHistory ? (
-                                    <div className="flex flex-col items-center justify-center h-64 space-y-3">
-                                        <Loader2 className="animate-spin text-indigo-600 dark:text-indigo-400" size={32} />
-                                        <p className="text-sm text-slate-500">Searching archives...</p>
-                                    </div>
-                                ) : historicalNews.length === 0 ? (
-                                    <div className="text-center py-20 text-slate-500 text-sm">No specific news found for this exact timeframe.</div>
-                                ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {historicalNews.map((news) => (
-                                            <NewsCard key={news.id} article={news} onClick={(article) => setSelectedHistoryArticle(article)} />
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-
-            {/* Detail Article Modal for History */}
-            {
-                selectedHistoryArticle && (
-                    <ArticleDetailModal article={selectedHistoryArticle} onClose={() => setSelectedHistoryArticle(null)} />
-                )
-            }
         </div >
     );
 };
