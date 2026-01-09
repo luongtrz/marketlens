@@ -105,6 +105,12 @@ const Dashboard: React.FC = () => {
     const [wsStatus, setWsStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
     const [priceFlash, setPriceFlash] = useState<'up' | 'down' | null>(null);
     const [lastPrice, setLastPrice] = useState<number>(0);
+    const lastPriceRef = useRef<number>(0);
+    const throttleRef = useRef<{ timeout: NodeJS.Timeout | null; lastRun: number; pendingArg: any }>({
+        timeout: null,
+        lastRun: 0,
+        pendingArg: null
+    });
 
     const selectedCoin = coins.find(c => c.symbol === selectedCoinSymbol) || coins[0];
 
@@ -204,29 +210,33 @@ const Dashboard: React.FC = () => {
             setWsStatus('connected');
         });
 
-        // Throttle trade updates to avoid excessive re-renders
-        let lastTradeUpdate = 0;
-        const TRADE_THROTTLE_MS = 100; // Update max 10 times/sec for smooth appearance
+        // Initialize price ref when coin changes
+        if (selectedCoin) {
+            lastPriceRef.current = selectedCoin.price;
+        }
 
-        socket.on('trade', (message: any) => {
-            // message format: { e: 'trade', s: 'BTCUSDT', p: '91234.56', ... }
-            const now = Date.now();
-            if (now - lastTradeUpdate < TRADE_THROTTLE_MS) return;
-            lastTradeUpdate = now;
-
+        // Robust Throttle Mechanism (Leading & Trailing)
+        const processTradeUpdate = (message: any) => {
             const price = parseFloat(message.p);
-            console.log('Trade Update:', { price, symbol: message.s });
+            const currentLastPrice = lastPriceRef.current;
 
             // Trigger price flash animation
-            if (lastPrice > 0) {
-                if (price > lastPrice) {
+            if (currentLastPrice > 0) {
+                if (price > currentLastPrice) {
                     setPriceFlash('up');
-                } else if (price < lastPrice) {
+                } else if (price < currentLastPrice) {
                     setPriceFlash('down');
                 }
                 setTimeout(() => setPriceFlash(null), 300);
             }
+
             setLastPrice(price);
+            lastPriceRef.current = price;
+
+            throttleRef.current.lastRun = Date.now();
+            throttleRef.current.pendingArg = null;
+            throttleRef.current.timeout = null;
+
 
             setCombinedChartData(prevData => {
                 if (prevData.length === 0) return prevData;
@@ -255,7 +265,33 @@ const Dashboard: React.FC = () => {
 
                 return newData;
             });
+        };
+
+        const TRADE_THROTTLE_MS = 100;
+
+        socket.on('trade', (message: any) => {
+            const now = Date.now();
+            const { lastRun, timeout } = throttleRef.current;
+
+            if (now - lastRun >= TRADE_THROTTLE_MS) {
+                // Leading edge: Execute immediately
+                processTradeUpdate(message);
+            } else {
+                // Trailing edge: Schedule update
+                throttleRef.current.pendingArg = message;
+
+                if (!timeout) {
+                    const delay = TRADE_THROTTLE_MS - (now - lastRun);
+                    throttleRef.current.timeout = setTimeout(() => {
+                        if (throttleRef.current.pendingArg) {
+                            processTradeUpdate(throttleRef.current.pendingArg);
+                        }
+                    }, delay);
+                }
+            }
         });
+
+
 
         socket.on('kline', (payload: { symbol: string; data: any }) => {
             if (payload.symbol !== symbol) return;
