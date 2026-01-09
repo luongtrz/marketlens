@@ -302,7 +302,6 @@ const Dashboard: React.FC = () => {
                 const newData = [...prevData];
                 const kline = payload.data;
 
-                const klineTime = new Date(kline.time);
 
                 // Find index of the last real candle (has price)
                 let targetIndex = -1;
