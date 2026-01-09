@@ -26,7 +26,13 @@ export class CryptoService {
     private readonly baseUrl = 'https://min-api.cryptocompare.com/data';
 
     constructor(private configService: ConfigService) {
-        this.apiKey = this.configService.get<string>('CRYPTOCOMPARE_API_KEY') || '';
+        const apiKey = this.configService.get<string>('CRYPTOCOMPARE_API_KEY');
+        if (!apiKey || apiKey.trim() === '') {
+            throw new Error(
+                'CRYPTOCOMPARE_API_KEY is not configured. Please set this environment variable to a valid API key.',
+            );
+        }
+        this.apiKey = apiKey;
     }
 
     private formatVolume(num: number): string {
