@@ -42,10 +42,10 @@ export class AiService implements OnModuleInit {
 
     onModuleInit() {
         const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-        if (!apiKey) {
-            console.error("GEMINI_API_KEY is missing");
+        if (!apiKey || apiKey.trim() === '') {
+            throw new Error("GEMINI_API_KEY is required but was not provided. Please set this environment variable.");
         }
-        this.ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key' });
+        this.ai = new GoogleGenAI({ apiKey });
     }
 
     async analyzeArticle(title: string, snippet: string, source: string): Promise<Partial<NewsArticle>> {
