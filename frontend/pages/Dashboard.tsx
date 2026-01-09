@@ -31,6 +31,10 @@ const getRangeParams = (range: string) => {
         case '1W': return { limit: 52, aggregate: 7, type: 'day' as const, format: { month: 'short', year: '2-digit' } as const };
         // 1M: 12 x 30day candles = 1 year
         case '1M': return { limit: 12, aggregate: 30, type: 'day' as const, format: { month: 'short', year: '2-digit' } as const };
+        // 1Y: 365 x 1day candles = 1 year
+        case '1Y': return { limit: 365, aggregate: 1, type: 'day' as const, format: { month: 'short', year: '2-digit' } as const };
+        // 5Y: 260 x 7day candles = 5 years (weekly candles)
+        case '5Y': return { limit: 260, aggregate: 7, type: 'day' as const, format: { month: 'short', year: '2-digit' } as const };
         // All: Max 2000 daily candles (~5.5 years)
         case 'All': return { limit: 2000, aggregate: 1, type: 'day' as const, format: { year: 'numeric' } as const };
         default: return { limit: 90, aggregate: 1, type: 'day' as const, format: { month: 'short', day: 'numeric' } as const };
@@ -655,19 +659,37 @@ const Dashboard: React.FC = () => {
 
                         {/* Row 2: Controls (Time Range & Indicators) */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
-                            <div className="flex gap-1">
-                                {['1m', '3m', '5m', '15m', '30m', '1H', '4H', '1D', '1W', '1M'].map((range) => (
-                                    <button
-                                        key={range}
-                                        onClick={() => setTimeRange(range)}
-                                        className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${timeRange === range
-                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                                            : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400'
-                                            }`}
-                                    >    {range}
-                                    </button>
+                            {/* Time Range Buttons - 2 Rows */}
+                            <div className="flex flex-col gap-1">
+                                {/* Row 1: Short Intervals (Minutes & Hours) */}
+                                <div className="flex gap-1">
+                                    {['1m', '3m', '5m', '15m', '30m', '1H', '4H'].map((range) => (
+                                        <button
+                                            key={range}
+                                            onClick={() => setTimeRange(range)}
+                                            className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${timeRange === range
+                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                                                : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400'
+                                                }`}
+                                        >    {range}
+                                        </button>
+                                    ))}
+                                </div>
+                                {/* Row 2: Long Intervals (Days, Weeks, Months, Years) */}
+                                <div className="flex gap-1">
+                                    {['1D', '1W', '1M', '1Y', '5Y', 'All'].map((range) => (
+                                        <button
+                                            key={range}
+                                            onClick={() => setTimeRange(range)}
+                                            className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${timeRange === range
+                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                                                : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400'
+                                                }`}
+                                        >    {range}
+                                        </button>
 
-                                ))}
+                                    ))}
+                                </div>
                             </div>
 
                             {/* Custom Range Inputs & Hand Tool */}
