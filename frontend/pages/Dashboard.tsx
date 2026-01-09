@@ -300,8 +300,8 @@ const Dashboard: React.FC = () => {
                 if (prevData.length === 0) return prevData;
 
                 const newData = [...prevData];
-                const lastPoint = newData[newData.length - 1];
                 const kline = payload.data;
+
                 const klineTime = new Date(kline.time);
 
                 // Find index of the last real candle (has price)
