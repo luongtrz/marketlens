@@ -466,11 +466,7 @@ const Dashboard: React.FC = () => {
         return { price: currentPrice, change, percent };
     }, [combinedChartData, selectedCoin]);
 
-    const handleChartAlert = (price: number) => {
-        setAlertTargetPrice(price);
-        setAlertModalOpen(true);
-        setAlertSuccess(false);
-    };
+
 
     const handleChartHistory = async (date: string) => {
         setHistoryDate(date);
