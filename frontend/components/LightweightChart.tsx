@@ -30,6 +30,9 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
     const volumeSeriesRef = useRef<any>(null);
     const onChartClickRef = useRef(onChartClick);
     const rangeMarkersRef = useRef<any[]>([]);
+    const isInitializedRef = useRef(false); // Track if chart has been initially fitted
+    const prevTypeRef = useRef(type);
+    const prevIndicatorsRef = useRef(indicators);
 
     // Update handler ref when prop changes to avoid stale closures
     useEffect(() => {
@@ -354,8 +357,17 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
             mainSeriesRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0.15 } });
         }
 
+        // Fit content on: 1) Initial load, 2) Type change, 3) Indicator change
+        // But NOT on real-time data updates (preserves user's zoom)
+        const typeChanged = prevTypeRef.current !== type;
+        const indicatorsChanged = JSON.stringify(prevIndicatorsRef.current) !== JSON.stringify(indicators);
 
-        chartRef.current.timeScale().fitContent();
+        if (!isInitializedRef.current || typeChanged || indicatorsChanged) {
+            chartRef.current.timeScale().fitContent();
+            isInitializedRef.current = true;
+            prevTypeRef.current = type;
+            prevIndicatorsRef.current = indicators;
+        }
 
     }, [data, type, color, indicators]);
 
