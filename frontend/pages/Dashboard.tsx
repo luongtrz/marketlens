@@ -193,7 +193,7 @@ const Dashboard: React.FC = () => {
         setWsStatus('connecting');
 
         socket.on('connect', () => {
-            console.log('Connected to Realtime Socket');
+
             setWsStatus('connected');
             // Request to join room for kline and trade updates
             socket.emit('join-room', { symbol, type: 'kline' });
@@ -201,12 +201,12 @@ const Dashboard: React.FC = () => {
         });
 
         socket.on('disconnect', () => {
-            console.log('Disconnected from Realtime Socket');
+
             setWsStatus('disconnected');
         });
 
         socket.on('reconnect', () => {
-            console.log('Reconnected to Realtime Socket');
+
             setWsStatus('connected');
         });
 
@@ -317,13 +317,7 @@ const Dashboard: React.FC = () => {
                 const targetPoint = newData[targetIndex];
 
                 // Debug log
-                console.log('WS Update:', {
-                    symbol,
-                    klineTime: new Date(kline.time).toLocaleTimeString(),
-                    targetTime: new Date(targetPoint.ts).toLocaleTimeString(),
-                    klinePrice: kline.close,
-                    currentPrice: targetPoint.price
-                });
+
 
                 // Update if within the same minute
                 if (targetPoint && Math.abs(targetPoint.ts - kline.time) < 60000) {
