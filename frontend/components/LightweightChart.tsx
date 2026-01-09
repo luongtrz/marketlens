@@ -91,6 +91,19 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
                 shiftVisibleRangeOnNewBar: true,
                 rightOffset: 12,
             },
+            // Enable zoom and pan
+            handleScroll: {
+                mouseWheel: true,
+                pressedMouseMove: true,
+                horzTouchDrag: true,
+                vertTouchDrag: false,
+            },
+            handleScale: {
+                mouseWheel: true,
+                pinch: true,
+                axisPressedMouseMove: true,
+                axisDoubleClickReset: true,
+            },
         });
 
         // Initialize Volume Series (always present)
