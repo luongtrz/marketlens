@@ -360,7 +360,10 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
         // Fit content on: 1) Initial load, 2) Type change, 3) Indicator change
         // But NOT on real-time data updates (preserves user's zoom)
         const typeChanged = prevTypeRef.current !== type;
-        const indicatorsChanged = JSON.stringify(prevIndicatorsRef.current) !== JSON.stringify(indicators);
+        const indicatorsChanged =
+            prevIndicatorsRef.current.rsi !== indicators.rsi ||
+            prevIndicatorsRef.current.macd !== indicators.macd ||
+            prevIndicatorsRef.current.bollinger !== indicators.bollinger;
 
         if (!isInitializedRef.current || typeChanged || indicatorsChanged) {
             chartRef.current.timeScale().fitContent();
