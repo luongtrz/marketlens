@@ -1,42 +1,45 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CoinData, ForecastResult, HistoryPoint, NewsArticle, PriceAlert } from '../types';
 import LightweightChart from '../components/LightweightChart';
 import NewsCard from '../components/NewsCard';
 import ArticleDetailModal from '../components/ArticleDetailModal';
-import { RefreshCw, Zap, Search, BarChart2, TrendingUp, Globe, List, Loader2, Layers, Check, GripHorizontal, PanelRightClose, PanelRightOpen, Star, ArrowUp, ArrowDown, X, Bell, CheckCircle, Calendar, Trash2, BellRing, ChevronLeft, ChevronRight, Target, ShieldAlert, ArrowRight, BrainCircuit, Sparkles } from 'lucide-react';
+import { Search, BellRing, Bell, Trash2, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, GripHorizontal, Globe, BrainCircuit, Sparkles, RefreshCw, Zap, Target, ShieldAlert, Check, Calendar, Loader2, X, SlidersHorizontal, Activity, BarChart2, Star, ChevronDown, List, Hand, CheckCircle } from 'lucide-react';
 import { getTopCoins, getHistoricalData, generateMarketForecast, getHistoricalNews, createSocketConnection } from '../services/apiService';
 
 // Range Configuration for CryptoCompare
 // Limit: Number of points. Aggregate: steps to combine. Type: minute/hour/day.
 const getRangeParams = (range: string) => {
     switch (range) {
-        // 30 Minutes: 30 minutes, 1-min candles
-        case '30m': return { limit: 30, aggregate: 1, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
-        // 1 Hour: 60 minutes, 1-min candles
-        case '1H': return { limit: 60, aggregate: 1, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
-        // 12 Hours: 720 minutes. 5-min candles => 144 points
-        case '12H': return { limit: 144, aggregate: 5, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
-        // 1 Minute view: Last 60 candles (1 hour of 1-minute candles)
+        // 1m: 60 x 1min candles = 1 hour
         case '1m': return { limit: 60, aggregate: 1, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
-        // 24 Hours. Limit 1440 if we want full minute data or 144 points with aggregate 10
-        case '1D': return { limit: 144, aggregate: 10, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
-        // 1 Month = 30 days = 720 hours. Limit 720, type hour
-        case '1M': return { limit: 720, aggregate: 1, type: 'hour' as const, format: { month: 'short', day: 'numeric' } as const };
-        // 3 Months = 90 days. Limit 90, type day
-        case '3M': return { limit: 90, aggregate: 1, type: 'day' as const, format: { month: 'short', day: 'numeric' } as const };
-        // 1 Year = 365 days. Limit 365, type day
-        case '1Y': return { limit: 365, aggregate: 1, type: 'day' as const, format: { month: 'short', year: '2-digit' } as const };
-        // 5 Years = 1825 days. Limit 1825, type day. limit max is 2000.
-        case '5Y': return { limit: 1825, aggregate: 1, type: 'day' as const, format: { month: 'short', year: '2-digit' } as const };
-        // All Time: Just get max daily data (2000 days is ~5.5 years, usually enough for most recent crypto context)
-        case 'All': return { limit: 2000, aggregate: 1, type: 'day' as const, format: { month: 'short', year: 'numeric' } as const };
-        default: return { limit: 144, aggregate: 10, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
+        // 3m: 20 x 3min candles = 1 hour
+        case '3m': return { limit: 20, aggregate: 3, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
+        // 5m: 72 x 5min candles = 6 hours
+        case '5m': return { limit: 72, aggregate: 5, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
+        // 15m: 96 x 15min candles = 24 hours
+        case '15m': return { limit: 96, aggregate: 15, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
+        // 30m: 48 x 30min candles = 24 hours
+        case '30m': return { limit: 48, aggregate: 30, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
+        // 1h: 168 x 1hour candles = 7 days
+        case '1H': return { limit: 168, aggregate: 1, type: 'hour' as const, format: { month: 'short', day: 'numeric', hour: '2-digit' } as const };
+        // 4h: 180 x 4hour candles = 30 days
+        case '4H': return { limit: 180, aggregate: 4, type: 'hour' as const, format: { month: 'short', day: 'numeric' } as const };
+        // 1d: 90 x 1day candles = 3 months
+        case '1D': return { limit: 90, aggregate: 1, type: 'day' as const, format: { month: 'short', day: 'numeric' } as const };
+        // 1w: 52 x 7day candles = 1 year
+        case '1W': return { limit: 52, aggregate: 7, type: 'day' as const, format: { month: 'short', year: '2-digit' } as const };
+        // 1M: 12 x 30day candles = 1 year
+        case '1M': return { limit: 12, aggregate: 30, type: 'day' as const, format: { month: 'short', year: '2-digit' } as const };
+        // All: Max 2000 daily candles (~5.5 years)
+        case 'All': return { limit: 2000, aggregate: 1, type: 'day' as const, format: { year: 'numeric' } as const };
+        default: return { limit: 90, aggregate: 1, type: 'day' as const, format: { month: 'short', day: 'numeric' } as const };
     }
 };
 
 type SortKey = 'price' | 'change' | 'percent';
 type SortDirection = 'asc' | 'desc';
-type WatchlistTab = 'all' | 'favs' | 'alerts';
+
 
 const Dashboard: React.FC = () => {
     const [coins, setCoins] = useState<CoinData[]>([]);
@@ -48,15 +51,37 @@ const Dashboard: React.FC = () => {
     const [loadingMarket, setLoadingMarket] = useState(true);
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [watchlistHeight, setWatchlistHeight] = useState(50);
-    const [isResizing, setIsResizing] = useState(false);
+    const [isCoinDropdownOpen, setIsCoinDropdownOpen] = useState(false);
     const sidebarRef = useRef<HTMLDivElement>(null);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [favorites, setFavorites] = useState<Set<string>>(new Set(['BTC', 'ETH']));
-    const [activeTab, setActiveTab] = useState<WatchlistTab>('all');
     const [sortKey, setSortKey] = useState<SortKey>('price');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+    // Custom Time Range & Hand Tool State
+    const [isRangeSelecting, setIsRangeSelecting] = useState(false);
+    const [rangeStart, setRangeStart] = useState<number | null>(null);
+    const [chartVisibleRange, setChartVisibleRange] = useState<{ from: number; to: number } | null>(null);
+    const [manualDateFrom, setManualDateFrom] = useState('');
+    const [manualDateTo, setManualDateTo] = useState('');
+    const [hasActiveRange, setHasActiveRange] = useState(false);
+
+    const [chartType, setChartType] = useState<'area' | 'candle'>('candle');
+    const [indicators, setIndicators] = useState({ rsi: false, macd: false, bollinger: false });
+    const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
+    const indicatorMenuRef = useRef<HTMLDivElement>(null);
+
+    // Close indicator menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (indicatorMenuRef.current && !indicatorMenuRef.current.contains(event.target as Node)) {
+                setShowIndicatorMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const [alertModalOpen, setAlertModalOpen] = useState(false);
     const [alertTargetPrice, setAlertTargetPrice] = useState<number>(0);
@@ -298,35 +323,7 @@ const Dashboard: React.FC = () => {
         };
     }, [selectedCoin?.symbol]);
 
-    // Sidebar Resizing Logic
-    const startResizing = (e: React.MouseEvent) => {
-        e.preventDefault();
-        setIsResizing(true);
-    };
-    const stopResizing = () => setIsResizing(false);
-    const resize = (e: MouseEvent) => {
-        if (isResizing && sidebarRef.current) {
-            const sidebarRect = sidebarRef.current.getBoundingClientRect();
-            const newHeight = e.clientY - sidebarRect.top;
-            const percentage = (newHeight / sidebarRect.height) * 100;
-            const clamped = Math.min(Math.max(percentage, 20), 80);
-            setWatchlistHeight(clamped);
-        }
-    };
 
-    useEffect(() => {
-        if (isResizing) {
-            window.addEventListener('mousemove', resize);
-            window.addEventListener('mouseup', stopResizing);
-        } else {
-            window.removeEventListener('mousemove', resize);
-            window.removeEventListener('mouseup', stopResizing);
-        }
-        return () => {
-            window.removeEventListener('mousemove', resize);
-            window.removeEventListener('mouseup', stopResizing);
-        };
-    }, [isResizing]);
 
     const handleForecast = async () => {
         setLoadingForecast(true);
@@ -353,7 +350,7 @@ const Dashboard: React.FC = () => {
 
     const processedCoins = useMemo(() => {
         let result = [...coins];
-        if (activeTab === 'favs') result = result.filter(c => favorites.has(c.symbol));
+
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
             result = result.filter(c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q));
@@ -368,7 +365,7 @@ const Dashboard: React.FC = () => {
             return sortDirection === 'asc' ? valA - valB : valB - valA;
         });
         return result;
-    }, [coins, searchQuery, favorites, activeTab, sortKey, sortDirection]);
+    }, [coins, searchQuery, favorites, sortKey, sortDirection]);
 
     const groupedAlerts = useMemo(() => {
         const groups: Record<string, PriceAlert[]> = {};
@@ -459,11 +456,68 @@ const Dashboard: React.FC = () => {
         const newAlert: PriceAlert = { id: Date.now().toString(), symbol: selectedCoin.symbol, targetPrice: alertTargetPrice, condition: condition, createdAt: Date.now() };
         setPriceAlerts(prev => [newAlert, ...prev]);
         setAlertSuccess(true);
-        setTimeout(() => { setAlertSuccess(false); setAlertModalOpen(false); setActiveTab('alerts'); }, 1500);
+        setTimeout(() => { setAlertSuccess(false); setAlertModalOpen(false); }, 1500);
     };
 
     const deleteAlert = (id: string) => {
         setPriceAlerts(prev => prev.filter(a => a.id !== id));
+    };
+
+    const handleChartClick = (time: number) => {
+        if (!isRangeSelecting) return;
+
+        // Helper to format timestamp to datetime-local string (UTC Time to match chart)
+        const formatDate = (ts: number) => {
+            const d = new Date(ts * 1000);
+            const pad = (n: number) => n.toString().padStart(2, '0');
+            return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+        };
+
+        if (rangeStart === null) {
+            // First Click: Start Selection
+            setRangeStart(time);
+            setManualDateFrom(formatDate(time));
+            setManualDateTo(''); // Clear End Date to indicate pending selection
+        } else {
+            // Second Click: End Selection
+            const start = Math.min(rangeStart, time);
+            const end = Math.max(rangeStart, time);
+
+            // Update Visible Range
+            setChartVisibleRange({ from: start, to: end });
+
+            // Update Inputs with final sorted range
+            setManualDateFrom(formatDate(start));
+            setManualDateTo(formatDate(end));
+
+            // Reset Mode
+            setRangeStart(null);
+            setIsRangeSelecting(false);
+            setHasActiveRange(true);
+            setTimeRange('Custom');
+        }
+    };
+
+    const clearRangeSelection = () => {
+        setChartVisibleRange(null);
+        setManualDateFrom('');
+        setManualDateTo('');
+        setHasActiveRange(false);
+        setIsRangeSelecting(false);
+        setRangeStart(null);
+    };
+
+    const handleManualRangeApply = () => {
+        if (manualDateFrom && manualDateTo) {
+            // Parse as UTC (append 'Z' to treat as UTC time)
+            const start = Math.floor(new Date(manualDateFrom + ':00Z').getTime() / 1000);
+            const end = Math.floor(new Date(manualDateTo + ':00Z').getTime() / 1000);
+            if (start < end) {
+                setChartVisibleRange({ from: start, to: end });
+                setHasActiveRange(true);
+                setTimeRange('Custom');
+            }
+        }
     };
 
     if (loadingMarket || !selectedCoin) {
@@ -485,36 +539,106 @@ const Dashboard: React.FC = () => {
                     <div className="p-5 space-y-4">
                         {/* Row 1: Title & Price */}
                         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                            <div className="flex items-start gap-4">
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold text-white shadow-sm ${selectedCoin.symbol === 'BTC' ? 'bg-orange-500' : selectedCoin.symbol === 'ETH' ? 'bg-blue-600' : selectedCoin.symbol === 'SOL' ? 'bg-purple-600' : 'bg-slate-700'}`}>
-                                    {selectedCoin.symbol[0]}
-                                </div>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsCoinDropdownOpen(!isCoinDropdownOpen)}
+                                    className="flex items-start gap-4 hover:bg-slate-50 dark:hover:bg-slate-800 p-2 -ml-2 rounded-xl transition-colors text-left group"
+                                >
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold text-white shadow-sm ${selectedCoin.symbol === 'BTC' ? 'bg-orange-500' : selectedCoin.symbol === 'ETH' ? 'bg-blue-600' : selectedCoin.symbol === 'SOL' ? 'bg-purple-600' : 'bg-slate-700'}`}>
+                                        {selectedCoin.symbol[0]}
+                                    </div>
 
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white leading-none">{selectedCoin.name} / U.S. Dollar</h1>
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border transition-all ${wsStatus === 'connected'
-                                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-                                            : wsStatus === 'connecting'
-                                                ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800'
-                                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
-                                            }`}>
-                                            <span className={`w-1.5 h-1.5 rounded-full ${wsStatus === 'connected' ? 'bg-emerald-600 animate-pulse' : wsStatus === 'connecting' ? 'bg-yellow-600 animate-pulse' : 'bg-red-600'
-                                                }`}></span>
-                                            {wsStatus === 'connected' ? 'Live' : wsStatus === 'connecting' ? 'Connecting' : 'Offline'}
-                                        </span>
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <h1 className="text-2xl font-bold text-slate-900 dark:text-white leading-none flex items-center gap-2">
+                                                {selectedCoin.name} <span className="text-slate-400 font-normal text-lg">/ USD</span>
+                                                <ChevronDown size={20} className={`text-slate-400 transition-transform ${isCoinDropdownOpen ? 'rotate-180' : ''}`} />
+                                            </h1>
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border transition-all ${wsStatus === 'connected'
+                                                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                                                : 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                                                }`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${wsStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+                                                {wsStatus === 'connected' ? 'LIVE' : 'CONNECTING'}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-baseline gap-3">
+                                            <span className={`text-4xl font-bold text-slate-900 dark:text-white tracking-tight transition-all duration-300 ${priceFlash}`}>
+                                                ${headerStats.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </span>
+                                            <div className={`flex items-center gap-1 font-bold text-lg ${headerStats.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                {headerStats.change > 0 ? '+' : ''}{headerStats.change.toLocaleString(undefined, { maximumFractionDigits: 2 })} ({Math.abs(headerStats.percent).toFixed(2)}%)
+                                                <span className="text-sm text-slate-400 dark:text-slate-500 ml-2 font-normal">{timeRange === 'All' ? 'Max' : timeRange}</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex items-baseline gap-3">
-                                        <span className={`text-4xl font-bold text-slate-900 dark:text-white tracking-tight transition-all duration-300 ${priceFlash === 'up' ? 'text-emerald-500' : priceFlash === 'down' ? 'text-red-500' : ''
-                                            }`}>
-                                            ${headerStats.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                        </span>
-                                        <span className={`text-lg font-bold flex items-center ${headerStats.change >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                            {headerStats.change > 0 ? '+' : ''}{headerStats.change.toLocaleString(undefined, { maximumFractionDigits: 2 })} ({Math.abs(headerStats.percent).toFixed(2)}%)
-                                            <span className="text-sm text-slate-400 dark:text-slate-500 ml-2 font-normal">{timeRange === 'All' ? 'Max' : timeRange}</span>
-                                        </span>
+                                </button>
+
+                                {/* COIN DROPDOWN MENU */}
+                                {isCoinDropdownOpen && (
+                                    <div className="absolute top-full left-0 mt-2 w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[600px]">
+                                        {/* Dropdown Header & Search */}
+                                        <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
+                                            <div className="relative">
+                                                <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search coin..."
+                                                    value={searchQuery}
+                                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                                    className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <div className="flex justify-between items-center px-2 pt-3 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                                                <div className="w-[30%]">Asset</div>
+                                                <div className="w-[25%] text-right cursor-pointer hover:text-indigo-600" onClick={() => handleSort('price')}>Price <SortIcon colKey="price" /></div>
+                                                <div className="w-[20%] text-right cursor-pointer hover:text-indigo-600" onClick={() => handleSort('change')}>Chg <SortIcon colKey="change" /></div>
+                                                <div className="w-[20%] text-right cursor-pointer hover:text-indigo-600" onClick={() => handleSort('percent')}>% <SortIcon colKey="percent" /></div>
+                                            </div>
+                                        </div>
+
+                                        {/* Dropdown List */}
+                                        <div className="overflow-y-auto custom-scrollbar p-2">
+                                            {processedCoins.length === 0 ? (
+                                                <div className="text-center py-8 text-slate-400 text-sm">No coins found</div>
+                                            ) : (
+                                                processedCoins.map(coin => (
+                                                    <button
+                                                        key={coin.symbol}
+                                                        onClick={() => {
+                                                            setSelectedCoinSymbol(coin.symbol);
+                                                            setForecastResult(null);
+                                                            setIsCoinDropdownOpen(false);
+                                                        }}
+                                                        className={`w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group ${selectedCoinSymbol === coin.symbol ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}
+                                                    >
+                                                        <div className="flex items-center gap-3 w-[30%]">
+                                                            <div onClick={(e) => { e.stopPropagation(); toggleFavorite(e, coin.symbol); }} className="text-slate-300 hover:text-amber-400">
+                                                                <Star size={14} fill={favorites.has(coin.symbol) ? "#fbbf24" : "none"} className={favorites.has(coin.symbol) ? "text-amber-400" : ""} />
+                                                            </div>
+                                                            <div className="text-left">
+                                                                <div className="font-bold text-sm text-slate-900 dark:text-white leading-none">{coin.symbol}</div>
+                                                                <div className="text-[10px] text-slate-400">{coin.name}</div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="w-[25%] text-right text-sm font-medium text-slate-700 dark:text-slate-300">
+                                                            ${coin.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                                        </div>
+                                                        <div className={`w-[20%] text-right text-xs ${coin.change24h >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                            {coin.change24h > 0 ? '+' : ''}{Math.abs(coin.change24h).toFixed(2)}
+                                                        </div>
+                                                        <div className={`w-[20%] text-right`}>
+                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${coin.change24h >= 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400'}`}>
+                                                                {((coin.change24h / (coin.price - coin.change24h)) * 100).toFixed(2)}%
+                                                            </span>
+                                                        </div>
+                                                    </button>
+                                                ))
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
 
                             {/* Right Side: Sidebar Toggle (Polished) */}
@@ -532,385 +656,381 @@ const Dashboard: React.FC = () => {
                         {/* Row 2: Controls (Time Range & Indicators) */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
                             <div className="flex gap-1">
-                                {['1m', '30m', '1H', '12H', '1D', '1M', '3M', '1Y', '5Y', 'All'].map((range) => (
+                                {['1m', '3m', '5m', '15m', '30m', '1H', '4H', '1D', '1W', '1M'].map((range) => (
                                     <button
                                         key={range}
                                         onClick={() => setTimeRange(range)}
-                                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${timeRange === range ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                                    >
-                                        {range}
+                                        className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${timeRange === range
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                                            : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400'
+                                            }`}
+                                    >    {range}
                                     </button>
+
                                 ))}
                             </div>
 
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Chart Content */}
-            <div className="flex-1 relative bg-white dark:bg-slate-900">
-                <LightweightChart
-                    data={combinedChartData}
-                    color={headerStats.change >= 0 ? '#10b981' : '#f43f5e'}
-                />
-            </div>
-        </div>
-
-
-
-            {/* RIGHT: Sidebar Panel (Collapsible & Resizable) */}
-            {isSidebarOpen && (
-            <div
-                ref={sidebarRef}
-                className="w-full md:w-80 lg:w-96 flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800"
-            >
-
-                {/* SECTION 1: Watchlist */}
-                <div style={{ height: `${watchlistHeight}%` }} className="flex flex-col border-b border-slate-200 dark:border-slate-800 min-h-[180px]">
-                    {/* Watchlist Header */}
-                    <div className="p-3 border-b border-slate-200 dark:border-slate-800 space-y-3 bg-white dark:bg-slate-900">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-2">
-                                {activeTab === 'alerts' ? <BellRing size={14} /> : <List size={14} />}
-                                {activeTab === 'alerts' ? 'Active Alerts' : 'Watchlist'}
-                            </h3>
-                            {/* Tab Switcher */}
-                            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
-                                <button
-                                    onClick={() => setActiveTab('all')}
-                                    className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${activeTab === 'all' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                                >
-                                    All
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('favs')}
-                                    className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${activeTab === 'favs' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                                >
-                                    Favs
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('alerts')}
-                                    className={`px-2 py-0.5 text-[10px] font-bold rounded transition-all ${activeTab === 'alerts' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                                >
-                                    Alerts
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Search Bar */}
-                        <div className="relative">
-                            <Search size={14} className="absolute left-2.5 top-2 text-slate-400" />
-                            <input
-                                type="text"
-                                placeholder={activeTab === 'alerts' ? "Search alerts..." : "Search coin..."}
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-slate-100 transition-colors placeholder-slate-400 dark:placeholder-slate-500"
-                            />
-                        </div>
-
-                        {activeTab !== 'alerts' && (
-                            <div className="flex justify-between items-center px-3 pt-1 text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider">
-                                <div className="w-[30%] text-left">Asset</div>
-                                <div className="w-[25%] text-right cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" onClick={() => handleSort('price')}>Price <SortIcon colKey="price" /></div>
-                                <div className="w-[20%] text-right cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" onClick={() => handleSort('change')}>Chg <SortIcon colKey="change" /></div>
-                                <div className="w-[20%] text-right cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" onClick={() => handleSort('percent')}>% <SortIcon colKey="percent" /></div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Content Area */}
-                    <div className="flex-1 overflow-y-auto">
-                        {activeTab === 'alerts' ? (
-                            groupedAlerts.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                                    <BellRing size={24} className="mb-2 opacity-50" />
-                                    <p className="text-xs">No active alerts</p>
-                                    <button onClick={() => setAlertModalOpen(true)} className="mt-2 text-indigo-600 dark:text-indigo-400 text-xs font-bold hover:underline">Create one</button>
-                                </div>
-                            ) : (
-                                <div className="p-3 space-y-3">
-                                    {groupedAlerts
-                                        .filter(({ symbol }) => symbol.toLowerCase().includes(searchQuery.toLowerCase()))
-                                        .map(({ symbol, alerts }) => (
-                                            <div key={symbol} className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
-                                                <div className="bg-slate-50 dark:bg-slate-800 px-3 py-2 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${symbol === 'BTC' ? 'bg-orange-500' : symbol === 'ETH' ? 'bg-blue-600' : symbol === 'SOL' ? 'bg-purple-600' : 'bg-slate-700'}`}>
-                                                            {symbol[0]}
-                                                        </div>
-                                                        <span className="font-bold text-xs text-slate-700 dark:text-slate-300">{symbol}</span>
-                                                    </div>
-                                                    <span className="text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded-full font-bold">{alerts.length}</span>
-                                                </div>
-                                                <div>
-                                                    {alerts.map(alert => (
-                                                        <div key={alert.id} className="flex justify-between items-center p-3 border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800 group">
-                                                            <div>
-                                                                <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1">
-                                                                    {alert.condition === 'above' ? <ArrowUp size={12} className="text-green-500" /> : <ArrowDown size={12} className="text-red-500" />}
-                                                                    ${alert.targetPrice.toLocaleString()}
-                                                                </div>
-                                                                <div className="text-[9px] text-slate-400">Created just now</div>
-                                                            </div>
-                                                            <button onClick={() => deleteAlert(alert.id)} className="text-slate-300 dark:text-slate-600 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))}
-                                </div>
-                            )
-                        ) : (
-                            processedCoins.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                                    <Search size={24} className="mb-2 opacity-50" />
-                                    <p className="text-xs">No coins found</p>
-                                </div>
-                            ) : (
-                                processedCoins.map(coin => (
-                                    <div
-                                        key={coin.symbol}
-                                        onClick={() => { setSelectedCoinSymbol(coin.symbol); setForecastResult(null); }}
-                                        className={`flex items-center justify-between p-3 cursor-pointer border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group ${selectedCoinSymbol === coin.symbol ? 'bg-indigo-50 dark:bg-slate-800/50 border-l-2 border-l-indigo-600 dark:border-l-indigo-400' : 'border-l-2 border-l-transparent'}`}
+                            {/* Custom Range Inputs & Hand Tool */}
+                            <div className="flex items-center gap-2">
+                                <div className="hidden lg:flex items-center gap-2 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-lg border border-slate-200 dark:border-slate-800/50">
+                                    <input
+                                        type="datetime-local"
+                                        value={manualDateFrom}
+                                        onChange={(e) => setManualDateFrom(e.target.value)}
+                                        className="bg-transparent text-[10px] font-medium text-slate-600 dark:text-slate-300 focus:outline-none w-36 px-1"
+                                    />
+                                    <span className="text-slate-400 text-xs">-</span>
+                                    <input
+                                        type="datetime-local"
+                                        value={manualDateTo}
+                                        onChange={(e) => setManualDateTo(e.target.value)}
+                                        className="bg-transparent text-[10px] font-medium text-slate-600 dark:text-slate-300 focus:outline-none w-36 px-1"
+                                    />
+                                    <button onClick={handleManualRangeApply}
+                                        className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors text-indigo-600 dark:text-indigo-400"
                                     >
-                                        <div className="flex items-center gap-2 w-[30%]">
-                                            <button onClick={(e) => toggleFavorite(e, coin.symbol)} className="text-slate-300 dark:text-slate-600 hover:text-amber-400 transition-colors">
-                                                <Star size={14} fill={favorites.has(coin.symbol) ? "#fbbf24" : "none"} className={favorites.has(coin.symbol) ? "text-amber-400" : ""} />
-                                            </button>
-                                            <div>
-                                                <div className="font-bold text-sm text-slate-900 dark:text-slate-100 leading-none">{coin.symbol}</div>
-                                                <div className="text-[9px] text-slate-400">{coin.name}</div>
-                                            </div>
-                                        </div>
-                                        <div className="w-[25%] text-right text-sm font-medium text-slate-700 dark:text-slate-300">${coin.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-                                        <div className={`w-[20%] text-right text-xs ${coin.change24h >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>{coin.change24h > 0 ? '+' : ''}{Math.abs(coin.change24h).toFixed(2)}</div>
-                                        <div className={`w-[20%] text-right`}>
-                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${coin.change24h >= 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
-                                                {((coin.change24h / (coin.price - coin.change24h)) * 100).toFixed(2)}%
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))
-                            )
-                        )}
-                    </div>
-                </div>
-
-                {/* Resize Handle */}
-                <div
-                    onMouseDown={startResizing}
-                    className="h-3 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 cursor-row-resize flex items-center justify-center hover:bg-indigo-50 dark:hover:bg-slate-800 transition-colors group z-10"
-                >
-                    <GripHorizontal size={14} className="text-slate-300 dark:text-slate-600 group-hover:text-indigo-400" />
-                </div>
-
-                {/* SECTION 2: AI Intelligence */}
-                <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
-                    <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
-                        <h3 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase flex items-center gap-2">
-                            <Zap size={14} /> MarketLens Intelligence
-                        </h3>
-                        {forecastResult && (
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${forecastResult.trend === 'Bullish' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
-                                {forecastResult.trend}
-                            </span>
-                        )}
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                        {forecastResult ? (
-                            <div className="space-y-4 animate-in fade-in">
-
-                                {/* Action Recommendation Card */}
-                                {forecastResult.recommendation && (
-                                    <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-800 dark:to-slate-900 p-4 rounded-xl border border-indigo-100 dark:border-slate-700 shadow-sm">
-                                        <div className="flex justify-between items-center mb-3">
-                                            <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide flex items-center gap-1">
-                                                <Target size={14} /> Trade Signal
-                                            </h4>
-                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${forecastResult.recommendation.action === 'Buy' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                                forecastResult.recommendation.action === 'Sell' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                                    'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                                                }`}>
-                                                {forecastResult.recommendation.action}
-                                            </span>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2 text-xs">
-                                            <div className="bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
-                                                <span className="text-[10px] text-slate-500 block mb-0.5">Entry Zone</span>
-                                                <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{forecastResult.recommendation.entryZone}</span>
-                                            </div>
-                                            <div className="bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
-                                                <span className="text-[10px] text-slate-500 block mb-0.5">Target</span>
-                                                <span className="font-mono font-semibold text-green-600 dark:text-green-400">{forecastResult.recommendation.targetPrice}</span>
-                                            </div>
-                                        </div>
-                                        <div className="mt-2 flex items-center gap-2 text-[10px] text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-1.5 rounded border border-red-100 dark:border-red-900/30">
-                                            <ShieldAlert size={10} />
-                                            <span>Stop Loss: {forecastResult.recommendation.stopLoss}</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Confidence */}
-                                <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-xs text-slate-500 dark:text-slate-400">Confidence</span>
-                                        <span className="text-xs font-bold text-slate-900 dark:text-white">{forecastResult.confidenceScore}%</span>
-                                    </div>
-                                    <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                        <div className={`h-full rounded-full ${forecastResult.confidenceScore > 70 ? 'bg-green-500' : 'bg-yellow-500'}`} style={{ width: `${forecastResult.confidenceScore}%` }}></div>
-                                    </div>
+                                        <Check size={12} />
+                                    </button>
+                                    <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium px-1">UTC</span>
                                 </div>
-
-                                {/* Reasoning */}
-                                <div>
-                                    <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase">Analysis</h4>
-                                    <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-                                        {forecastResult.reasoning}
-                                    </p>
-                                </div>
-
-                                {/* Sources */}
-                                {forecastResult.sources && forecastResult.sources.length > 0 && (
-                                    <div>
-                                        <h4 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase flex items-center gap-1">
-                                            <Globe size={10} /> Grounding
-                                        </h4>
-                                        <div className="space-y-1">
-                                            {forecastResult.sources.slice(0, 2).map((s, i) => (
-                                                <a key={i} href={s.url} target="_blank" className="block text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline truncate">
-                                                    {s.title}
-                                                </a>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
 
                                 <button
-                                    onClick={handleForecast}
-                                    className="w-full py-1.5 mt-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded text-xs transition flex items-center justify-center gap-2"
+                                    onClick={() => {
+                                        if (hasActiveRange) {
+                                            clearRangeSelection();
+                                        } else {
+                                            setIsRangeSelecting(!isRangeSelecting);
+                                            setRangeStart(null);
+                                        }
+                                    }}
+                                    className={`p-1.5 rounded-lg border transition-all ${hasActiveRange
+                                        ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/30'
+                                        : isRangeSelecting
+                                            ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 ring-2 ring-indigo-500/20'
+                                            : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                        }`}
+                                    title={hasActiveRange ? "Clear range selection" : "Hand Tool: Click two points on chart to select range"}
                                 >
-                                    <RefreshCw size={12} /> Refresh Analysis
+                                    {hasActiveRange ? <X size={16} /> : <Hand size={16} className={isRangeSelecting ? "animate-pulse" : ""} />}
                                 </button>
                             </div>
-                        ) : loadingForecast ? (
-                            // Skeleton Loading State
-                            <div className="space-y-4 animate-pulse">
-                                <div className="h-32 bg-slate-100 dark:bg-slate-800 rounded-xl"></div>
-                                <div className="space-y-2">
-                                    <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-3/4"></div>
-                                    <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-1/2"></div>
+
+                            <div className="flex items-center gap-2">
+                                {/* Chart Type Toggles */}
+                                <div className="hidden md:flex bg-slate-100 dark:bg-slate-800/50 p-1 rounded-lg border border-slate-200 dark:border-slate-800/50">
+                                    <button
+                                        onClick={() => setChartType('area')}
+                                        className={`p-1.5 rounded-md transition-all ${chartType === 'area' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                        title="Area Chart"
+                                    >
+                                        <Activity size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => setChartType('candle')}
+                                        className={`p-1.5 rounded-md transition-all ${chartType === 'candle' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                        title="Candlestick Chart"
+                                    >
+                                        <BarChart2 size={16} />
+                                    </button>
                                 </div>
-                                <div className="h-20 bg-slate-100 dark:bg-slate-800 rounded-lg"></div>
+
+                                <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
+                                {/* Indicators Menu */}
+                                <div className="relative" ref={indicatorMenuRef}>
+                                    <button
+                                        onClick={() => setShowIndicatorMenu(!showIndicatorMenu)}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${showIndicatorMenu
+                                            ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
+                                            : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                            }`}
+                                    >
+                                        <SlidersHorizontal size={14} />
+                                        Indicators
+                                        <ChevronDown size={12} className={`transition-transform ${showIndicatorMenu ? 'rotate-180' : ''}`} />
+                                    </button>
+
+                                    {/* Dropdown Menu */}
+                                    {showIndicatorMenu && (
+                                        <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                            <div className="p-2 space-y-1">
+                                                <button
+                                                    onClick={() => setIndicators(prev => ({ ...prev, rsi: !prev.rsi }))}
+                                                    className="w-full flex items-center justify-between px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg group"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        {indicators.rsi && <Check size={14} className="text-indigo-600" />}
+                                                        <span>RSI</span>
+                                                    </div>
+                                                </button>
+                                                <button
+                                                    onClick={() => setIndicators(prev => ({ ...prev, macd: !prev.macd }))}
+                                                    className="w-full flex items-center justify-between px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg group"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        {indicators.macd && <Check size={14} className="text-indigo-600" />}
+                                                        <span>MACD</span>
+                                                    </div>
+                                                </button>
+                                                <button
+                                                    onClick={() => setIndicators(prev => ({ ...prev, bollinger: !prev.bollinger }))}
+                                                    className="w-full flex items-center justify-between px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg group"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        {indicators.bollinger && <Check size={14} className="text-indigo-600" />}
+                                                        <span>Bollinger Bands</span>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        ) : (
-                            // No forecast - show generate button
-                            <div className="flex flex-col items-center justify-center py-12">
-                                <BrainCircuit size={48} className="text-slate-300 dark:text-slate-700 mb-4" />
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">No forecast generated yet</p>
-                                <button
-                                    onClick={handleForecast}
-                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                                >
-                                    <Sparkles size={16} />
-                                    Generate AI Forecast
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
-    {/* --- MODALS --- */ }
-
-    {/* Alert Modal */ }
-    {
-        alertModalOpen && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl relative animate-in zoom-in-95 duration-200">
-                    <button onClick={() => setAlertModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={20} /></button>
-
-                    {alertSuccess ? (
-                        <div className="flex flex-col items-center justify-center py-8 text-green-600">
-                            <CheckCircle size={48} className="mb-4" />
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Alert Confirmed!</h3>
-                            <p className="text-slate-500 dark:text-slate-400 text-sm">We'll notify you when price hits ${alertTargetPrice.toLocaleString()}</p>
                         </div>
-                    ) : (
-                        <>
-                            <div className="flex items-center gap-2 mb-4 text-slate-900 dark:text-white">
-                                <Bell className="text-indigo-600 dark:text-indigo-400" />
-                                <h3 className="font-bold text-lg">Set Chart Alert</h3>
-                            </div>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Asset</label>
-                                    <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-sm font-medium">
-                                        {selectedCoin.name} ({selectedCoin.symbol})
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Target Price ($)</label>
-                                    <input type="number" value={alertTargetPrice} onChange={(e) => setAlertTargetPrice(parseFloat(e.target.value))} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-                                </div>
-                                <button onClick={handleSaveAlert} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">Save Alert</button>
-                            </div>
-                        </>
+                    </div>
+                </div>
+
+                {/* Chart Content */}
+                <div className="flex-1 relative bg-white dark:bg-slate-900">
+                    <LightweightChart
+                        data={combinedChartData}
+                        color={headerStats.change >= 0 ? '#10b981' : '#f43f5e'}
+                        type={chartType}
+                        indicators={indicators}
+                        onChartClick={handleChartClick}
+                        visibleRange={chartVisibleRange}
+                    />
+                    {isRangeSelecting && (
+                        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg z-10 pointer-events-none animate-in fade-in slide-in-from-top-2">
+                            {rangeStart ? "Click end point..." : "Click start point..."}
+                        </div>
                     )}
                 </div>
             </div>
-        )
-    }
 
-    {/* Historical News Modal */ }
-    {
-        historyModalOpen && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl relative animate-in zoom-in-95 duration-200">
-                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 rounded-t-2xl z-10">
-                        <div className="flex items-center gap-2">
-                            <Calendar className="text-indigo-600 dark:text-indigo-400" size={20} />
-                            <div>
-                                <h3 className="font-bold text-slate-900 dark:text-white">Historical Context</h3>
-                                <p className="text-xs text-slate-500">News around {historyDate.split(',')[0]}</p>
+
+
+            {/* RIGHT: Sidebar Panel (Market Intelligence) */}
+            {
+                isSidebarOpen && (
+                    <div
+                        ref={sidebarRef}
+                        className="w-full md:w-80 lg:w-96 flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800"
+                    >
+                        {/* Header */}
+                        <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-white uppercase flex items-center gap-2">
+                                <Zap size={16} className="text-indigo-500" />
+                                Market Intelligence
+                            </h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                AI-powered analysis & news for {selectedCoin.name}
+                            </p>
+                        </div>
+
+                        {/* Content Area */}
+                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-slate-50 dark:bg-slate-950">
+                            {forecastResult ? (
+                                <div className="space-y-4 animate-in fade-in">
+
+                                    {/* Action Recommendation Card */}
+                                    {forecastResult.recommendation && (
+                                        <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-800 dark:to-slate-900 p-4 rounded-xl border border-indigo-100 dark:border-slate-700 shadow-sm">
+                                            <div className="flex justify-between items-center mb-3">
+                                                <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide flex items-center gap-1">
+                                                    <Target size={14} /> Trade Signal
+                                                </h4>
+                                                <span className={`px-2 py-0.5 rounded text-xs font-bold ${forecastResult.recommendation.action === 'Buy' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                                    forecastResult.recommendation.action === 'Sell' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                                        'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                                    }`}>
+                                                    {forecastResult.recommendation.action}
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                                <div className="bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
+                                                    <span className="text-[10px] text-slate-500 block mb-0.5">Entry Zone</span>
+                                                    <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{forecastResult.recommendation.entryZone}</span>
+                                                </div>
+                                                <div className="bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
+                                                    <span className="text-[10px] text-slate-500 block mb-0.5">Target</span>
+                                                    <span className="font-mono font-semibold text-green-600 dark:text-green-400">{forecastResult.recommendation.targetPrice}</span>
+                                                </div>
+                                            </div>
+                                            <div className="mt-2 flex items-center gap-2 text-[10px] text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-1.5 rounded border border-red-100 dark:border-red-900/30">
+                                                <ShieldAlert size={10} />
+                                                <span>Stop Loss: {forecastResult.recommendation.stopLoss}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Confidence */}
+                                    <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
+                                        <span className="text-xs text-slate-500 dark:text-slate-400">Confidence</span>
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                                <div className={`h-full rounded-full ${forecastResult.confidenceScore > 70 ? 'bg-green-500' : 'bg-yellow-500'}`} style={{ width: `${forecastResult.confidenceScore}%` }}></div>
+                                            </div>
+                                            <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{forecastResult.confidenceScore}%</span>
+                                        </div>
+                                        {/* Reasoning */}
+                                        <div>
+                                            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase">Analysis</h4>
+                                            <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                                                {forecastResult.reasoning}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Sources */}
+                                    {forecastResult.sources && forecastResult.sources.length > 0 && (
+                                        <div>
+                                            <h4 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase flex items-center gap-1">
+                                                <Globe size={10} /> Grounding
+                                            </h4>
+                                            <div className="space-y-2">
+                                                {forecastResult.sources.map((s, i) => (
+                                                    <a key={i} href={s.url} target="_blank" className="block p-2 rounded bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-900 transition-colors group">
+                                                        <div className="text-xs font-medium text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 mb-1 line-clamp-2">
+                                                            {s.title}
+                                                        </div>
+                                                        <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                                                            <Globe size={8} />
+                                                            {new URL(s.url).hostname.replace('www.', '')}
+                                                        </div>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <button
+                                        onClick={handleForecast}
+                                        className="w-full py-2 mt-4 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm"
+                                    >
+                                        <RefreshCw size={14} /> Refresh Analysis
+                                    </button>
+                                </div>
+                            ) : loadingForecast ? (
+                                // Skeleton Loading State
+                                <div className="space-y-4 animate-pulse">
+                                    <div className="h-40 bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+                                    <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+                                    <div className="space-y-2">
+                                        <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-3/4"></div>
+                                        <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/2"></div>
+                                    </div>
+                                </div>
+                            ) : (
+                                // No forecast - show generate button
+                                <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+                                    <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mb-4">
+                                        <BrainCircuit size={32} className="text-indigo-500" />
+                                    </div>
+                                    <h3 className="font-bold text-slate-900 dark:text-white mb-2">Market Intelligence</h3>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                                        Generate real-time AI technical analysis and news insights for {selectedCoin.name}.
+                                    </p>
+                                    <button
+                                        onClick={handleForecast}
+                                        className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-500/30 flex items-center gap-2 transform hover:scale-105"
+                                    >
+                                        <Sparkles size={18} />
+                                        Generate AI Forecast
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* -- MODALS -- */}
+
+            {/* Alert Modal */}
+            {
+                alertModalOpen && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl relative animate-in zoom-in-95 duration-200">
+                            <button onClick={() => setAlertModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={20} /></button>
+
+                            {alertSuccess ? (
+                                <div className="flex flex-col items-center justify-center py-8 text-green-600">
+                                    <CheckCircle size={48} className="mb-4" />
+                                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Alert Confirmed!</h3>
+                                    <p className="text-slate-500 dark:text-slate-400 text-sm">We'll notify you when price hits ${alertTargetPrice.toLocaleString()}</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="flex items-center gap-2 mb-4 text-slate-900 dark:text-white">
+                                        <Bell className="text-indigo-600 dark:text-indigo-400" />
+                                        <h3 className="font-bold text-lg">Set Chart Alert</h3>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Asset</label>
+                                            <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-sm font-medium">
+                                                {selectedCoin.name} ({selectedCoin.symbol})
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Target Price ($)</label>
+                                            <input type="number" value={alertTargetPrice} onChange={(e) => setAlertTargetPrice(parseFloat(e.target.value))} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                                        </div>
+                                        <button onClick={handleSaveAlert} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">Save Alert</button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Historical News Modal */}
+            {
+                historyModalOpen && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl relative animate-in zoom-in-95 duration-200">
+                            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 rounded-t-2xl z-10">
+                                <div className="flex items-center gap-2">
+                                    <Calendar className="text-indigo-600 dark:text-indigo-400" size={20} />
+                                    <div>
+                                        <h3 className="font-bold text-slate-900 dark:text-white">Historical Context</h3>
+                                        <p className="text-xs text-slate-500">News around {historyDate.split(',')[0]}</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setHistoryModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={20} /></button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-950 rounded-b-2xl custom-scrollbar">
+                                {loadingHistory ? (
+                                    <div className="flex flex-col items-center justify-center h-64 space-y-3">
+                                        <Loader2 className="animate-spin text-indigo-600 dark:text-indigo-400" size={32} />
+                                        <p className="text-sm text-slate-500">Searching archives...</p>
+                                    </div>
+                                ) : historicalNews.length === 0 ? (
+                                    <div className="text-center py-20 text-slate-500 text-sm">No specific news found for this exact timeframe.</div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {historicalNews.map((news) => (
+                                            <NewsCard key={news.id} article={news} onClick={(article) => setSelectedHistoryArticle(article)} />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
-                        <button onClick={() => setHistoryModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={20} /></button>
                     </div>
-
-                    <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-950 rounded-b-2xl custom-scrollbar">
-                        {loadingHistory ? (
-                            <div className="flex flex-col items-center justify-center h-64 space-y-3">
-                                <Loader2 className="animate-spin text-indigo-600 dark:text-indigo-400" size={32} />
-                                <p className="text-sm text-slate-500">Searching archives...</p>
-                            </div>
-                        ) : historicalNews.length === 0 ? (
-                            <div className="text-center py-20 text-slate-500 text-sm">No specific news found for this exact timeframe.</div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {historicalNews.map((news) => (
-                                    <NewsCard key={news.id} article={news} onClick={(article) => setSelectedHistoryArticle(article)} />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        )
-    }
+                )
+            }
 
 
-    {/* Detail Article Modal for History */}
-    {selectedHistoryArticle && (
-            <ArticleDetailModal article={selectedHistoryArticle} onClose={() => setSelectedHistoryArticle(null)} />
-        )
-    }
-    </div>
+            {/* Detail Article Modal for History */}
+            {
+                selectedHistoryArticle && (
+                    <ArticleDetailModal article={selectedHistoryArticle} onClose={() => setSelectedHistoryArticle(null)} />
+                )
+            }
+        </div >
     );
 };
 
