@@ -1,0 +1,11 @@
+pymongo
+requests
+google-generativeai
+fastapi
+uvicorn
+pydantic
+python-dotenv
+openai
+feedparser
+beautifulsoup4
+python-dateutil
