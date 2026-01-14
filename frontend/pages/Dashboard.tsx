@@ -10,9 +10,14 @@ import { getTopCoins, getHistoricalData, generateMarketForecast, createSocketCon
 // Limit: Number of points. Aggregate: steps to combine. Type: minute/hour/day.
 const getRangeParams = (range: string) => {
     switch (range) {
-        // 1h: 60 x 1min candles = 1 hour (Fixed to match request, currently mapping to 1H logic)
-        case '1h': return { limit: 60, aggregate: 1, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
-        case '4h': return { limit: 240, aggregate: 1, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const };
+        // Minutes (aggregate from 1-min candles)
+        case '5m': return { limit: 60, aggregate: 5, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 5 hours of 5-min candles
+        case '15m': return { limit: 96, aggregate: 15, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 24 hours of 15-min candles
+        case '30m': return { limit: 48, aggregate: 30, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 24 hours of 30-min candles
+
+        // Hours
+        case '1h': return { limit: 60, aggregate: 1, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 60 x 1min = 1 hour
+        case '4h': return { limit: 240, aggregate: 1, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 240 x 1min = 4 hours
 
         // Days
         case '1d': return { limit: 24, aggregate: 1, type: 'hour' as const, format: { hour: '2-digit', minute: '2-digit' } as const }; // 24 hours
@@ -687,7 +692,7 @@ const Dashboard: React.FC = () => {
                             {/* Time Range Buttons - 2 Rows */}
                             {/* Time Range Buttons - Simplified */}
                             <div className="flex flex-wrap gap-1">
-                                {['1h', '4h', '1d', '1w', '1m', '3m', '1y', '5y', 'All'].map((range) => (
+                                {['5m', '15m', '30m', '1h', '4h', '1d', '1w', '1m', '3m', '1y', '5y', 'All'].map((range) => (
                                     <button
                                         key={range}
                                         onClick={() => setTimeRange(range)}
