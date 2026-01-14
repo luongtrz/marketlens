@@ -31,8 +31,8 @@ export class AiController {
     }
 
     @Get('latest-news')
-    async getLatestNews() {
-        return this.aiService.fetchLatestNews();
+    async getLatestNews(@Query('start') start?: string, @Query('end') end?: string, @Query('tag') tag?: string) {
+        return this.aiService.fetchLatestNews(start, end, tag);
     }
 
     @Get('historical-news')

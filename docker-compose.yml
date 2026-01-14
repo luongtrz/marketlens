@@ -13,6 +13,106 @@ services:
       - "5433:5432"
     volumes:
       - marketlens_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - marketlens-network
+
+  mongo:
+    image: mongo:6.0
+    container_name: marketlens-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - marketlens_mongo:/data/db
+    networks:
+      - marketlens-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: marketlens-backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=marketlens
+      - MONGO_URI=mongodb://mongo:27017/marketlens
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - VITE_API_URL=http://localhost:3001/api
+      - CRAWLER_URL=http://crawler:8000
+    depends_on:
+      db:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+    networks:
+      - marketlens-network
+
+  crawler:
+    build:
+      context: ./crawler
+      dockerfile: Dockerfile
+    container_name: marketlens-crawler
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/marketlens
+      - BACKEND_URL=http://backend:3001
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      - mongo
+    networks:
+      - marketlens-network
+
+  crawler-worker:
+    build:
+      context: ./crawler
+      dockerfile: Dockerfile
+    container_name: marketlens-crawler-worker
+    command: [ "python", "main.py", "--loop", "300" ]
+    restart: unless-stopped
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/marketlens
+      - BACKEND_URL=http://crawler:8000
+      - ANALYSIS_URL=http://crawler:8000
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      - mongo
+      - crawler
+    networks:
+      - marketlens-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: marketlens-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:3001/api
+    depends_on:
+      - backend
+    networks:
+      - marketlens-network
 
 volumes:
   marketlens_data:
+  marketlens_mongo:
+
+
+networks:
+  marketlens-network:
+    driver: bridge

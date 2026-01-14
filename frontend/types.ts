@@ -11,6 +11,7 @@ export interface NewsArticle {
   detailedSummary?: string;
   keyTakeaways?: string[];
   impactScore?: number; // 0-100
+  tag?: string;
 }
 
 export interface HistoryPoint {
@@ -61,6 +62,7 @@ export interface ForecastResult {
   confidenceScore: number; // 0-100
   reasoning: string;
   trend: 'Bullish' | 'Bearish' | 'Neutral';
+  marketSummary?: string;
   recommendation?: Recommendation;
   sources?: GroundingSource[];
 }

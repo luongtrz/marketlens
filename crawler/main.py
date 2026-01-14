@@ -53,6 +53,7 @@ class NewsItem(BaseModel):
     detailedSummary: Optional[str]
     snippet: Optional[str]
     source: Optional[str]
+    tag: Optional[str] = "General"
     marketSentiment: Optional[float] = 0.0
 
 class NewsResponse(BaseModel):
@@ -63,17 +64,30 @@ class NewsResponse(BaseModel):
     snippet: str
     url: str
     sentiment: str
+    tag: str
     summary: str
     detailedSummary: str
     keyTakeaways: List[str]
     impactScore: int
 
 @app.get("/api/news", response_model=List[NewsResponse])
-def get_news():
+def get_news(start: Optional[str] = None, end: Optional[str] = None, tag: Optional[str] = None):
     if news_collection is None:
         raise HTTPException(status_code=503, detail="Database not available")
+    
+    query = {}
+    if start or end:
+        date_query = {}
+        if start:
+            date_query["$gte"] = start
+        if end:
+            date_query["$lte"] = end
+        query["articleDateTime"] = date_query
         
-    cursor = news_collection.find().sort("articleDateTime", -1).limit(50)
+    if tag and tag != "All":
+        query["tag"] = tag
+
+    cursor = news_collection.find(query).sort("articleDateTime", -1).limit(50)
     articles = []
     for doc in cursor:
         articles.append({
@@ -84,6 +98,7 @@ def get_news():
             "snippet": doc.get("snippet") or doc.get("summarizeNews", "")[:200],
             "url": doc.get("url", "#"),
             "sentiment": doc.get("sentiment", "Neutral"),
+            "tag": doc.get("tag", "General"),
             "summary": doc.get("summarizeNews", "") or "No summary available.",
             "detailedSummary": doc.get("detailedSummary", "") or doc.get("news", "")[:500],
             "keyTakeaways": doc.get("keyTakeaways") or [],

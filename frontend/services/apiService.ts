@@ -108,12 +108,21 @@ export const getHistoricalNews = async (coinName: string, dateStr: string): Prom
     }
 };
 
-export const fetchLatestNews = async (): Promise<NewsArticle[]> => {
+export const fetchLatestNews = async (start?: string, end?: string, tag?: string): Promise<NewsArticle[]> => {
     try {
-        const res = await fetch(`${API_BASE_URL}/ai/latest-news`);
-        if (!res.ok) return [];
+        const url = new URL(`${API_BASE_URL}/ai/latest-news`);
+        if (start) url.searchParams.append('start', start);
+        if (end) url.searchParams.append('end', end);
+        if (tag) url.searchParams.append('tag', tag);
+
+        const res = await fetch(url.toString());
+        if (!res.ok) {
+            console.error('fetchLatestNews failed with status:', res.status);
+            return [];
+        }
         return await res.json();
     } catch (e) {
+        console.error('fetchLatestNews failed', e);
         return [];
     }
 };

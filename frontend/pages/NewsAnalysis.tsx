@@ -4,6 +4,7 @@ import { fetchLatestNews } from '../services/apiService';
 import NewsCard from '../components/NewsCard';
 import ArticleDetailModal from '../components/ArticleDetailModal';
 import { Loader2, Filter, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatSource } from '../utils/formatters';
 
 const ITEMS_PER_PAGE = 6;
 
@@ -15,6 +16,7 @@ const NewsAnalysis: React.FC = () => {
   const [sentimentFilter, setSentimentFilter] = useState<string>('All');
   const [impactFilter, setImpactFilter] = useState<string>('All');
   const [sourceFilter, setSourceFilter] = useState<string>('All');
+  const [tagFilter, setTagFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<string>('Latest');
 
   // Pagination State
@@ -44,12 +46,16 @@ const NewsAnalysis: React.FC = () => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [sentimentFilter, impactFilter, sourceFilter, sortBy]);
+  }, [sentimentFilter, impactFilter, sourceFilter, tagFilter, sortBy]);
 
   // Filter and Sort Logic
   const filteredArticles = useMemo(() => {
     return articles
       .filter(article => {
+        // Tag Filter
+        if (tagFilter !== 'All' && article.tag !== tagFilter) {
+          return false;
+        }
         // Sentiment Filter
         if (sentimentFilter !== 'All' && article.sentiment !== sentimentFilter) {
           return false;
@@ -74,7 +80,7 @@ const NewsAnalysis: React.FC = () => {
         // Default to keeping original order (Latest based on mock fetch)
         return 0;
       });
-  }, [articles, sentimentFilter, impactFilter, sourceFilter, sortBy]);
+  }, [articles, sentimentFilter, impactFilter, sourceFilter, tagFilter, sortBy]);
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredArticles.length / ITEMS_PER_PAGE);
@@ -106,6 +112,23 @@ const NewsAnalysis: React.FC = () => {
           {/* Filter Controls */}
           <div className="flex flex-wrap gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
 
+            {/* Tag Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tag:</span>
+              <select
+                value={tagFilter}
+                onChange={(e) => setTagFilter(e.target.value)}
+                className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
+              >
+                <option value="All">All Coins</option>
+                <option value="BTC">BTC</option>
+                <option value="ETH">ETH</option>
+                <option value="General">General</option>
+              </select>
+            </div>
+
+            <div className="w-px h-8 bg-slate-200 mx-1 hidden md:block"></div>
+
             {/* Sentiment Filter */}
             <div className="flex items-center gap-2">
               <Filter size={14} className="text-slate-400" />
@@ -130,7 +153,7 @@ const NewsAnalysis: React.FC = () => {
               >
                 <option value="All">All Sources</option>
                 {uniqueSources.map(source => (
-                  <option key={source} value={source}>{source}</option>
+                  <option key={source} value={source}>{formatSource(source)}</option>
                 ))}
               </select>
             </div>
@@ -178,7 +201,7 @@ const NewsAnalysis: React.FC = () => {
             <div className="text-center py-20 bg-slate-50 rounded-2xl border border-slate-200 border-dashed">
               <p className="text-slate-500">No articles match your filters.</p>
               <button
-                onClick={() => { setSentimentFilter('All'); setImpactFilter('All'); setSourceFilter('All'); }}
+                onClick={() => { setSentimentFilter('All'); setImpactFilter('All'); setSourceFilter('All'); setTagFilter('All'); }}
                 className="mt-2 text-indigo-600 hover:text-indigo-500 text-sm font-medium"
               >
                 Clear Filters

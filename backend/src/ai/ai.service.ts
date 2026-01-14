@@ -1,5 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 import { GoogleGenAI, Type, FunctionDeclaration, Chat, GenerateContentResponse } from '@google/genai';
 
 // Interfaces
@@ -12,7 +14,10 @@ export interface NewsArticle {
     url: string;
     sentiment: 'Positive' | 'Negative' | 'Neutral';
     summary?: string;
+    detailedSummary?: string;
+    keyTakeaways?: string[];
     impactScore: number;
+    tag?: string;
 }
 
 export interface ForecastResult {
@@ -38,7 +43,13 @@ export class AiService implements OnModuleInit {
     private readonly CHAT_MODEL = "gemini-2.5-flash-lite";
     private readonly PREMIUM_MODEL = "gemini-3-flash-preview";
 
-    constructor(private configService: ConfigService) { }
+    // Crawler URL
+    private readonly CRAWLER_URL = process.env.CRAWLER_URL || 'http://crawler:8000';
+
+    constructor(
+        private configService: ConfigService,
+        private readonly httpService: HttpService
+    ) { }
 
     onModuleInit() {
         const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -120,7 +131,7 @@ export class AiService implements OnModuleInit {
       - Mention Moving Averages (e.g., "Trading above the 50-period EMA").
       - Mention Volume profile.
       - Explicitly cite 1-2 specific news headlines found during search that support the technical view.
-  
+   
       JSON Schema:
          - predictedPrices: An array of 5 numbers representing the predicted price curve. First number close to ${currentPrice}.
          - confidenceScore: A number between 0 and 100.
@@ -284,119 +295,34 @@ export class AiService implements OnModuleInit {
             return [];
         }
     }
-    async fetchLatestNews(): Promise<NewsArticle[]> {
-        return [
-            {
-                id: '1',
-                title: 'Bitcoin breaks $95k resistance as institutional inflow surges',
-                source: 'CoinTelegraph',
-                timestamp: '2 hours ago',
-                snippet: 'ETF volumes have reached a new all-time high, pushing BTC price beyond key resistance levels.',
-                url: '#',
-                sentiment: 'Positive',
-                summary: 'Institutional demand via ETFs is driving Bitcoin price action to new local highs.',
-                impactScore: 85
-            },
-            {
-                id: '2',
-                title: 'SEC delays decision on Ethereum Spot ETF options',
-                source: 'CoinDesk',
-                timestamp: '4 hours ago',
-                snippet: 'Regulators have asked for more public comment periods, causing a slight dip in ETH prices.',
-                url: '#',
-                sentiment: 'Negative',
-                summary: 'Regulatory delays are causing short-term uncertainty for Ethereum investment products.',
-                impactScore: 65
-            },
-            {
-                id: '3',
-                title: 'Solana network congestion issues resolved after update',
-                source: 'The Block',
-                timestamp: '5 hours ago',
-                snippet: 'Validators have successfully deployed patch 1.18, restoring sub-second finality.',
-                url: '#',
-                sentiment: 'Positive',
-                summary: 'Technical upgrades have stabilized the Solana network, restoring user confidence.',
-                impactScore: 45
-            },
-            {
-                id: '4',
-                title: 'Macro Analysis: Inflation data suggests Fed pivot incoming',
-                source: 'Bloomberg Crypto',
-                timestamp: '6 hours ago',
-                snippet: 'CPI data lower than expected. Risk-on assets likely to benefit in Q4.',
-                url: '#',
-                sentiment: 'Positive',
-                summary: 'Favorable macroeconomic indicators suggest a bullish environment for crypto assets.',
-                impactScore: 75
-            },
-            {
-                id: '5',
-                title: 'Ripple wins key procedural victory in ongoing lawsuit',
-                source: 'CryptoSlate',
-                timestamp: '8 hours ago',
-                snippet: 'Court denies SEC motion to seal documents, XRP rallies 5% on the news.',
-                url: '#',
-                sentiment: 'Positive',
-                summary: 'Legal wins for Ripple create positive momentum for XRP and regulatory clarity.',
-                impactScore: 70
-            },
-            {
-                id: '6',
-                title: 'Major exchange experiences flash crash in Asia trading hours',
-                source: 'The Block',
-                timestamp: '9 hours ago',
-                snippet: 'Thin liquidity led to a 10% wicking on several altcoin pairs before stabilization.',
-                url: '#',
-                sentiment: 'Negative',
-                summary: 'Liquidity issues on centralized exchanges highlight risks during off-peak hours.',
-                impactScore: 55
-            },
-            {
-                id: '7',
-                title: 'DeFi TVL reaches 12-month high led by liquid staking',
-                source: 'DefiLlama News',
-                timestamp: '11 hours ago',
-                snippet: 'Lido and RocketPool lead the charge as users seek yield in a sideways market.',
-                url: '#',
-                sentiment: 'Positive',
-                summary: 'Growth in Decentralized Finance Total Value Locked indicates healthy ecosystem engagement.',
-                impactScore: 60
-            },
-            {
-                id: '8',
-                title: 'New EU crypto regulations MiCA enter final phase',
-                source: 'CoinDesk',
-                timestamp: '12 hours ago',
-                snippet: 'Stablecoin issuers must comply with strict reserve requirements starting next month.',
-                url: '#',
-                sentiment: 'Neutral',
-                summary: 'Regulatory clarity is good for long-term growth but imposes short-term compliance costs.',
-                impactScore: 80
-            },
-            {
-                id: '9',
-                title: 'Avalanche partners with major gaming studio for subnet launch',
-                source: 'Decrypt',
-                timestamp: '14 hours ago',
-                snippet: 'Triple-A game title to be built exclusively on an Avalanche subnet.',
-                url: '#',
-                sentiment: 'Positive',
-                summary: 'Web3 Gaming partnerships demonstrate real-world utility for blockchain infrastructure.',
-                impactScore: 50
-            },
-            {
-                id: '10',
-                title: 'Bitcoin miner difficulty adjustment hits all-time high',
-                source: 'CoinTelegraph',
-                timestamp: '15 hours ago',
-                snippet: 'Competition among miners intensifies as hashrate continues to climb.',
-                url: '#',
-                sentiment: 'Neutral',
-                summary: 'High network security is positive, but miner profitability is being squeezed.',
-                impactScore: 40
-            }
-        ];
+
+    async fetchLatestNews(start?: string, end?: string, tag?: string): Promise<NewsArticle[]> {
+        try {
+            const params: any = {};
+            if (start) params.start = start;
+            if (end) params.end = end;
+            if (tag && tag !== "All") params.tag = tag;
+
+            const { data } = await firstValueFrom(
+                this.httpService.get<any[]>(`${this.CRAWLER_URL}/api/news`, { params })
+            );
+
+            return data.map(item => ({
+                id: item.id,
+                title: item.title,
+                snippet: item.snippet,
+                source: item.source,
+                timestamp: new Date(item.timestamp).toISOString(),
+                sentiment: item.sentiment,
+                tag: item.tag,
+                url: item.url,
+                impactScore: item.impactScore
+            }));
+        } catch (error) {
+            console.error('Error connecting to crawler service:', error.message);
+            // Fallback to mock data if crawler is unreachable
+            return [];
+        }
     }
 
     async chat(message: string, history: { role: 'user' | 'model'; content: string }[]): Promise<{ text: string; groundingMetadata: any }> {

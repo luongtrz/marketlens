@@ -74,6 +74,14 @@ class Crawler:
             results.append(" ".join(groups))
         return results
 
+    def _determine_tag(self, title: str, content: str) -> str:
+        text = (title + " " + content).lower()
+        if "btc" in text or "bitcoin" in text:
+            return "BTC"
+        if "eth" in text or "ethereum" in text or "etherium" in text:
+            return "ETH"
+        return "General"
+
     def _analyze_and_store(self, article_data: dict):
         """Analyze article content and store it in backend database"""
         try:
@@ -111,12 +119,16 @@ class Crawler:
                     print(f"[crawler] ⚠️ Skipping article - missing required fields")
                     return False
                 
+                # Determine tag
+                tag = self._determine_tag(title, news_content)
+
                 backend_data = {
                     "articleDateTime": article_datetime,
                     "title": title[:200],  # Limit title length
                     "url": article_data.get('link'),
                     "news": news_content[:5000],  # Limit content length
                     "summarizeNews": analysis_result.get('summarize_news', article_data.get('summary', ''))[:1000],
+                    "tag": tag,
                     # New fields
                     "sentiment": analysis_result.get('sentiment', 'Neutral'),
                     "impactScore": int(analysis_result.get('impact_score', 0)),
@@ -134,7 +146,7 @@ class Crawler:
                 )
                 
                 if backend_response.status_code == 201:
-                    print(f"[crawler] ✅ Stored article with sentiment: {backend_data['marketSentiment']}")
+                    print(f"[crawler] ✅ Stored article ({tag}) with sentiment: {backend_data['marketSentiment']}")
                     return True
                 elif backend_response.status_code == 500:
                     # Check if it's a duplicate key error
