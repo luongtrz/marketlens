@@ -11,7 +11,7 @@
  */
 
 import { DataSource } from 'typeorm';
-import { MarketCandle } from '../entities/market-candle.entity';
+import { MarketCandle } from '../crypto/entities/market-candle.entity';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
