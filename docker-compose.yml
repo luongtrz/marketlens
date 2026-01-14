@@ -70,6 +70,7 @@ services:
       - MONGO_URI=mongodb://mongo:27017/marketlens
       - BACKEND_URL=http://backend:3001
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - HF_TOKEN=${HF_TOKEN}
     depends_on:
       - mongo
     networks:
@@ -87,6 +88,7 @@ services:
       - BACKEND_URL=http://crawler:8000
       - ANALYSIS_URL=http://crawler:8000
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - HF_TOKEN=${HF_TOKEN}
     depends_on:
       - mongo
       - crawler

@@ -146,25 +146,25 @@ class Crawler:
                 )
                 
                 if backend_response.status_code == 201:
-                    print(f"[crawler] ✅ Stored article ({tag}) with sentiment: {backend_data['marketSentiment']}")
+                    print(f"[crawler] Stored article ({tag}) with sentiment: {backend_data['sentiment']}")
                     return True
                 elif backend_response.status_code == 500:
                     # Check if it's a duplicate key error
                     response_text = backend_response.text.lower()
                     if 'duplicate' in response_text or 'e11000' in response_text:
-                        print(f"[crawler] ℹ️  Article already exists in database (duplicate URL)")
+                        print(f"[crawler] Article already exists in database (duplicate URL)")
                         return True  # Consider this a success since article is already stored
                     else:
-                        print(f"[crawler] ⚠️ Backend storage failed: {backend_response.status_code}")
+                        print(f"[crawler] Backend storage failed: {backend_response.status_code}")
                         print(f"[crawler] Response: {backend_response.text[:200]}")
                 else:
-                    print(f"[crawler] ⚠️ Backend storage failed: {backend_response.status_code}")
+                    print(f"[crawler] Backend storage failed: {backend_response.status_code}")
                     print(f"[crawler] Response: {backend_response.text[:200]}")
             else:
-                print(f"[crawler] ⚠️ Analysis failed: {analysis_response.status_code}")
+                print(f"[crawler] Analysis failed: {analysis_response.status_code}")
                 print(f"[crawler] Response: {analysis_response.text[:200]}")
         except Exception as e:
-            print(f"[crawler] ❌ Error analyzing/storing article: {str(e)[:200]}")
+            print(f"[crawler] Error analyzing/storing article: {str(e)[:200]}")
         
         return False
 
@@ -260,12 +260,12 @@ if __name__ == "__main__":
 
     if loop:
         c = Crawler()
-        print(f"🚀 Crawler running in loop mode every {interval}s")
+        print(f"Crawler running in loop mode every {interval}s")
         try:
             c.run(interval)
         except KeyboardInterrupt:
             print("Stopped")
     else:
-        print("▶ Running single crawl cycle...")
+        print("Running single crawl cycle...")
         new = run_once()
-        print(f"✅ Done. {new} new articles found.")
+        print(f"Done. {new} new articles found.")
