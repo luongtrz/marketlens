@@ -389,7 +389,7 @@ const Dashboard: React.FC = () => {
         // Debounce slightly to avoid too many requests during drag
         const timeoutId = setTimeout(fetchContextNews, 500);
         return () => clearTimeout(timeoutId);
-    }, [chartVisibleRange, selectedCoin.symbol]);
+    }, [chartVisibleRange, selectedCoin?.symbol]);
 
     const processedCoins = useMemo(() => {
         let result = [...coins];
