@@ -95,6 +95,8 @@ async function main() {
     let currentTime = startTime;
     let totalInserted = 0;
     let batch: Partial<MarketCandle>[] = [];
+    let requestCount = 0;
+    const startedAt = Date.now();
 
     console.log(`Fetching data from ${new Date(startTime).toISOString()} to now...`);
     console.log('This may take a while (1-2 hours for full history)...\n');
@@ -102,6 +104,7 @@ async function main() {
     while (currentTime < now) {
         try {
             const klines = await fetchKlines(currentTime);
+            requestCount++;
 
             if (klines.length === 0) {
                 console.log('No more data available.');
@@ -115,18 +118,29 @@ async function main() {
             // Update current time to last candle + 1 minute
             currentTime = klines[klines.length - 1][0] + 60000;
 
+            // Log progress every 10 requests
+            if (requestCount % 10 === 0) {
+                const progress = ((currentTime - START_TIMESTAMP) / (now - START_TIMESTAMP) * 100);
+                const elapsed = (Date.now() - startedAt) / 1000;
+                const eta = progress > 0 ? ((100 - progress) / progress) * elapsed : 0;
+                const etaMin = Math.floor(eta / 60);
+                const etaSec = Math.floor(eta % 60);
+
+                process.stdout.write(`\r[${progress.toFixed(2)}%] Requests: ${requestCount} | Candles: ${totalInserted + batch.length} | ETA: ${etaMin}m ${etaSec}s    `);
+            }
+
             // Insert batch when full
             if (batch.length >= BATCH_SIZE) {
                 await repository.upsert(batch, ['symbol', 'resolution', 'timestamp']);
                 totalInserted += batch.length;
                 const progress = ((currentTime - START_TIMESTAMP) / (now - START_TIMESTAMP) * 100).toFixed(2);
-                console.log(`[${progress}%] Inserted ${totalInserted} candles. Current: ${new Date(currentTime).toISOString()}`);
+                console.log(`\n[${progress}%] Saved ${totalInserted} candles. Date: ${new Date(currentTime).toISOString().split('T')[0]}`);
                 batch = [];
             }
 
             await sleep(DELAY_MS);
         } catch (error) {
-            console.error(`Error at ${new Date(currentTime).toISOString()}:`, error);
+            console.error(`\nError at ${new Date(currentTime).toISOString()}:`, error);
             console.log('Retrying in 5 seconds...');
             await sleep(5000);
         }
