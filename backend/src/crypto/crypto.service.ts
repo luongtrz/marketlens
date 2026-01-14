@@ -84,12 +84,18 @@ export class CryptoService {
         limit: number = 144,
         aggregate: number = 1,
         type: 'minute' | 'hour' | 'day' = 'minute',
+        toTs?: number, // Optional: Unix timestamp (seconds) for end time
     ): Promise<HistoryPoint[]> {
         let endpoint = 'histominute';
         if (type === 'hour') endpoint = 'histohour';
         if (type === 'day') endpoint = 'histoday';
 
-        const url = `${this.baseUrl}/${endpoint}?fsym=${symbol}&tsym=USD&limit=${limit}&aggregate=${aggregate}`;
+        let url = `${this.baseUrl}/${endpoint}?fsym=${symbol}&tsym=USD&limit=${limit}&aggregate=${aggregate}`;
+
+        // Add toTs parameter if provided
+        if (toTs) {
+            url += `&toTs=${toTs}`;
+        }
 
         try {
             const response = await fetch(url, {

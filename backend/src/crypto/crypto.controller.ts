@@ -16,12 +16,14 @@ export class CryptoController {
         @Query('limit') limit?: string,
         @Query('aggregate') aggregate?: string,
         @Query('type') type?: 'minute' | 'hour' | 'day',
+        @Query('toTs') toTs?: string, // Unix timestamp (seconds) for end time
     ): Promise<HistoryPoint[]> {
         return this.cryptoService.getHistoricalData(
             symbol,
             limit ? parseInt(limit) : 144,
             aggregate ? parseInt(aggregate) : 1,
             type || 'minute',
+            toTs ? parseInt(toTs) : undefined,
         );
     }
 }
