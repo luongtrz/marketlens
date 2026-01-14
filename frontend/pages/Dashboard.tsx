@@ -695,7 +695,7 @@ const Dashboard: React.FC = () => {
                                             ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
                                             : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400'
                                             }`}
-                                    >    {range}
+                                    >    {range === '1m' ? '1M' : range === '3m' ? '3M' : range}
                                     </button>
                                 ))}
                             </div>

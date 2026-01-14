@@ -128,7 +128,7 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
         chartRef.current = chart;
         volumeSeriesRef.current = volumeSeries;
 
-        // Handle resize
+        // Handle resize with ResizeObserver
         const handleResize = () => {
             if (chartContainerRef.current && chartRef.current) {
                 chartRef.current.applyOptions({
@@ -138,7 +138,13 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
             }
         };
 
-        window.addEventListener('resize', handleResize);
+        const resizeObserver = new ResizeObserver(() => {
+            handleResize();
+        });
+
+        if (chartContainerRef.current) {
+            resizeObserver.observe(chartContainerRef.current);
+        }
 
         // Click Listener
         chart.subscribeClick((param) => {
@@ -155,7 +161,7 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
         });
 
         return () => {
-            window.removeEventListener('resize', handleResize);
+            resizeObserver.disconnect();
             chart.remove();
             chartRef.current = null;
             mainSeriesRef.current = null;

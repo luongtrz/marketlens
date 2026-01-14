@@ -116,7 +116,7 @@ class Crawler:
                 news_content = article_data.get('content') or article_data.get('summary') or article_data.get('title') or ""
                 
                 if not title.strip() or not news_content.strip():
-                    print(f"[crawler] ⚠️ Skipping article - missing required fields")
+                    print(f"[crawler] Skipping article - missing required fields")
                     return False
                 
                 # Determine tag
