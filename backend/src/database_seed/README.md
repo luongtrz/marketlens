@@ -25,15 +25,18 @@ Script to fetch historical cryptocurrency data from Binance API and store in Pos
 # Navigate to backend folder
 cd backend
 
-# Seed all coins (BTC, ETH)
+# Seed 1-minute data (all coins)
 npm run seed
 
 # Seed specific coin only
 npm run seed BTC
 npm run seed ETH
 
-# Seed multiple specific coins
-npm run seed BTC ETH
+# Seed 1-hour and 1-day data (can run in parallel with 1m)
+npm run seed:aggregated
+
+# Seed aggregated for specific coin
+npm run seed:aggregated BTC
 ```
 
 ## Supported Coins
