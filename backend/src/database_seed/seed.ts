@@ -2,12 +2,16 @@
  * Seed script to fetch historical 1-minute candle data from Binance API
  * and store it in the PostgreSQL database.
  * 
- * Usage: npm run seed
+ * Usage: 
+ *   npm run seed           # Seed all coins (BTC, ETH)
+ *   npm run seed BTC       # Seed specific coin
+ *   npm run seed BTC ETH   # Seed multiple specific coins
  * 
  * This script will:
  * 1. Connect to the database
- * 2. Fetch 1-minute BTCUSDT data from Binance (Aug 2017 to now)
+ * 2. Fetch 1-minute data from Binance (Aug 2017 to now)
  * 3. Insert data in batches to avoid memory issues
+ * 4. Support resume if interrupted
  */
 
 import { DataSource } from 'typeorm';
@@ -17,7 +21,13 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 const BINANCE_API = 'https://api.binance.com/api/v3/klines';
-const SYMBOL = 'BTCUSDT';
+
+// Supported coins: symbol -> Binance trading pair
+const COINS: Record<string, string> = {
+    'BTC': 'BTCUSDT',
+    'ETH': 'ETHUSDT',
+};
+
 const INTERVAL = '1m';
 const LIMIT = 1000; // Max per request
 const START_TIMESTAMP = 1502928000000; // Aug 17, 2017 (Binance launch)
@@ -30,8 +40,8 @@ async function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function fetchKlines(startTime: number): Promise<any[]> {
-    const url = `${BINANCE_API}?symbol=${SYMBOL}&interval=${INTERVAL}&limit=${LIMIT}&startTime=${startTime}`;
+async function fetchKlines(binanceSymbol: string, startTime: number): Promise<any[]> {
+    const url = `${BINANCE_API}?symbol=${binanceSymbol}&interval=${INTERVAL}&limit=${LIMIT}&startTime=${startTime}`;
     const response = await fetch(url);
     if (!response.ok) {
         throw new Error(`Binance API error: ${response.statusText}`);
@@ -39,9 +49,9 @@ async function fetchKlines(startTime: number): Promise<any[]> {
     return response.json();
 }
 
-function parseKline(kline: any[]): Partial<MarketCandle> {
+function parseKline(symbol: string, kline: any[]): Partial<MarketCandle> {
     return {
-        symbol: 'BTC',
+        symbol: symbol,
         resolution: '1m',
         timestamp: kline[0],
         open: parseFloat(kline[1]),
@@ -52,36 +62,23 @@ function parseKline(kline: any[]): Partial<MarketCandle> {
     };
 }
 
-async function main() {
-    console.log('=== MarketLens Data Seeding ===');
-    console.log('Connecting to database...');
-
-    const dataSource = new DataSource({
-        type: 'postgres',
-        host: process.env.DB_HOST || 'localhost',
-        port: parseInt(process.env.DB_PORT || '5433'),
-        username: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASSWORD || 'postgres',
-        database: process.env.DB_NAME || 'marketlens',
-        entities: [MarketCandle],
-        synchronize: true,
-    });
-
-    await dataSource.initialize();
-    console.log('Database connected!');
-
-    const repository = dataSource.getRepository(MarketCandle);
+async function seedCoin(
+    repository: any,
+    symbol: string,
+    binanceSymbol: string
+): Promise<number> {
+    console.log(`\n--- Seeding ${symbol} (${binanceSymbol}) ---`);
 
     // Check existing data
-    const existingCount = await repository.count({ where: { symbol: 'BTC', resolution: '1m' } });
-    console.log(`Existing 1m candles in DB: ${existingCount}`);
+    const existingCount = await repository.count({ where: { symbol, resolution: '1m' } });
+    console.log(`Existing 1m candles for ${symbol}: ${existingCount}`);
 
     // Find the latest timestamp in DB to resume from
     let startTime = START_TIMESTAMP;
     if (existingCount > 0) {
         const latest = await repository
             .createQueryBuilder('candle')
-            .where('candle.symbol = :symbol', { symbol: 'BTC' })
+            .where('candle.symbol = :symbol', { symbol })
             .andWhere('candle.resolution = :resolution', { resolution: '1m' })
             .orderBy('candle.timestamp', 'DESC')
             .getOne();
@@ -98,12 +95,11 @@ async function main() {
     let requestCount = 0;
     const startedAt = Date.now();
 
-    console.log(`Fetching data from ${new Date(startTime).toISOString()} to now...`);
-    console.log('This may take a while (1-2 hours for full history)...\n');
+    console.log(`Fetching from ${new Date(startTime).toISOString()} to now...`);
 
     while (currentTime < now) {
         try {
-            const klines = await fetchKlines(currentTime);
+            const klines = await fetchKlines(binanceSymbol, currentTime);
             requestCount++;
 
             if (klines.length === 0) {
@@ -112,7 +108,7 @@ async function main() {
             }
 
             for (const kline of klines) {
-                batch.push(parseKline(kline));
+                batch.push(parseKline(symbol, kline));
             }
 
             // Update current time to last candle + 1 minute
@@ -126,7 +122,7 @@ async function main() {
                 const etaMin = Math.floor(eta / 60);
                 const etaSec = Math.floor(eta % 60);
 
-                process.stdout.write(`\r[${progress.toFixed(2)}%] Requests: ${requestCount} | Candles: ${totalInserted + batch.length} | ETA: ${etaMin}m ${etaSec}s    `);
+                process.stdout.write(`\r[${symbol}] ${progress.toFixed(2)}% | Requests: ${requestCount} | Candles: ${totalInserted + batch.length} | ETA: ${etaMin}m ${etaSec}s    `);
             }
 
             // Insert batch when full
@@ -134,7 +130,7 @@ async function main() {
                 await repository.upsert(batch, ['symbol', 'resolution', 'timestamp']);
                 totalInserted += batch.length;
                 const progress = ((currentTime - START_TIMESTAMP) / (now - START_TIMESTAMP) * 100).toFixed(2);
-                console.log(`\n[${progress}%] Saved ${totalInserted} candles. Date: ${new Date(currentTime).toISOString().split('T')[0]}`);
+                console.log(`\n[${symbol}] ${progress}% | Saved ${totalInserted} candles | Date: ${new Date(currentTime).toISOString().split('T')[0]}`);
                 batch = [];
             }
 
@@ -152,11 +148,58 @@ async function main() {
         totalInserted += batch.length;
     }
 
-    console.log(`\n=== Seeding Complete ===`);
-    console.log(`Total candles inserted: ${totalInserted}`);
+    console.log(`\n[${symbol}] Complete! Total inserted: ${totalInserted}`);
+    return totalInserted;
+}
 
-    const finalCount = await repository.count({ where: { symbol: 'BTC', resolution: '1m' } });
-    console.log(`Total 1m candles in DB: ${finalCount}`);
+async function main() {
+    console.log('=== MarketLens Data Seeding ===');
+
+    // Parse command line args for specific coins
+    const args = process.argv.slice(2);
+    const coinsToSeed = args.length > 0
+        ? args.filter(arg => COINS[arg.toUpperCase()]).map(arg => arg.toUpperCase())
+        : Object.keys(COINS);
+
+    if (coinsToSeed.length === 0) {
+        console.error('No valid coins specified. Available coins:', Object.keys(COINS).join(', '));
+        process.exit(1);
+    }
+
+    console.log(`Coins to seed: ${coinsToSeed.join(', ')}`);
+    console.log('Connecting to database...');
+
+    const dataSource = new DataSource({
+        type: 'postgres',
+        host: process.env.DB_HOST || 'localhost',
+        port: parseInt(process.env.DB_PORT || '5433'),
+        username: process.env.DB_USER || 'postgres',
+        password: process.env.DB_PASSWORD || 'postgres',
+        database: process.env.DB_NAME || 'marketlens',
+        entities: [MarketCandle],
+        synchronize: true,
+    });
+
+    await dataSource.initialize();
+    console.log('Database connected!');
+
+    const repository = dataSource.getRepository(MarketCandle);
+    let grandTotal = 0;
+
+    for (const symbol of coinsToSeed) {
+        const binanceSymbol = COINS[symbol];
+        const inserted = await seedCoin(repository, symbol, binanceSymbol);
+        grandTotal += inserted;
+    }
+
+    console.log(`\n=== Seeding Complete ===`);
+    console.log(`Grand total candles inserted: ${grandTotal}`);
+
+    // Show final counts
+    for (const symbol of coinsToSeed) {
+        const count = await repository.count({ where: { symbol, resolution: '1m' } });
+        console.log(`${symbol}: ${count} candles`);
+    }
 
     await dataSource.destroy();
     console.log('Database connection closed.');
