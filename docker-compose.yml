@@ -25,6 +25,9 @@ services:
     restart: unless-stopped
     ports:
       - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - marketlens_mongo:/data/db
     networks:
@@ -44,7 +47,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=marketlens
-      - MONGO_URI=mongodb://mongo:27017/marketlens
+      - MONGO_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/marketlens?authSource=admin
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - VITE_API_URL=http://localhost:3001/api
       - CRAWLER_URL=http://crawler:8000
@@ -65,7 +68,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - MONGO_URI=mongodb://mongo:27017/marketlens
+      - MONGO_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/marketlens?authSource=admin
       - BACKEND_URL=http://backend:3001
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - HF_TOKEN=${HF_TOKEN}
@@ -82,7 +85,7 @@ services:
     command: [ "python", "main.py", "--loop", "300" ]
     restart: unless-stopped
     environment:
-      - MONGO_URI=mongodb://mongo:27017/marketlens
+      - MONGO_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/marketlens?authSource=admin
       - BACKEND_URL=http://crawler:8000
       - ANALYSIS_URL=http://crawler:8000
       - GEMINI_API_KEY=${GEMINI_API_KEY}

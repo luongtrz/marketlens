@@ -8,31 +8,33 @@ import { getTopCoins, getHistoricalData, generateMarketForecast, createSocketCon
 
 // Range Configuration for CryptoCompare
 // Limit: Number of points. Aggregate: steps to combine. Type: minute/hour/day.
+// Binance supported intervals: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
 const getRangeParams = (range: string) => {
     switch (range) {
         // Minutes (aggregate from 1-min candles)
-        case '5m': return { limit: 60, aggregate: 5, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 5 hours of 5-min candles
-        case '15m': return { limit: 96, aggregate: 15, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 24 hours of 15-min candles
-        case '30m': return { limit: 48, aggregate: 30, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 24 hours of 30-min candles
+        case '1m': return { limit: 120, aggregate: 1, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 2 hours
+        case '3m': return { limit: 80, aggregate: 3, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 4 hours
+        case '5m': return { limit: 72, aggregate: 5, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 6 hours
+        case '15m': return { limit: 96, aggregate: 15, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 24 hours
+        case '30m': return { limit: 96, aggregate: 30, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 48 hours
 
-        // Hours
-        case '1h': return { limit: 60, aggregate: 1, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 60 x 1min = 1 hour
-        case '4h': return { limit: 240, aggregate: 1, type: 'minute' as const, format: { hour: '2-digit', minute: '2-digit', hour12: false } as const }; // 240 x 1min = 4 hours
+        // Hours (aggregate from 1-hour candles)
+        case '1h': return { limit: 168, aggregate: 1, type: 'hour' as const, format: { month: 'short', day: 'numeric', hour: '2-digit' } as const }; // 7 days
+        case '2h': return { limit: 168, aggregate: 2, type: 'hour' as const, format: { month: 'short', day: 'numeric', hour: '2-digit' } as const }; // 14 days
+        case '4h': return { limit: 180, aggregate: 4, type: 'hour' as const, format: { month: 'short', day: 'numeric', hour: '2-digit' } as const }; // 30 days
+        case '6h': return { limit: 120, aggregate: 6, type: 'hour' as const, format: { month: 'short', day: 'numeric' } as const }; // 30 days
+        case '8h': return { limit: 90, aggregate: 8, type: 'hour' as const, format: { month: 'short', day: 'numeric' } as const }; // 30 days
+        case '12h': return { limit: 60, aggregate: 12, type: 'hour' as const, format: { month: 'short', day: 'numeric' } as const }; // 30 days
 
-        // Days
-        case '1d': return { limit: 24, aggregate: 1, type: 'hour' as const, format: { hour: '2-digit', minute: '2-digit' } as const }; // 24 hours
-        case '1w': return { limit: 168, aggregate: 1, type: 'hour' as const, format: { month: 'short', day: 'numeric', hour: '2-digit' } as const }; // 7 days
+        // Days (aggregate from 1-day candles)
+        case '1d': return { limit: 90, aggregate: 1, type: 'day' as const, format: { month: 'short', day: 'numeric' } as const }; // 90 days
+        case '3d': return { limit: 90, aggregate: 3, type: 'day' as const, format: { month: 'short', day: 'numeric' } as const }; // 270 days
 
-        // Months
-        case '1m': return { limit: 30, aggregate: 1, type: 'day' as const, format: { month: 'short', day: 'numeric' } as const }; // 30 days
-        case '3m': return { limit: 90, aggregate: 1, type: 'day' as const, format: { month: 'short', day: 'numeric' } as const }; // 90 days
+        // Weeks (aggregate from daily)
+        case '1w': return { limit: 52, aggregate: 7, type: 'day' as const, format: { month: 'short', day: 'numeric' } as const }; // 1 year
 
-        // Years
-        case '1y': return { limit: 365, aggregate: 1, type: 'day' as const, format: { month: 'short', year: 'numeric' } as const };
-        case '5y': return { limit: 1825, aggregate: 1, type: 'day' as const, format: { month: 'short', year: 'numeric' } as const };
-
-        // All
-        case 'All': return { limit: 2000, aggregate: 1, type: 'day' as const, format: { year: 'numeric' } as const };
+        // Months (Binance native: 1M only)
+        case '1M': return { limit: 30, aggregate: 1, type: 'day' as const, format: { month: 'short', day: 'numeric' } as const }; // 30 days = 1 month
 
         default: return { limit: 24, aggregate: 1, type: 'hour' as const, format: { hour: '2-digit', minute: '2-digit' } as const };
     }
@@ -75,11 +77,13 @@ const Dashboard: React.FC = () => {
     const [chartType, setChartType] = useState<'area' | 'candle'>('candle');
     const [indicators, setIndicators] = useState({ rsi: false, macd: false, bollinger: false });
     const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
+    const [showForecast, setShowForecast] = useState(true);
     const indicatorMenuRef = useRef<HTMLDivElement>(null);
 
     // Date Picker State
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [datePickerMode, setDatePickerMode] = useState<'single' | 'range'>('single');
+    const [showModeSelector, setShowModeSelector] = useState(false);
     const datePickerRef = useRef<HTMLDivElement>(null);
     const [tempSingleDate, setTempSingleDate] = useState('');
 
@@ -91,6 +95,7 @@ const Dashboard: React.FC = () => {
             }
             if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
                 setShowDatePicker(false);
+                setShowModeSelector(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -132,6 +137,8 @@ const Dashboard: React.FC = () => {
     // Update Chart Data (History + Forecast Merging)
     useEffect(() => {
         if (!selectedCoin) return;
+        // Skip fetch when Custom range is selected - Custom is for news filtering only, not chart data
+        if (timeRange === 'Custom') return;
 
         const fetchChart = async () => {
             const { limit, aggregate, type, format } = getRangeParams(timeRange);
@@ -486,15 +493,34 @@ const Dashboard: React.FC = () => {
     const handleChartClick = (time: number) => {
         if (!isRangeSelecting) return;
 
-        // Helper to format timestamp to datetime-local string (UTC Time to match chart)
+        // Helper to format timestamp to datetime-local string (local time for input display)
         const formatDate = (ts: number) => {
             const d = new Date(ts * 1000);
             const pad = (n: number) => n.toString().padStart(2, '0');
-            return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+            // Use local time for input display (not UTC)
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
         };
 
+        // One Day mode: Single click = 6h before to 3h after
+        if (datePickerMode === 'single') {
+            console.log('[One Day Click] Time:', time, '=', new Date(time * 1000).toISOString());
+
+            const twelveHoursS = 12 * 60 * 60;
+            const start = time - twelveHoursS;
+            const end = time + twelveHoursS;
+
+            setChartVisibleRange({ from: start, to: end });
+            setTempSingleDate(formatDate(time));
+            setHasActiveRange(true);
+            setTimeRange('Custom');
+            setIsRangeSelecting(false);
+            return;
+        }
+
+        // Range mode: Two clicks
         if (rangeStart === null) {
             // First Click: Start Selection
+            console.log('[Range Click] Start point:', time, '=', new Date(time * 1000).toISOString());
             setRangeStart(time);
             setManualDateFrom(formatDate(time));
             setManualDateTo(''); // Clear End Date to indicate pending selection
@@ -503,7 +529,10 @@ const Dashboard: React.FC = () => {
             const start = Math.min(rangeStart, time);
             const end = Math.max(rangeStart, time);
 
-            // Update Visible Range
+            console.log('[Range Click] End point:', time, '=', new Date(time * 1000).toISOString());
+            console.log('[Range Click] Final range:', new Date(start * 1000).toISOString(), 'to', new Date(end * 1000).toISOString());
+
+            // Update Visible Range - this triggers news fetch via useEffect
             setChartVisibleRange({ from: start, to: end });
 
             // Update Inputs with final sorted range
@@ -529,23 +558,36 @@ const Dashboard: React.FC = () => {
 
     const handleManualRangeApply = () => {
         if (manualDateFrom && manualDateTo) {
-            // Parse as UTC (append 'Z' to treat as UTC time)
-            const start = Math.floor(new Date(manualDateFrom + ':00Z').getTime() / 1000);
-            const end = Math.floor(new Date(manualDateTo + ':00Z').getTime() / 1000);
+            // datetime-local gives local time, don't append 'Z' which treats as UTC
+            const start = Math.floor(new Date(manualDateFrom).getTime() / 1000);
+            const end = Math.floor(new Date(manualDateTo).getTime() / 1000);
+
+            console.log('[Range Filter] FROM:', manualDateFrom, '-> start:', new Date(start * 1000).toISOString());
+            console.log('[Range Filter] TO:', manualDateTo, '-> end:', new Date(end * 1000).toISOString());
+
             if (start < end) {
                 setChartVisibleRange({ from: start, to: end });
                 setHasActiveRange(true);
                 setTimeRange('Custom');
                 setShowDatePicker(false);
+            } else {
+                console.warn('[Range Filter] Invalid range: start >= end');
             }
         }
     };
 
     const handleSingleDateApply = () => {
         if (tempSingleDate) {
-            // Create start and end of that day in UTC
-            const start = Math.floor(new Date(tempSingleDate + 'T00:00:00Z').getTime() / 1000);
-            const end = Math.floor(new Date(tempSingleDate + 'T23:59:59Z').getTime() / 1000);
+            // datetime-local gives local time in format: "2026-01-08T12:26"
+            // Parse as local time (don't append 'Z' which would treat as UTC)
+            const selectedTime = new Date(tempSingleDate).getTime();
+            const twelveHoursMs = 12 * 60 * 60 * 1000;
+
+            const start = Math.floor((selectedTime - twelveHoursMs) / 1000);
+            const end = Math.floor((selectedTime + twelveHoursMs) / 1000);
+
+            console.log('[Date Filter] Selected:', tempSingleDate);
+            console.log('[Date Filter] Range:', new Date(start * 1000).toISOString(), 'to', new Date(end * 1000).toISOString());
 
             setChartVisibleRange({ from: start, to: end });
             setHasActiveRange(true);
@@ -676,7 +718,207 @@ const Dashboard: React.FC = () => {
                             </div>
 
                             {/* Right Side: Sidebar Toggle (Polished) */}
-                            <div className="flex gap-2 self-start">
+                            <div className="flex gap-2 items-center self-start">
+                                {/* Date Picker Components - Modern Tech Design */}
+                                <div className="flex items-center gap-2">
+                                    <div className="relative" ref={datePickerRef}>
+                                        <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full shadow-sm pr-1 transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700">
+
+                                            {/* Mode Dropdown - Minimalist Badge Style */}
+                                            <div className="relative border-r border-slate-100 dark:border-slate-800">
+                                                <button
+                                                    onClick={() => setShowModeSelector(!showModeSelector)}
+                                                    className="pl-3 pr-2 py-1.5 flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-l-lg transition-colors"
+                                                >
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${datePickerMode === 'single' ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]' : 'bg-indigo-500 shadow-[0_0_6px_rgba(99,102,241,0.4)]'}`}></div>
+                                                    <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 tracking-tight uppercase">
+                                                        {datePickerMode === 'single' ? '1-Day' : 'Range'}
+                                                    </span>
+                                                    <ChevronDown size={10} className={`text-slate-400 transition-transform duration-200 ${showModeSelector ? 'rotate-180' : ''}`} />
+                                                </button>
+
+                                                {/* Custom Dropdown Menu */}
+                                                {showModeSelector && (
+                                                    <div className="absolute top-full left-0 mt-2 w-32 bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-slate-100 dark:border-slate-800 py-1 z-[70] animate-in fade-in zoom-in-95 duration-200">
+                                                        <button
+                                                            onClick={() => {
+                                                                setDatePickerMode('single');
+                                                                setShowModeSelector(false);
+                                                            }}
+                                                            className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 ${datePickerMode === 'single' ? 'bg-slate-50 dark:bg-slate-800/50 text-emerald-600 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                                                        >
+                                                            <div className={`w-1.5 h-1.5 rounded-full bg-emerald-500`}></div>
+                                                            Single Day
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setDatePickerMode('range');
+                                                                setShowModeSelector(false);
+                                                                setShowDatePicker(true);
+                                                            }}
+                                                            className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors flex items-center gap-2 ${datePickerMode === 'range' ? 'bg-slate-50 dark:bg-slate-800/50 text-indigo-600 dark:text-indigo-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                                                        >
+                                                            <div className={`w-1.5 h-1.5 rounded-full bg-indigo-500`}></div>
+                                                            Date Range
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Content Area */}
+                                            <div className="flex items-center">
+                                                {datePickerMode === 'single' ? (
+                                                    <div className="relative group px-3 py-1.5 min-w-[140px] flex items-center gap-2 cursor-pointer">
+                                                        <input
+                                                            type="datetime-local"
+                                                            value={tempSingleDate}
+                                                            onChange={(e) => {
+                                                                setTempSingleDate(e.target.value);
+                                                                if (e.target.value) {
+                                                                    const selectedTime = new Date(e.target.value).getTime();
+                                                                    const twelveHoursMs = 12 * 60 * 60 * 1000;
+                                                                    const start = Math.floor((selectedTime - twelveHoursMs) / 1000);
+                                                                    const end = Math.floor((selectedTime + twelveHoursMs) / 1000);
+                                                                    setChartVisibleRange({ from: start, to: end });
+                                                                    setHasActiveRange(true);
+                                                                    setTimeRange('Custom');
+                                                                }
+                                                            }}
+                                                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                                        />
+                                                        {tempSingleDate ? (() => {
+                                                            const d = new Date(tempSingleDate);
+                                                            return (
+                                                                <div className="flex items-baseline gap-1.5">
+                                                                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 tabular-nums">
+                                                                        {d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                                    </span>
+                                                                    <span className="text-xs font-medium text-slate-400 tabular-nums">
+                                                                        {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })() : <span className="text-sm text-slate-400 font-medium">Select date...</span>}
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setShowDatePicker(!showDatePicker)}
+                                                        className="px-3 py-1 min-w-[200px] flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-md transition-colors"
+                                                    >
+                                                        {hasActiveRange && manualDateFrom && manualDateTo ? (
+                                                            <div className="flex flex-col gap-0.5 w-full text-left py-0.5">
+                                                                {/* Start Date */}
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider w-8">From</span>
+                                                                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 tabular-nums">
+                                                                        {new Date(manualDateFrom).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                                    </span>
+                                                                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400 tabular-nums">
+                                                                        {new Date(manualDateFrom).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                                                                    </span>
+                                                                </div>
+
+
+
+                                                                {/* End Date */}
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider w-8">To</span>
+                                                                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 tabular-nums">
+                                                                        {new Date(manualDateTo).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                                    </span>
+                                                                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400 tabular-nums">
+                                                                        {new Date(manualDateTo).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-sm text-slate-400 font-medium w-full text-center">Select range...</span>
+                                                        )}
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="flex items-center gap-1 pl-1 border-l border-slate-100 dark:border-slate-800 ml-1">
+                                                <button
+                                                    onClick={() => {
+                                                        setIsRangeSelecting(true);
+                                                        setRangeStart(null);
+                                                    }}
+                                                    className={`p-1.5 rounded-full transition-all ${isRangeSelecting
+                                                        ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30'
+                                                        : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                                        }`}
+                                                    title="Select on Chart"
+                                                >
+                                                    <Hand size={15} className={isRangeSelecting ? "animate-pulse" : ""} />
+                                                </button>
+                                                {hasActiveRange && (
+                                                    <button
+                                                        onClick={clearRangeSelection}
+                                                        className="p-1.5 rounded-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all"
+                                                        title="Clear"
+                                                    >
+                                                        <X size={15} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Dropdown Panel remains same structure but ensured z-index */}
+                                        {showDatePicker && datePickerMode === 'range' && (
+                                            <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 z-[60] overflow-hidden animate-in fade-in zoom-in-95 duration-200 p-3">
+                                                <div className="space-y-3">
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">From</label>
+                                                            <input
+                                                                type="datetime-local"
+                                                                value={manualDateFrom}
+                                                                onChange={(e) => setManualDateFrom(e.target.value)}
+                                                                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 text-[10px] font-mono text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">To</label>
+                                                            <input
+                                                                type="datetime-local"
+                                                                value={manualDateTo}
+                                                                onChange={(e) => setManualDateTo(e.target.value)}
+                                                                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 text-[10px] font-mono text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => { handleManualRangeApply(); setShowDatePicker(false); }}
+                                                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg transition-colors"
+                                                    >
+                                                        Apply Range
+                                                    </button>
+
+                                                    {/* Divider */}
+                                                    <div className="flex items-center gap-2 text-slate-400">
+                                                        <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+                                                        <span className="text-[10px]">or</span>
+                                                        <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={() => {
+                                                            setIsRangeSelecting(true);
+                                                            setRangeStart(null);
+                                                            setShowDatePicker(false);
+                                                        }}
+                                                        className="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold py-2 rounded-lg transition-colors"
+                                                    >
+                                                        <Hand size={14} />
+                                                        Select on Chart
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                                 <button
                                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                                     className="flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all transform hover:scale-105 active:scale-95"
@@ -690,142 +932,40 @@ const Dashboard: React.FC = () => {
                         {/* Row 2: Controls (Time Range & Indicators) */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
                             {/* Time Range Buttons - 2 Rows */}
-                            {/* Time Range Buttons - Simplified */}
-                            <div className="flex flex-wrap gap-1">
-                                {['5m', '15m', '30m', '1h', '4h', '1d', '1w', '1m', '3m', '1y', '5y', 'All'].map((range) => (
-                                    <button
-                                        key={range}
-                                        onClick={() => setTimeRange(range)}
-                                        className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${timeRange === range
-                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                                            : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400'
-                                            }`}
-                                    >    {range === '1m' ? '1M' : range === '3m' ? '3M' : range}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {/* Custom Range Inputs & Hand Tool */}
-                            <div className="flex items-center gap-2">
-
-                                {/* New Modern Date Picker */}
-                                <div className="relative" ref={datePickerRef}>
-                                    <button
-                                        onClick={() => setShowDatePicker(!showDatePicker)}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${showDatePicker || hasActiveRange
-                                            ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
-                                            : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
-                                            }`}
-                                    >
-                                        <Calendar size={14} />
-                                        {hasActiveRange ? "Custom Range" : "Select Date"}
-                                        <ChevronDown size={12} className={`transition-transform ${showDatePicker ? 'rotate-180' : ''}`} />
-                                    </button>
-
-                                    {/* Date Picker Popover */}
-                                    {showDatePicker && (
-                                        <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 p-3">
-                                            {/* Tabs */}
-                                            <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-lg mb-4">
-                                                <button
-                                                    onClick={() => setDatePickerMode('single')}
-                                                    className={`flex-1 text-xs font-bold py-1.5 rounded-md transition-all ${datePickerMode === 'single' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                                                >
-                                                    One Day
-                                                </button>
-                                                <button
-                                                    onClick={() => setDatePickerMode('range')}
-                                                    className={`flex-1 text-xs font-bold py-1.5 rounded-md transition-all ${datePickerMode === 'range' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                                                >
-                                                    Range
-                                                </button>
-                                            </div>
-
-                                            {/* Content */}
-                                            <div className="space-y-3">
-                                                {datePickerMode === 'single' ? (
-                                                    <div className="space-y-3">
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Select Date</label>
-                                                            <input
-                                                                type="date"
-                                                                value={tempSingleDate}
-                                                                onChange={(e) => setTempSingleDate(e.target.value)}
-                                                                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                                                            />
-                                                        </div>
-                                                        <button
-                                                            onClick={handleSingleDateApply}
-                                                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg transition-colors"
-                                                        >
-                                                            Apply Single Day
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="space-y-3">
-                                                        <div className="grid grid-cols-2 gap-2">
-                                                            <div>
-                                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">From</label>
-                                                                <input
-                                                                    type="datetime-local"
-                                                                    value={manualDateFrom}
-                                                                    onChange={(e) => setManualDateFrom(e.target.value)}
-                                                                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 text-[10px] text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">To</label>
-                                                                <input
-                                                                    type="datetime-local"
-                                                                    value={manualDateTo}
-                                                                    onChange={(e) => setManualDateTo(e.target.value)}
-                                                                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-2 text-[10px] text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        <button
-                                                            onClick={handleManualRangeApply}
-                                                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg transition-colors"
-                                                        >
-                                                            Apply Range
-                                                        </button>
-                                                    </div>
-                                                )}
-
-                                                {/* Clear Selection */}
-                                                {hasActiveRange && (
-                                                    <button
-                                                        onClick={() => { clearRangeSelection(); setShowDatePicker(false); }}
-                                                        className="w-full text-center text-xs text-rose-500 hover:text-rose-600 font-medium mt-1"
-                                                    >
-                                                        Clear Selection
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
+                            <div className="flex flex-col gap-1">
+                                {/* Row 1: Minutes & Hours */}
+                                <div className="flex flex-wrap gap-1">
+                                    {['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h'].map((range) => (
+                                        <button
+                                            key={range}
+                                            onClick={() => setTimeRange(range)}
+                                            className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${timeRange === range
+                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                                                : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400'
+                                                }`}
+                                        >
+                                            {range}
+                                        </button>
+                                    ))}
                                 </div>
-
-                                <button
-                                    onClick={() => {
-                                        if (hasActiveRange) {
-                                            clearRangeSelection();
-                                        } else {
-                                            setIsRangeSelecting(!isRangeSelecting);
-                                            setRangeStart(null);
-                                        }
-                                    }}
-                                    className={`p-1.5 rounded-lg border transition-all ${hasActiveRange
-                                        ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/30'
-                                        : isRangeSelecting
-                                            ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 ring-2 ring-indigo-500/20'
-                                            : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
-                                        }`}
-                                    title={hasActiveRange ? "Clear range selection" : "Hand Tool: Click two points on chart to select range"}
-                                >
-                                    {hasActiveRange ? <X size={16} /> : <Hand size={16} className={isRangeSelecting ? "animate-pulse" : ""} />}
-                                </button>
+                                {/* Row 2: Hours & Days */}
+                                <div className="flex flex-wrap gap-1">
+                                    {['6h', '8h', '12h', '1d', '3d', '1w', '1M'].map((range) => (
+                                        <button
+                                            key={range}
+                                            onClick={() => setTimeRange(range)}
+                                            className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${timeRange === range
+                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                                                : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400'
+                                                }`}
+                                        >
+                                            {range}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
+
+
 
                             <div className="flex items-center gap-2">
                                 {/* Chart Type Toggles */}
@@ -1003,112 +1143,117 @@ const Dashboard: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* BOTTOM: AI Forecast & Summary (50%) */}
-                            <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-950 min-h-0 overflow-hidden">
-                                <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 flex-none">
+                            {/* BOTTOM: AI Forecast & Summary */}
+                            <div className={`flex flex-col bg-slate-50 dark:bg-slate-950 overflow-hidden transition-all duration-300 ${showForecast ? 'flex-1 min-h-0' : 'flex-none'}`}>
+                                <button
+                                    onClick={() => setShowForecast(!showForecast)}
+                                    className="p-3 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 flex-none hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer w-full text-left"
+                                >
                                     <h4 className="font-bold text-xs text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                                         <BrainCircuit size={14} className="text-purple-500" />
                                         AI Forecast
                                     </h4>
-                                </div>
-                                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                                    {forecastResult ? (
-                                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-
-                                            {/* Recommendation Card */}
-                                            {forecastResult.recommendation && (
-                                                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                                    <div className="flex justify-between items-center mb-3">
-                                                        <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-1">
-                                                            <Target size={14} /> Trade Signal
-                                                        </h4>
-                                                        <span className={`px-2 py-1 rounded-lg text-xs font-bold ${forecastResult.recommendation.action === 'Buy' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                                                            forecastResult.recommendation.action === 'Sell' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
-                                                                'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
-                                                            }`}>
-                                                            {forecastResult.recommendation.action}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="flex-1">
-                                                            <div className="text-xs text-slate-500 mb-1">Confidence</div>
-                                                            <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                                                <div
-                                                                    className={`h-full rounded-full ${forecastResult.confidenceScore > 75 ? 'bg-emerald-500' :
-                                                                        forecastResult.confidenceScore > 50 ? 'bg-amber-500' : 'bg-rose-500'
-                                                                        }`}
-                                                                    style={{ width: `${forecastResult.confidenceScore}%` }}
-                                                                ></div>
-                                                            </div>
-                                                            <div className="text-right text-[10px] font-bold mt-1 text-slate-600 dark:text-slate-400">
-                                                                {forecastResult.confidenceScore}%
+                                    <ChevronDown size={24} className={`text-slate-400 transition-transform duration-300 ${showForecast ? 'rotate-180' : ''}`} />
+                                </button>
+                                {showForecast && (
+                                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                                        {forecastResult ? (
+                                            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                                {/* Recommendation Card */}
+                                                {forecastResult.recommendation && (
+                                                    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                                        <div className="flex justify-between items-center mb-3">
+                                                            <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-1">
+                                                                <Target size={14} /> Trade Signal
+                                                            </h4>
+                                                            <span className={`px-2 py-1 rounded-lg text-xs font-bold ${forecastResult.recommendation.action === 'Buy' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                                                forecastResult.recommendation.action === 'Sell' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
+                                                                    'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                                                                }`}>
+                                                                {forecastResult.recommendation.action}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="flex-1">
+                                                                <div className="text-xs text-slate-500 mb-1">Confidence</div>
+                                                                <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                                                    <div
+                                                                        className={`h-full rounded-full ${forecastResult.confidenceScore > 75 ? 'bg-emerald-500' :
+                                                                            forecastResult.confidenceScore > 50 ? 'bg-amber-500' : 'bg-rose-500'
+                                                                            }`}
+                                                                        style={{ width: `${forecastResult.confidenceScore}%` }}
+                                                                    ></div>
+                                                                </div>
+                                                                <div className="text-right text-[10px] font-bold mt-1 text-slate-600 dark:text-slate-400">
+                                                                    {forecastResult.confidenceScore}%
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            )}
+                                                )}
 
-                                            {/* Market Summary */}
-                                            {forecastResult.marketSummary && (
-                                                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                                    <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-1">
-                                                        <Activity size={14} /> Analysis
-                                                    </h4>
-                                                    <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                                                        {forecastResult.marketSummary}
-                                                    </p>
-                                                </div>
-                                            )}
+                                                {/* Market Summary */}
+                                                {forecastResult.marketSummary && (
+                                                    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                                        <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-1">
+                                                            <Activity size={14} /> Analysis
+                                                        </h4>
+                                                        <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                                                            {forecastResult.marketSummary}
+                                                        </p>
+                                                    </div>
+                                                )}
 
-                                            {/* Reasoning */}
-                                            {forecastResult.reasoning && (
-                                                <div className="bg-indigo-50 dark:bg-indigo-900/10 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
-                                                    <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide mb-2 flex items-center gap-1">
-                                                        <Sparkles size={14} /> AI Reasoning
-                                                    </h4>
-                                                    <p className="text-xs italic text-indigo-800 dark:text-indigo-200">
-                                                        "{forecastResult.reasoning}"
-                                                    </p>
-                                                </div>
-                                            )}
+                                                {/* Reasoning */}
+                                                {forecastResult.reasoning && (
+                                                    <div className="bg-indigo-50 dark:bg-indigo-900/10 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
+                                                        <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide mb-2 flex items-center gap-1">
+                                                            <Sparkles size={14} /> AI Reasoning
+                                                        </h4>
+                                                        <p className="text-xs italic text-indigo-800 dark:text-indigo-200">
+                                                            "{forecastResult.reasoning}"
+                                                        </p>
+                                                    </div>
+                                                )}
 
-                                            <div className="pt-2">
+                                                <div className="pt-2">
+                                                    <button
+                                                        onClick={handleForecast}
+                                                        className="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <RefreshCw size={12} /> Regenerate Analysis
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : loadingForecast ? (
+                                            <div className="space-y-4 animate-pulse p-2">
+                                                <div className="h-32 bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+                                                <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+                                                <div className="space-y-2">
+                                                    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-3/4"></div>
+                                                    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2"></div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center h-full py-10 px-4 text-center text-slate-400">
+                                                <BrainCircuit size={32} className="mb-3 opacity-20" />
+                                                <h4 className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-1">Ready to Analyze</h4>
+                                                <p className="text-xs mb-4">Generate AI-powered prediction for {selectedCoin.symbol}.</p>
                                                 <button
                                                     onClick={handleForecast}
-                                                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2"
+                                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-indigo-500/20 flex items-center gap-2"
                                                 >
-                                                    <RefreshCw size={12} /> Regenerate Analysis
+                                                    <Sparkles size={14} />
+                                                    Generate Forecast
                                                 </button>
                                             </div>
-                                        </div>
-                                    ) : loadingForecast ? (
-                                        <div className="space-y-4 animate-pulse p-2">
-                                            <div className="h-32 bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
-                                            <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
-                                            <div className="space-y-2">
-                                                <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-3/4"></div>
-                                                <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2"></div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center h-full py-10 px-4 text-center text-slate-400">
-                                            <BrainCircuit size={32} className="mb-3 opacity-20" />
-                                            <h4 className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-1">Ready to Analyze</h4>
-                                            <p className="text-xs mb-4">Generate AI-powered prediction for {selectedCoin.symbol}.</p>
-                                            <button
-                                                onClick={handleForecast}
-                                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-indigo-500/20 flex items-center gap-2"
-                                            >
-                                                <Sparkles size={14} />
-                                                Generate Forecast
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                         </div>
-                    </div>
+                    </div >
                 )}
 
             {/* -- MODALS -- */}
