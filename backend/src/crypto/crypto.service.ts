@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, MoreThanOrEqual, LessThanOrEqual, Between } from 'typeorm';
+import { MarketCandle } from './entities/market-candle.entity';
 
 export interface CoinData {
     symbol: string;
@@ -25,7 +28,11 @@ export class CryptoService {
     private readonly apiKey: string;
     private readonly baseUrl = 'https://min-api.cryptocompare.com/data';
 
-    constructor(private configService: ConfigService) {
+    constructor(
+        private configService: ConfigService,
+        @InjectRepository(MarketCandle)
+        private candleRepository: Repository<MarketCandle>,
+    ) {
         const apiKey = this.configService.get<string>('CRYPTOCOMPARE_API_KEY');
         if (!apiKey || apiKey.trim() === '') {
             throw new Error(
@@ -79,12 +86,110 @@ export class CryptoService {
         }
     }
 
+    /**
+     * Get historical data from local PostgreSQL database.
+     * Falls back to CryptoCompare API if data not found in DB.
+     */
     async getHistoricalData(
         symbol: string,
         limit: number = 144,
         aggregate: number = 1,
         type: 'minute' | 'hour' | 'day' = 'minute',
-        toTs?: number, // Optional: Unix timestamp (seconds) for end time
+        toTs?: number,
+    ): Promise<HistoryPoint[]> {
+        // Map type to resolution
+        const resolutionMap: Record<string, string> = {
+            'minute': '1m',
+            'hour': '1h',
+            'day': '1d',
+        };
+        const resolution = resolutionMap[type];
+
+        // Calculate time range
+        const endTime = toTs ? toTs * 1000 : Date.now();
+        const intervalMs = type === 'minute' ? 60000 : type === 'hour' ? 3600000 : 86400000;
+        const startTime = endTime - (limit * aggregate * intervalMs);
+
+        try {
+            // Query from local database
+            const candles = await this.candleRepository.find({
+                where: {
+                    symbol: symbol.toUpperCase(),
+                    resolution,
+                    timestamp: Between(startTime, endTime),
+                },
+                order: { timestamp: 'ASC' },
+                take: limit,
+            });
+
+            if (candles.length > 0) {
+                console.log(`[DB] Found ${candles.length} ${resolution} candles for ${symbol}`);
+
+                // Aggregate if needed (e.g., 5m from 1m)
+                if (aggregate > 1 && resolution === '1m') {
+                    return this.aggregateCandles(candles, aggregate);
+                }
+
+                return candles.map(c => ({
+                    ts: Number(c.timestamp),
+                    price: Number(c.close),
+                    open: Number(c.open),
+                    high: Number(c.high),
+                    low: Number(c.low),
+                    close: Number(c.close),
+                    volume: Number(c.volume),
+                }));
+            }
+
+            // Fallback to CryptoCompare API if no data in DB
+            console.log(`[API Fallback] No DB data for ${symbol} ${resolution}, using CryptoCompare`);
+            return this.fetchFromCryptoCompare(symbol, limit, aggregate, type, toTs);
+
+        } catch (error) {
+            console.error('DB query failed, falling back to API:', error);
+            return this.fetchFromCryptoCompare(symbol, limit, aggregate, type, toTs);
+        }
+    }
+
+    /**
+     * Aggregate 1-minute candles into larger timeframes (e.g., 5m, 15m, 30m)
+     */
+    private aggregateCandles(candles: MarketCandle[], aggregate: number): HistoryPoint[] {
+        const result: HistoryPoint[] = [];
+
+        for (let i = 0; i < candles.length; i += aggregate) {
+            const chunk = candles.slice(i, i + aggregate);
+            if (chunk.length === 0) break;
+
+            const open = Number(chunk[0].open);
+            const close = Number(chunk[chunk.length - 1].close);
+            const high = Math.max(...chunk.map(c => Number(c.high)));
+            const low = Math.min(...chunk.map(c => Number(c.low)));
+            const volume = chunk.reduce((sum, c) => sum + Number(c.volume), 0);
+
+            result.push({
+                ts: Number(chunk[0].timestamp),
+                price: close,
+                open,
+                high,
+                low,
+                close,
+                volume,
+            });
+        }
+
+        return result;
+    }
+
+    /**
+     * Fallback: Fetch from CryptoCompare API
+     */
+    private async fetchFromCryptoCompare(
+        symbol: string,
+        limit: number,
+        aggregate: number,
+        type: 'minute' | 'hour' | 'day',
+        toTs?: number,
     ): Promise<HistoryPoint[]> {
         let endpoint = 'histominute';
         if (type === 'hour') endpoint = 'histohour';
@@ -92,7 +197,6 @@ export class CryptoService {
 
         let url = `${this.baseUrl}/${endpoint}?fsym=${symbol}&tsym=USD&limit=${limit}&aggregate=${aggregate}`;
 
-        // Add toTs parameter if provided
         if (toTs) {
             url += `&toTs=${toTs}`;
         }
@@ -123,7 +227,7 @@ export class CryptoService {
                 volume: item.volumeto,
             }));
         } catch (error) {
-            console.error('Failed to fetch historical data:', error);
+            console.error('Failed to fetch from CryptoCompare:', error);
             return [];
         }
     }
