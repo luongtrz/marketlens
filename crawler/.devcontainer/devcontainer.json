@@ -1,8 +1,0 @@
-{
-  "name": "Crawler Dev",
-  "dockerComposeFile": "../../docker-compose.yml",
-  "service": "crawler",
-  "workspaceFolder": "/app",
-  "remoteUser": "root",
-  "postCreateCommand": "pip install --no-cache-dir -r requirements.txt"
-}
