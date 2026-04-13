@@ -1,0 +1,14 @@
+[
+  {
+    "text": "Bitcoin surges past $100K as institutional investors pile in",
+    "expected_sentiment": {"score": 0.85, "label": "bullish"}
+  },
+  {
+    "text": "SEC cracks down on crypto exchanges, major fines expected",
+    "expected_sentiment": {"score": -0.72, "label": "bearish"}
+  },
+  {
+    "text": "Ethereum upgrade proceeds as planned, no significant price movement",
+    "expected_sentiment": {"score": 0.1, "label": "neutral"}
+  }
+]

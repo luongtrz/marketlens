@@ -1,0 +1,4 @@
+stockmem:
+  vector_backend: "pgvector"
+  embedding_dimension: 128
+  db_url: "postgresql+asyncpg://postgres:pass@db:5432/stockmem"

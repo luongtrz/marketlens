@@ -1,0 +1,7 @@
+main_controller:
+  crawler_url: "http://crawler:8000"
+  aihub_url: "http://aihub:8001"
+  market_data_url: "http://market_data:8002"
+  stockmem_url: "http://stockmem:8003"
+  factor_ledge_url: "http://factor_ledge:8004"
+  k_similar: 5

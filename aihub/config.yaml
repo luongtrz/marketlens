@@ -1,0 +1,5 @@
+aihub:
+  model_path: "models/cryptobert"
+  gpt_model: "gpt-oss-120b"
+  predict_backend: "gpt"
+  mock: false

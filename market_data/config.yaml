@@ -1,0 +1,8 @@
+market_data:
+  source: "binance"
+  default_interval: "1h"
+  default_indicators:
+    - "rsi"
+    - "macd"
+    - "bb"
+  db_url: "postgresql+asyncpg://postgres:pass@db:5432/market"

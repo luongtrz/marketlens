@@ -1,0 +1,12 @@
+crawler:
+  poll_interval_seconds: 60
+  enable_summary: false
+  feeds:
+    - name: "CoinTelegraph"
+      url: "https://cointelegraph.com/rss"
+      category: "crypto_news"
+  aihub_url: "http://aihub:8001"
+  db_url: "postgresql+asyncpg://postgres:pass@db:5432/ingestion"
+  dedup_backend: "redis"
+  redis_url: "redis://redis:6379"
+  factor_publish: true

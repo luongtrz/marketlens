@@ -1,0 +1,23 @@
+"""Canonical data models (Pydantic v2) shared across all pipeline modules."""
+
+from shared.models.article import IngestionRecord
+from shared.models.market import OHLCV, Ticker, MarketSnapshot
+from shared.models.factor import FactorType, Factor, NormalizedFactor
+from shared.models.memory import StockMemRecord, SimilarRecord
+from shared.models.prediction import SignalType, PredictionResult, PredictResponse, ExplainRequest
+
+__all__ = [
+    "IngestionRecord",
+    "OHLCV",
+    "Ticker",
+    "MarketSnapshot",
+    "FactorType",
+    "Factor",
+    "NormalizedFactor",
+    "StockMemRecord",
+    "SimilarRecord",
+    "SignalType",
+    "PredictionResult",
+    "PredictResponse",
+    "ExplainRequest",
+]

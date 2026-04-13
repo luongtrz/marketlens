@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Sample Crypto Feed</title>
+    <link>https://example.com</link>
+    <description>Sample RSS feed for testing</description>
+    <item>
+      <title>Bitcoin Surges Past $100K</title>
+      <link>https://example.com/article/1</link>
+      <pubDate>Mon, 13 Apr 2026 12:00:00 GMT</pubDate>
+      <description>Bitcoin has surged past the $100,000 mark...</description>
+    </item>
+    <item>
+      <title>SEC Announces New Crypto Regulations</title>
+      <link>https://example.com/article/2</link>
+      <pubDate>Mon, 13 Apr 2026 10:00:00 GMT</pubDate>
+      <description>The SEC has unveiled new regulatory guidelines...</description>
+    </item>
+  </channel>
+</rss>

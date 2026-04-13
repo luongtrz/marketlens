@@ -1,0 +1,192 @@
+import {
+    WebSocketGateway,
+    WebSocketServer,
+    OnGatewayInit,
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    SubscribeMessage,
+} from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
+import { Server, Socket } from 'socket.io';
+import WebSocket from 'ws';
+
+@WebSocketGateway({
+    cors: {
+        origin: '*',
+    },
+    namespace: 'realtime',
+})
+export class RealtimeGateway
+    implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+    @WebSocketServer() server: Server;
+    private logger: Logger = new Logger('RealtimeGateway');
+    private binanceWs: WebSocket;
+    private activeSubscriptions: Set<string> = new Set();
+    private subscriptionCounts: Map<string, number> = new Map();
+    private clientSubscriptions: Map<string, Set<string>> = new Map();
+    private binanceStreamUrl = 'wss://stream.binance.com:9443/ws';
+
+    afterInit(server: Server) {
+        this.logger.log('Realtime Gateway Initialized');
+        this.connectToBinance();
+    }
+
+    handleConnection(client: Socket) {
+        this.logger.log(`Client connected: ${client.id}`);
+        this.clientSubscriptions.set(client.id, new Set());
+    }
+
+    handleDisconnect(client: Socket) {
+        this.logger.log(`Client disconnected: ${client.id}`);
+        this.handleClientDisconnect(client.id);
+    }
+
+    private connectToBinance() {
+        this.binanceWs = new WebSocket(this.binanceStreamUrl);
+
+        this.binanceWs.on('open', () => {
+            this.logger.log('Connected to Binance WebSocket');
+            // Resubscribe if connection was lost
+            if (this.activeSubscriptions.size > 0) {
+                this.updateBinanceSubscriptions();
+            }
+        });
+
+        this.binanceWs.on('message', (data: WebSocket.Data) => {
+            try {
+                const message = JSON.parse(data.toString());
+                // Broadcast to specific rooms based on symbol
+                if (message.e === 'trade') {
+                    let symbol = message.s; // e.g. BTCUSDT
+                    if (symbol.endsWith('USDT')) symbol = symbol.replace('USDT', '');
+                    this.server.to(`trade:${symbol}`).emit('trade', message);
+                } else if (message.e === 'kline') {
+                    let symbol = message.s; // e.g. BTCUSDT
+                    if (symbol.endsWith('USDT')) symbol = symbol.replace('USDT', '');
+
+                    // Standardize kline data for frontend
+                    const kline = {
+                        time: message.k.t,
+                        open: parseFloat(message.k.o),
+                        high: parseFloat(message.k.h),
+                        low: parseFloat(message.k.l),
+                        close: parseFloat(message.k.c),
+                        volume: parseFloat(message.k.v),
+                        isFinal: message.k.x
+                    };
+                    this.server.to(`kline:${symbol}`).emit('kline', { symbol, data: kline });
+                }
+            } catch (e) {
+                this.logger.error('Error parsing Binance message', e);
+            }
+        });
+
+        this.binanceWs.on('error', (error) => {
+            this.logger.error('Binance WebSocket Error', error);
+        });
+
+        this.binanceWs.on('close', () => {
+            this.logger.warn('Binance WebSocket Closed. Reconnecting in 5s...');
+            setTimeout(() => this.connectToBinance(), 5000);
+        });
+    }
+
+    @SubscribeMessage('join-room')
+    handleJoinRoom(client: Socket, payload: { symbol: string; type: 'trade' | 'kline' }) {
+        const symbol = payload.symbol.toUpperCase();
+        const room = `${payload.type}:${symbol}`;
+        client.join(room);
+        this.logger.log(`Client ${client.id} joined ${room}`);
+
+        // Subscribe to Binance if not already
+        // Force USDT pair for Binance
+        const pair = `${symbol}USDT`.toLowerCase();
+        const binanceStreamName = `${pair}@${payload.type === 'kline' ? 'kline_1m' : 'trade'}`;
+
+        this.addSubscription(client.id, binanceStreamName);
+    }
+
+    @SubscribeMessage('leave-room')
+    handleLeaveRoom(client: Socket, payload: { symbol: string; type: 'trade' | 'kline' }) {
+        const symbol = payload.symbol.toUpperCase();
+        const room = `${payload.type}:${symbol}`;
+        client.leave(room);
+        this.logger.log(`Client ${client.id} left ${room}`);
+
+        const pair = `${symbol}USDT`.toLowerCase();
+        const binanceStreamName = `${pair}@${payload.type === 'kline' ? 'kline_1m' : 'trade'}`;
+
+        this.removeSubscription(client.id, binanceStreamName);
+    }
+
+    private addSubscription(clientId: string, streamName: string) {
+        // Track client subscription
+        let clientSubs = this.clientSubscriptions.get(clientId);
+        if (!clientSubs) {
+            clientSubs = new Set();
+            this.clientSubscriptions.set(clientId, clientSubs);
+        }
+        clientSubs.add(streamName);
+
+        // Increment global count
+        const count = (this.subscriptionCounts.get(streamName) || 0) + 1;
+        this.subscriptionCounts.set(streamName, count);
+
+        // Subscribe to Binance if it's the first client
+        if (count === 1) {
+            this.activeSubscriptions.add(streamName);
+            this.sendBinanceAction('SUBSCRIBE', [streamName]);
+        }
+    }
+
+    private removeSubscription(clientId: string, streamName: string) {
+        // Remove from client tracking
+        const clientSubs = this.clientSubscriptions.get(clientId);
+        if (clientSubs) {
+            clientSubs.delete(streamName);
+        }
+
+        // Decrement global count
+        const count = (this.subscriptionCounts.get(streamName) || 0) - 1;
+        if (count <= 0) {
+            this.subscriptionCounts.delete(streamName);
+            this.activeSubscriptions.delete(streamName);
+            this.sendBinanceAction('UNSUBSCRIBE', [streamName]);
+        } else {
+            this.subscriptionCounts.set(streamName, count);
+        }
+    }
+
+    private handleClientDisconnect(clientId: string) {
+        const clientSubs = this.clientSubscriptions.get(clientId);
+        if (clientSubs) {
+            clientSubs.forEach(streamName => {
+                this.removeSubscription(clientId, streamName);
+            });
+            this.clientSubscriptions.delete(clientId);
+        }
+    }
+
+    private sendBinanceAction(method: 'SUBSCRIBE' | 'UNSUBSCRIBE', params: string[]) {
+        if (this.binanceWs && this.binanceWs.readyState === WebSocket.OPEN && params.length > 0) {
+            const payload = {
+                method,
+                params,
+                id: Date.now(),
+            };
+            this.binanceWs.send(JSON.stringify(payload));
+            this.logger.log(`Sent ${method} to Binance for: ${params.join(', ')}`);
+        }
+    }
+
+    private updateBinanceSubscriptions() {
+        if (this.binanceWs.readyState === WebSocket.OPEN && this.activeSubscriptions.size > 0) {
+            const payload = {
+                method: 'SUBSCRIBE',
+                params: Array.from(this.activeSubscriptions),
+                id: 1,
+            };
+            this.binanceWs.send(JSON.stringify(payload));
+        }
+    }
+}
