@@ -1,28 +1,38 @@
-"""k-NN search over the vector index."""
+from __future__ import annotations
 
-from shared.models.memory import StockMemRecord, SimilarRecord
+from ..models import SimilarRecord, StockMemRecord
+from .embedder import RecordEmbedder
+from .index import MemoryVectorIndex
 
 
 class RecordSearcher:
-    """Searches for similar historical records using vector similarity.
+    """k-NN similarity search over vector index."""
 
-    Args:
-        db_url: Database URL for record retrieval.
-        vector_backend: Backend for vector index ("faiss" | "pgvector" | "memory").
-    """
+    def __init__(
+        self,
+        embedder: RecordEmbedder,
+        index: MemoryVectorIndex,
+        record_cache: dict[str, StockMemRecord],
+    ) -> None:
+        self._embedder = embedder
+        self._index = index
+        self._record_cache = record_cache
 
-    def __init__(self, db_url: str, vector_backend: str = "memory") -> None:
-        self._db_url = db_url
-        self._vector_backend = vector_backend
+    def search(self, query: StockMemRecord, k: int = 5) -> list[SimilarRecord]:
+        query_vec = self._embedder.embed(query)
+        scored = self._index.search(query_vec, k)
 
-    async def search(self, query: StockMemRecord, k: int = 5) -> list[SimilarRecord]:
-        """Find the k most similar historical records.
-
-        Args:
-            query: Current record to find similar records for.
-            k: Number of similar records to retrieve.
-
-        Returns:
-            List of SimilarRecord objects with similarity scores.
-        """
-        raise NotImplementedError
+        results: list[SimilarRecord] = []
+        for item in scored:
+            rec = self._record_cache.get(item.record_id)
+            if rec is None:
+                continue
+            similarity = max(0.0, min(1.0, (item.score + 1.0) / 2.0))
+            results.append(
+                SimilarRecord(
+                    record=rec,
+                    similarity=round(similarity, 6),
+                    outcome=None,
+                )
+            )
+        return results

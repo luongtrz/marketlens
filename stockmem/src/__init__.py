@@ -1,1 +1,1 @@
-# stockmem.src
+"""StockMem core modules."""

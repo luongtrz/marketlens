@@ -1,53 +1,58 @@
-"""StockMem FastAPI application — /record and /search endpoints."""
+from __future__ import annotations
 
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
 
-from shared.models.memory import StockMemRecord, SimilarRecord
+from fastapi import FastAPI, HTTPException
 
-app = FastAPI(title="StockMem", description="Record storage and similarity search service")
+from .config import settings
+from .models import (
+    HealthResponse,
+    RecordCreateRequest,
+    RecordCreateResponse,
+    SearchRequest,
+    SearchResponse,
+    StockMemRecord,
+)
+from .service import StockMemService
 
 
-@app.get("/health")
-async def health() -> dict:
-    """Health check endpoint."""
-    return {"status": "ok"}
+service = StockMemService(db_url=settings.db_url, vector_backend=settings.vector_backend)
 
 
-@app.post("/record")
-async def save_record(record: StockMemRecord) -> dict:
-    """Persist a StockMemRecord.
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await service.startup()
+    yield
 
-    Args:
-        record: The daily record to store.
 
-    Returns:
-        Dict with the assigned record ID.
-    """
-    raise NotImplementedError
+app = FastAPI(title="StockMem", version="0.1.0", lifespan=lifespan)
+
+
+@app.post("/record", response_model=RecordCreateResponse)
+async def create_record(payload: RecordCreateRequest) -> RecordCreateResponse:
+    rid = await service.save_record(payload.record)
+    return RecordCreateResponse(id=rid)
 
 
 @app.get("/record/{record_id}", response_model=StockMemRecord)
 async def get_record(record_id: str) -> StockMemRecord:
-    """Retrieve a record by ID.
-
-    Args:
-        record_id: UUID of the record.
-
-    Returns:
-        The StockMemRecord.
-    """
-    raise NotImplementedError
+    record = await service.get_record(record_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="record not found")
+    return record
 
 
-@app.post("/search")
-async def search(query: StockMemRecord, k: int = 5) -> dict:
-    """Search for similar historical records.
+@app.post("/search", response_model=SearchResponse)
+async def search(payload: SearchRequest) -> SearchResponse:
+    k = max(1, payload.k)
+    results = await service.search(payload.query, k=k)
+    return SearchResponse(results=results)
 
-    Args:
-        query: Current record for similarity comparison.
-        k: Number of similar records to return.
 
-    Returns:
-        Dict with results list of SimilarRecord objects.
-    """
-    raise NotImplementedError
+@app.get("/health", response_model=HealthResponse)
+async def health() -> HealthResponse:
+    return HealthResponse(
+        status="ok",
+        vector_backend=service.vector_backend,
+        db_url=settings.db_url,
+    )
