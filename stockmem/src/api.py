@@ -16,7 +16,11 @@ from .models import (
 from .service import StockMemService
 
 
-service = StockMemService(db_url=settings.db_url, vector_backend=settings.vector_backend)
+service = StockMemService(
+    db_url=settings.db_url,
+    vector_backend=settings.vector_backend,
+    weights=settings.weights,
+)
 
 
 @asynccontextmanager

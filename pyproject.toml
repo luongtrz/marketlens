@@ -34,6 +34,7 @@ market = [
 stockmem = [
     "faiss-cpu>=1.7.4",
     "pgvector>=0.2.0",
+    "optuna>=3.6.0",
 ]
 dev = [
     "pytest>=8.0.0",

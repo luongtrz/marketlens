@@ -9,3 +9,7 @@ storage:
 search:
   vector_backend: memory
   top_k_default: 5
+  weights:
+    w1_factor: 0.35
+    w2_indicator: 0.20
+    w3_price: 0.45

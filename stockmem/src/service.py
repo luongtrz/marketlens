@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .config import SearchWeights
 from .models import SimilarRecord, StockMemRecord
 from .search.embedder import RecordEmbedder
 from .search.index import MemoryVectorIndex
@@ -9,8 +10,9 @@ from .store.writer import RecordWriter
 
 
 class StockMemService:
-    def __init__(self, db_url: str, vector_backend: str) -> None:
+    def __init__(self, db_url: str, vector_backend: str, weights: SearchWeights) -> None:
         self.vector_backend = vector_backend
+        self.weights = weights
         self.repository = RecordRepository(db_url)
         self.embedder = RecordEmbedder()
         self.index = MemoryVectorIndex()
@@ -25,6 +27,7 @@ class StockMemService:
             embedder=self.embedder,
             index=self.index,
             record_cache=self.records_by_id,
+            weights=self.weights,
         )
 
     async def startup(self) -> None:
@@ -41,6 +44,7 @@ class StockMemService:
             embedder=self.embedder,
             index=self.index,
             record_cache=self.records_by_id,
+            weights=self.weights,
         )
 
         self.embedder.rebuild_corpus(self.records_by_id.values())

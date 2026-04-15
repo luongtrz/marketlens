@@ -1,6 +1,6 @@
 # StockMem
 
-StockMem is the module responsible for record storage and vector similarity search.
+StockMem is the module responsible for record storage and weighted vector similarity search.
 
 ## Endpoints
 
@@ -8,6 +8,23 @@ StockMem is the module responsible for record storage and vector similarity sear
 - GET /record/{id}
 - POST /search
 - GET /health
+
+## Weighted Similarity
+
+Search ranking uses:
+
+score = w1 * sim(factor) + w2 * sim(indicator) + w3 * sim(price)
+
+Default coefficients are loaded from `stockmem/config.yaml`:
+
+- `w1_factor`: 0.35
+- `w2_indicator`: 0.20
+- `w3_price`: 0.45
+
+Override options at runtime:
+
+- `W1_FACTOR`, `W2_INDICATOR`, `W3_PRICE`
+- `WEIGHTS_FILE=/path/to/weights.json`
 
 ## Local Setup
 
@@ -32,6 +49,58 @@ PYTHONPATH=/home/luong/marketlens pytest -q stockmem/tests
 Expected result:
 
 - 2 passed (test_store + test_search)
+
+## Optimize / Benchmark Weights
+
+Optimizer uses Bayesian Optimization (TPE sampler via Optuna), ported from the original logic.
+
+Input data should be vectorized rows with fields:
+
+- `date`
+- `factor_vec`
+- `indicator_vec`
+- `price_vec`
+- `future_return_7d`
+
+Install optimizer dependency:
+
+```bash
+cd /home/luong/marketlens
+source .venv/bin/activate
+pip install optuna
+```
+
+Optimize:
+
+```bash
+cd /home/luong/marketlens
+source .venv/bin/activate
+python stockmem/scripts/optimize_weights.py \
+	--data /path/to/history_real_optimizer.v2.json \
+	--trials 120 \
+	--horizon 7d \
+	--k 5 \
+	--warmup 250 \
+	--cv-folds 4 \
+	--stable-top-k 12 \
+	--output stockmem/config/weights.optimized.json
+```
+
+Notes:
+
+- Objective: `0.6 * DA + 0.4 * Sharpe`
+- Constraint: `w3 = 1 - w1 - w2` and each weight must stay in configured bounds
+- Output includes best-trial weights and stable median weights from top trials
+
+Benchmark vs baseline:
+
+```bash
+cd /home/luong/marketlens
+source .venv/bin/activate
+python stockmem/scripts/benchmark_weights.py \
+	--data /path/to/history_real_optimizer.v2.json \
+	--weights stockmem/config/weights.optimized.json
+```
 
 ## Run API Locally
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from stockmem.src.config import SearchWeights
 from stockmem.src.models import MarketSnapshot, StockMemRecord
 from stockmem.src.search.embedder import RecordEmbedder
 from stockmem.src.search.index import MemoryVectorIndex
@@ -33,7 +34,12 @@ def test_search_returns_top_k_with_similarity_bounds() -> None:
     index = MemoryVectorIndex()
     index.rebuild([(rid, embedder.embed(rec)) for rid, rec in cache.items()])
 
-    searcher = RecordSearcher(embedder=embedder, index=index, record_cache=cache)
+    searcher = RecordSearcher(
+        embedder=embedder,
+        index=index,
+        record_cache=cache,
+        weights=SearchWeights(w1_factor=0.35, w2_indicator=0.20, w3_price=0.45),
+    )
 
     query = StockMemRecord(
         date=date(2026, 4, 14),
