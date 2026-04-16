@@ -1,43 +1,69 @@
-"""Vector index for similarity search (FAISS or pgvector)."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Iterable
 
 import numpy as np
 
 
-class VectorIndex:
-    """Vector index for k-NN similarity search.
+try:
+    import faiss  # type: ignore
+except ImportError:  # pragma: no cover
+    faiss = None
 
-    Supports FAISS (in-memory) and pgvector (PostgreSQL) backends.
 
-    Args:
-        backend: "faiss" | "pgvector" | "memory".
-        dimension: Embedding vector dimension.
+@dataclass
+class ScoredId:
+    record_id: str
+    score: float
+
+
+class MemoryVectorIndex:
+    """
+    In-memory vector index.
+    Uses FAISS IndexFlatIP when available; falls back to NumPy cosine search.
     """
 
-    def __init__(self, backend: str = "memory", dimension: int = 128) -> None:
-        self._backend = backend
-        self._dimension = dimension
+    def __init__(self) -> None:
+        self._vectors: dict[str, np.ndarray] = {}
+        self._ids: list[str] = []
+        self._faiss_index = None
+        self._dim: int | None = None
 
-    async def add(self, record_id: str, vector: np.ndarray) -> None:
-        """Add a vector to the index.
+    def rebuild(self, entries: Iterable[tuple[str, np.ndarray]]) -> None:
+        self._vectors = {rid: vec.astype(np.float32) for rid, vec in entries}
+        self._ids = list(self._vectors.keys())
+        self._dim = None
+        self._faiss_index = None
 
-        Args:
-            record_id: ID associated with the vector.
-            vector: Embedding vector.
-        """
-        raise NotImplementedError
+        if not self._ids:
+            return
 
-    async def search(self, query_vector: np.ndarray, k: int = 5) -> list[tuple[str, float]]:
-        """Search for k nearest neighbors.
+        first = self._vectors[self._ids[0]]
+        self._dim = int(first.shape[0])
 
-        Args:
-            query_vector: Query embedding vector.
-            k: Number of nearest neighbors.
+        if faiss is not None:
+            mat = np.vstack([self._vectors[rid] for rid in self._ids]).astype(np.float32)
+            self._faiss_index = faiss.IndexFlatIP(self._dim)
+            self._faiss_index.add(mat)
 
-        Returns:
-            List of (record_id, similarity_score) tuples, sorted by similarity descending.
-        """
-        raise NotImplementedError
+    def search(self, query_vector: np.ndarray, k: int) -> list[ScoredId]:
+        if not self._ids:
+            return []
 
-    async def build(self) -> None:
-        """Build or rebuild the index from stored vectors."""
-        raise NotImplementedError
+        k_eff = max(1, min(k, len(self._ids)))
+        q = query_vector.astype(np.float32).reshape(1, -1)
+
+        if self._faiss_index is not None:
+            scores, indices = self._faiss_index.search(q, k_eff)
+            out: list[ScoredId] = []
+            for score, idx in zip(scores[0], indices[0]):
+                if idx < 0:
+                    continue
+                out.append(ScoredId(record_id=self._ids[idx], score=float(score)))
+            return out
+
+        mat = np.vstack([self._vectors[rid] for rid in self._ids]).astype(np.float32)
+        sims = mat @ q[0]
+        order = np.argsort(-sims)[:k_eff]
+        return [ScoredId(record_id=self._ids[i], score=float(sims[i])) for i in order]

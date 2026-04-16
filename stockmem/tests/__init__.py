@@ -1,1 +1,0 @@
-"""StockMem test stubs."""

@@ -1,4 +1,15 @@
-stockmem:
-  vector_backend: "pgvector"
-  embedding_dimension: 128
-  db_url: "postgresql+asyncpg://postgres:pass@db:5432/stockmem"
+app:
+  name: StockMem
+  host: 0.0.0.0
+  port: 8000
+
+storage:
+  db_url: sqlite+aiosqlite:///test.db
+
+search:
+  vector_backend: memory
+  top_k_default: 5
+  weights:
+    w1_factor: 0.6420
+    w2_indicator: 0.1179
+    w3_price: 0.2401

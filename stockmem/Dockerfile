@@ -2,11 +2,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY ../shared /app/shared
-COPY . /app/stockmem
+COPY requirements-demo.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-RUN pip install --no-cache-dir -r /app/stockmem/requirements.txt 2>/dev/null || true
+COPY stockmem /app/stockmem
+COPY demo.py /app/demo.py
 
-ENV PYTHONPATH=/app
+ENV VECTOR_BACKEND=memory
+ENV DB_URL=sqlite+aiosqlite:///test.db
 
-CMD ["uvicorn", "stockmem.src.api:app", "--host", "0.0.0.0", "--port", "8003"]
+EXPOSE 8000
+
+CMD ["python", "demo.py"]

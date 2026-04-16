@@ -1,1 +1,1 @@
-# stockmem
+"""StockMem Python demo package."""

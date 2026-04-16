@@ -1,39 +1,19 @@
-"""Read StockMemRecord by date or ID."""
+from __future__ import annotations
 
 from datetime import date
 
-from shared.models.memory import StockMemRecord
+from ..models import StockMemRecord
+from .repository import RecordRepository
 
 
 class RecordReader:
-    """Reads StockMemRecord objects from the database.
+    """Read records by id or by (date, symbol)."""
 
-    Args:
-        db_url: SQLAlchemy-compatible async database URL.
-    """
-
-    def __init__(self, db_url: str) -> None:
-        self._db_url = db_url
+    def __init__(self, repository: RecordRepository) -> None:
+        self._repository = repository
 
     async def get_by_id(self, record_id: str) -> StockMemRecord | None:
-        """Retrieve a record by its ID.
+        return await self._repository.get(record_id)
 
-        Args:
-            record_id: UUID string.
-
-        Returns:
-            StockMemRecord or None if not found.
-        """
-        raise NotImplementedError
-
-    async def get_by_date(self, target_date: date, symbol: str) -> StockMemRecord | None:
-        """Retrieve a record by date and symbol.
-
-        Args:
-            target_date: Target date.
-            symbol: Trading pair.
-
-        Returns:
-            StockMemRecord or None if not found.
-        """
-        raise NotImplementedError
+    async def get_by_date(self, record_date: date, symbol: str) -> StockMemRecord | None:
+        return await self._repository.get_by_date_symbol(record_date.isoformat(), symbol)
