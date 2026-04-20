@@ -6,5 +6,3 @@ __pycache__/
 *.db
 .pytest_cache/
 
-# Generated mock data (reproducible via scripts/generate_mock_data.py --seed)
-data/*.json
