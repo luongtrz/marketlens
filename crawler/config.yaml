@@ -3,7 +3,7 @@ crawler:
   enable_summary: false
   feeds:
     - name: "CoinTelegraph"
-      url: "https://cointelegraph.com/rss"
+      url: "https://www.coindesk.com/arc/outboundfeeds/rss/"
       category: "crypto_news"
   aihub_url: "http://aihub:8001"
   db_url: "postgresql+asyncpg://postgres:pass@db:5432/ingestion"

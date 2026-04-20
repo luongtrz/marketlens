@@ -1,0 +1,32 @@
+2026-04-20 21:14:09,876 | INFO | __main__ | Starting Crawler with poll_interval=60s
+2026-04-20 21:14:09,876 | INFO | __main__ | Config: db_url=sqlite+aiosqlite:///crawler_theblock.db, dedup=memory, fetch_content=True, sitemap_backfill=True, feeds=1
+2026-04-20 21:14:09,988 | INFO | __main__ | Supabase sink enabled=True
+2026-04-20 21:14:10,011 | INFO | __main__ | Cycle started
+2026-04-20 21:14:10,429 | INFO | httpx | HTTP Request: GET https://www.theblock.co/rss.xml "HTTP/1.1 200 OK"
+2026-04-20 21:14:10,450 | INFO | __main__ | Fetched RSS articles: 20
+2026-04-20 21:14:10,450 | INFO | __main__ | Backfilling sitemap for source=The Block
+2026-04-20 21:14:10,496 | INFO | httpx | HTTP Request: GET https://www.theblock.co/sitemap.xml "HTTP/1.1 403 Forbidden"
+2026-04-20 21:14:10,539 | INFO | httpx | HTTP Request: GET https://www.theblock.co/sitemap_index.xml "HTTP/1.1 403 Forbidden"
+2026-04-20 21:14:10,582 | INFO | httpx | HTTP Request: GET https://www.theblock.co/sitemap-index.xml "HTTP/1.1 403 Forbidden"
+2026-04-20 21:14:10,627 | INFO | httpx | HTTP Request: GET https://www.theblock.co/post-sitemap.xml "HTTP/1.1 403 Forbidden"
+2026-04-20 21:14:10,672 | INFO | httpx | HTTP Request: GET https://www.theblock.co/news-sitemap.xml "HTTP/1.1 403 Forbidden"
+2026-04-20 21:14:10,673 | INFO | __main__ | Sitemap source=The Block added=0 (total=20)
+2026-04-20 21:14:10,673 | INFO | __main__ | Processing total candidate articles=20
+2026-04-20 21:14:10,674 | INFO | __main__ | Crawler cycle finished, new_records=0
+2026-04-20 21:15:10,675 | INFO | __main__ | Cycle started
+2026-04-20 21:15:11,088 | INFO | httpx | HTTP Request: GET https://www.theblock.co/rss.xml "HTTP/1.1 200 OK"
+2026-04-20 21:15:11,115 | INFO | __main__ | Fetched RSS articles: 20
+2026-04-20 21:15:11,115 | INFO | __main__ | Backfilling sitemap for source=The Block
+2026-04-20 21:15:11,163 | INFO | httpx | HTTP Request: GET https://www.theblock.co/sitemap.xml "HTTP/1.1 403 Forbidden"
+2026-04-20 21:15:11,211 | INFO | httpx | HTTP Request: GET https://www.theblock.co/sitemap_index.xml "HTTP/1.1 403 Forbidden"
+2026-04-20 21:15:11,259 | INFO | httpx | HTTP Request: GET https://www.theblock.co/sitemap-index.xml "HTTP/1.1 403 Forbidden"
+2026-04-20 21:15:11,305 | INFO | httpx | HTTP Request: GET https://www.theblock.co/post-sitemap.xml "HTTP/1.1 403 Forbidden"
+2026-04-20 21:15:11,351 | INFO | httpx | HTTP Request: GET https://www.theblock.co/news-sitemap.xml "HTTP/1.1 403 Forbidden"
+2026-04-20 21:15:11,351 | INFO | __main__ | Sitemap source=The Block added=0 (total=20)
+2026-04-20 21:15:11,351 | INFO | __main__ | Processing total candidate articles=20
+2026-04-20 21:15:11,354 | INFO | __main__ | Crawler cycle finished, new_records=0
+2026-04-20 21:16:11,355 | INFO | __main__ | Cycle started
+2026-04-20 21:16:11,767 | INFO | httpx | HTTP Request: GET https://www.theblock.co/rss.xml "HTTP/1.1 200 OK"
+2026-04-20 21:16:11,789 | INFO | __main__ | Fetched RSS articles: 20
+2026-04-20 21:16:11,789 | INFO | __main__ | Backfilling sitemap for source=The Block
+2026-04-20 21:16:11,834 | INFO | httpx | HTTP Request: GET https://www.theblock.co/sitemap.xml "HTTP/1.1 403 Forbidden"
