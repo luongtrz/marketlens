@@ -1,0 +1,19 @@
+{
+  "name": "classify-service",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "ts-node index.ts"
+  },
+  "dependencies": {
+    "node-fetch": "^3.0.0",
+    "openai": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.0.0",
+    "typescript": "^5.0.0"
+  }
+}
