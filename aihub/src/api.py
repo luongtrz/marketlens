@@ -5,6 +5,9 @@ from fastapi import FastAPI
 from aihub.src.sentiment.schema import SentimentRequest, SentimentResponse
 from aihub.src.factors.schema import FactorRequest, FactorResponse
 from aihub.src.predict.schema import PredictRequest, PredictResponse
+from aihub.src.factors.skgp import SKGPExtractor
+from aihub.src.sentiment.model import CryptoBertModel
+from aihub.src.config import AIHubConfig
 
 app = FastAPI(title="AIHub", description="AI inference service for crypto pipeline")
 
@@ -25,7 +28,9 @@ async def sentiment(request: SentimentRequest) -> SentimentResponse:
     Returns:
         SentimentResponse with score and label.
     """
-    raise NotImplementedError
+    config = AIHubConfig()
+    crypto_bert = CryptoBertModel(model_path=config.model_path, hf_model_path=config.hf_model_path)
+    return crypto_bert.predict(request.text)
 
 
 @app.post("/factors", response_model=FactorResponse)
@@ -38,7 +43,8 @@ async def factors(request: FactorRequest) -> FactorResponse:
     Returns:
         FactorResponse with list of extracted factors.
     """
-    raise NotImplementedError
+    skgp = SKGPExtractor()
+    return FactorResponse(factors = skgp.extract(request.ticker, request.text))
 
 
 @app.post("/predict", response_model=PredictResponse)

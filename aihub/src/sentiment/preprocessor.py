@@ -1,5 +1,5 @@
 """Text preprocessing for BERT model input."""
-
+import re
 
 class SentimentPreprocessor:
     """Cleans and tokenizes text for CryptoBert input."""
@@ -16,7 +16,15 @@ class SentimentPreprocessor:
         Returns:
             Cleaned text suitable for BERT tokenization.
         """
-        raise NotImplementedError
+
+        text = re.sub(r'<[^>]+>', '', text)
+        text = re.sub(r'http\S+|www\.\S+', '', text)
+        text = re.sub(r'[\w\.-]+@[\w\.-]+', '', text)
+        text = re.sub(r'[^\w\s]', '', text)
+        text = re.sub(r'\s+', ' ', text).strip()
+        text = text.lower()
+        return text
+
 
     def truncate(self, text: str, max_tokens: int = 512) -> str:
         """Truncate text to fit within the model's max token window.
@@ -28,4 +36,4 @@ class SentimentPreprocessor:
         Returns:
             Truncated text.
         """
-        raise NotImplementedError
+        return text[:max_tokens]

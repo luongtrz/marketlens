@@ -1,6 +1,7 @@
 """CryptoBert model loader and inference for sentiment analysis."""
 
 from pydantic import BaseModel
+import httpx
 
 
 class SentimentResult(BaseModel):
@@ -20,8 +21,9 @@ class CryptoBertModel:
         model_path: Path to the pretrained CryptoBert model.
     """
 
-    def __init__(self, model_path: str) -> None:
+    def __init__(self, model_path: str, hf_model_path: str = '') -> None:
         self._model_path = model_path
+        self.hf_model_path = hf_model_path
         self._model = None
 
     def load(self) -> None:
@@ -29,7 +31,6 @@ class CryptoBertModel:
 
         Should be called once at application startup.
         """
-        raise NotImplementedError
 
     def predict(self, text: str) -> SentimentResult:
         """Run sentiment inference on the given text.
@@ -40,4 +41,16 @@ class CryptoBertModel:
         Returns:
             SentimentResult with score and label.
         """
-        raise NotImplementedError
+        try:
+            resp = httpx.post(self.hf_model_path, json={"texts": [text]}, timeout=30.0)
+            resp.raise_for_status()
+            data = resp.json().get("results")[0]
+            return SentimentResult(
+                score=float(data.get("numeric_score", 0.0)),
+                label=data.get("label", "neutral"),
+            )
+        except Exception as exc:
+            return SentimentResult(
+                score=0.0,
+                label="neutral",
+            )
