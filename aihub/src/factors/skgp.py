@@ -61,17 +61,14 @@ class SKGPExtractor:
             f'Respond with JSON: {{"factors": [...]}}\n\n'
             f"News:\n{text}"
         )
-        try:
-            data = await self._llm.generate_json(prompt, system=_SYSTEM)
-            factors_raw = data.get("factors", [])
-            return [
-                Factor(
-                    name=f["factor"],
-                    type=FactorType(f["type"]),
-                    polarity=float(f["polarity"]),
-                    confidence=float(f["confidence"]) / 100.0,
-                )
-                for f in factors_raw
-            ]
-        except Exception:
-            return []
+        data = await self._llm.generate_json(prompt, system=_SYSTEM)
+        factors_raw = data.get("factors", [])
+        return [
+            Factor(
+                name=f["factor"],
+                type=FactorType(f["type"]),
+                polarity=float(f["polarity"]),
+                confidence=float(f["confidence"]) / 100.0,
+            )
+            for f in factors_raw
+        ]

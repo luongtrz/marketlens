@@ -13,13 +13,18 @@ class AIHubConfig(BaseAppConfig):
     llm_backend: str = "gemini"
 
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-3.1-flash-lite-preview"
 
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
-    openai_base_url: str = ""  # leave empty to use official OpenAI endpoint
+    openai_base_url: str = ""
 
-    predict_backend: str = "llm"  # "llm" | "mock"
-    aihub_mock: bool = False  # True = return deterministic fixture responses
+    predict_backend: str = "llm"  
+    mock_mode: bool = False
 
-    model_config = {"env_prefix": "AIHUB_", "extra": "ignore"}
+    model_config = {
+        "env_prefix": "AIHUB_",
+        "env_file": "aihub/.env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }

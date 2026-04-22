@@ -10,10 +10,10 @@ class GeminiClient(LLMClient):
 
     Args:
         api_key: Google AI Studio / Vertex API key.
-        model: Gemini model identifier (default: gemini-2.0-flash).
+        model: Gemini model identifier (default: gemini-3.1-flash-lite-preview).
     """
 
-    def __init__(self, api_key: str, model: str = "gemini-2.0-flash") -> None:
+    def __init__(self, api_key: str, model: str = "gemini-3.1-flash-lite-preview") -> None:
         genai.configure(api_key=api_key)
         self._model_name = model
 
