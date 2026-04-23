@@ -1,5 +1,7 @@
 aihub:
   model_path: "models/cryptobert"
-  gpt_model: "gpt-oss-120b"
-  predict_backend: "gpt"
+  llm_backend: "gemini"         # "gemini" | "openai"
+  gemini_model: "gemini-2.0-flash"
+  openai_model: "gpt-4o-mini"
+  predict_backend: "llm"
   mock: false

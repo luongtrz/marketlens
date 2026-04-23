@@ -10,6 +10,7 @@ class FactorRequest(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
+    ticker: str
     text: str
 
 
