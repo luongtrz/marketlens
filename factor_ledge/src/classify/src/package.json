@@ -8,6 +8,7 @@
     "dev": "ts-node index.ts"
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
     "node-fetch": "^3.0.0",
     "openai": "^4.0.0"
   },
