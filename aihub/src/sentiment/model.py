@@ -40,6 +40,10 @@ class CryptoBertModel:
 
         Returns:
             SentimentResult with score and label.
+
+        Raises:
+            httpx.HTTPStatusError: If the remote model service returns an error status.
+            httpx.RequestError: If the request cannot be sent (network error, timeout, etc.).
         """
         async with httpx.AsyncClient() as client:
             resp = await client.post(
