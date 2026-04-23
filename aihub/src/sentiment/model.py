@@ -32,7 +32,7 @@ class CryptoBertModel:
         Should be called once at application startup.
         """
 
-    def predict(self, text: str) -> SentimentResult:
+    async def predict(self, text: str) -> SentimentResult:
         """Run sentiment inference on the given text.
 
         Args:
@@ -41,16 +41,13 @@ class CryptoBertModel:
         Returns:
             SentimentResult with score and label.
         """
-        try:
-            resp = httpx.post(self.hf_model_path, json={"texts": [text]}, timeout=30.0)
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                self.hf_model_path, json={"texts": [text]}, timeout=30.0
+            )
             resp.raise_for_status()
             data = resp.json().get("results")[0]
             return SentimentResult(
                 score=float(data.get("numeric_score", 0.0)),
                 label=data.get("label", "neutral"),
-            )
-        except Exception as exc:
-            return SentimentResult(
-                score=0.0,
-                label="neutral",
             )

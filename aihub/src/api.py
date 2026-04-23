@@ -47,7 +47,7 @@ async def health() -> dict:
 async def sentiment(request: SentimentRequest, http: Request) -> SentimentResponse:
     """Analyse sentiment of the provided text using CryptoBert."""
     model: CryptoBertModel = http.app.state.sentiment_model
-    return model.predict(request.text)
+    return await model.predict(request.text)
 
 
 @app.post("/factors", response_model=FactorResponse)
