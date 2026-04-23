@@ -47,7 +47,7 @@ class RecordWriter:
         await self._repository.upsert(to_save)
         self._record_cache[rid] = to_save
 
-        # TF-IDF depends on corpus statistics, so refresh embedding stats and index.
+        # Indicator z-score depends on corpus stats; rebuild stats + FAISS index.
         all_records = list(self._record_cache.values())
         self._embedder.rebuild_corpus(all_records)
         vectors = [(r.id, self._embedder.embed(r)) for r in all_records if r.id is not None]

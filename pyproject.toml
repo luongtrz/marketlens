@@ -27,6 +27,7 @@ aihub = [
     "transformers>=4.37.0",
     "torch>=2.2.0",
     "openai>=1.10.0",
+    "google-generativeai>=0.8.0",
 ]
 market = [
     "python-binance>=1.0.0",

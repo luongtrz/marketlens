@@ -9,7 +9,13 @@ from .index import MemoryVectorIndex
 
 
 class RecordSearcher:
-    """k-NN similarity search over vector index."""
+    """
+    Weighted similarity search:
+        score = w1 * sim(factor) + w2 * sim(indicator) + w3 * sim(price)
+
+    All three sub-vectors are L2-normalized by the embedder, so each sim term
+    equals cosine similarity in [-1, 1]. Final similarity is mapped to [0, 1].
+    """
 
     def __init__(
         self,
@@ -40,7 +46,7 @@ class RecordSearcher:
         )
 
     def search(self, query: StockMemRecord, k: int = 5) -> list[SimilarRecord]:
-        _ = self._index  # preserved for API/backend compatibility
+        _ = self._index  # kept for future FAISS-based prefilter; full scan for now
         scored: list[tuple[float, StockMemRecord]] = []
         query_split = self._embedder.embed_split(query)
         for rec in self._record_cache.values():

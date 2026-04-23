@@ -1,20 +1,27 @@
-"""External model API client for GPT-oss-120b predictions."""
+"""Prediction client — sends RAG-assembled context to the LLM and parses the result."""
+
+from aihub.src.llm.base import LLMClient
+from aihub.src.predict.prompt import PREDICT_PROMPT
 
 
 class PredictClient:
-    """Client for the external GPT-oss-120b model API.
+    """Generates a trading signal by calling the LLM with a RAG context prompt.
 
     Args:
-        model_name: Model identifier (default: gpt-oss-120b).
+        llm: Configured LLMClient backend (Gemini or OpenAI).
     """
 
+    def __init__(self, llm: LLMClient) -> None:
+        self._llm = llm
 
-    def __init__(
-        self,
-        model_name: str = "",
-    ) -> None:
-        self._model_name = model_name
-        self._model = llm_model_factory().get_model(model_name)
+    async def generate(self, rag_context: str) -> dict:  # type: ignore[type-arg]
+        """Send the assembled RAG prompt to the LLM and return the parsed JSON dict.
 
-    async def generate(self, prompt: str) -> str:
-        return self._model.generate(prompt)
+        Args:
+            rag_context: Formatted context string from RAGContextBuilder.
+
+        Returns:
+            Dict with keys: signal, confidence, explanation, reasoning_steps.
+        """
+        prompt = PREDICT_PROMPT.format(rag_context=rag_context)
+        return await self._llm.generate_json(prompt)
