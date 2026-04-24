@@ -1,12 +1,11 @@
-"""Groq LLM client — OpenAI-compatible backend with response cleaning for OSS models."""
+"""Groq LLM client — native Groq SDK backend with response cleaning for OSS models."""
 
 import re
 from dataclasses import dataclass, field
 
-from aihub.src.llm.openai import OpenAIClient
+from groq import AsyncGroq
 
-# Groq's OpenAI-compatible API endpoint
-GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+from aihub.src.llm.base import LLMClient
 
 
 @dataclass
@@ -17,10 +16,14 @@ class GroqResponse:
     reasoning_steps: list[str] = field(default_factory=list)
 
 
-class GroqClient(OpenAIClient):
-    """Groq backend for open-source models (e.g. gpt-oss-120b).
+class GroqClient(LLMClient):
+    """Groq backend for open-source models (e.g. openai/gpt-oss-120b).
 
-    Extends OpenAIClient since Groq uses an OpenAI-compatible API.
+    Uses the native Groq Python SDK (``groq.AsyncGroq``) to access
+    Groq-specific parameters such as ``reasoning_effort`` and
+    ``tools=[{"type": "browser_search"}]`` that are not part of the
+    standard OpenAI SDK interface.
+
     Adds response cleaning to strip instruction tags that OSS models
     sometimes leak (e.g. ``<think>``, ``[INST]``, role prefixes).
 
@@ -37,10 +40,11 @@ class GroqClient(OpenAIClient):
         api_key: str,
         model: str = "openai/gpt-oss-120b",
     ) -> None:
-        super().__init__(api_key=api_key, model=model, base_url=GROQ_BASE_URL)
+        self._client = AsyncGroq(api_key=api_key)
+        self._model = model
 
     async def _generate_raw(self, prompt: str, system: str | None = None) -> str:
-        """Internal method to generate raw payload using the exact Groq configuration."""
+        """Internal method to generate a raw response using the native Groq SDK."""
         messages: list[dict] = []  # type: ignore[type-arg]
         if system:
             messages.append({"role": "system", "content": system})
@@ -56,7 +60,7 @@ class GroqClient(OpenAIClient):
             stream=False,
             response_format={"type": "json_object"},
             stop=None,
-            tools=[{"type": "browser_search"}]
+            tools=[{"type": "browser_search"}],  # type: ignore[list-item]
         )
         return resp.choices[0].message.content or ""
 

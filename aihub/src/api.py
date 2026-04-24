@@ -11,9 +11,9 @@ from aihub.src.predict.schema import PredictRequest, PredictResponse
 from aihub.src.factors.extractor import FactorExtractor
 from aihub.src.predict.rag_builder import RAGContextBuilder, StockMemClient
 from aihub.src.config import AIHubConfig
+from aihub.src.llm.base import LLMClient
 from aihub.src.llm.models.factory import AIModelFactory
 from aihub.src.llm.models.sentiment import SentimentModel
-from aihub.src.llm.groq import GroqClient
 from shared.models.prediction import SignalType
 
 
@@ -24,7 +24,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     factory = AIModelFactory(config)
 
     app.state.config = config
-    app.state.groq_client = factory.get_client("groq")
+    app.state.predict_client = factory.get_client(
+        factory._resolve_backend(config.predict_llm_backend)
+    )
     stockmem_client = StockMemClient(base_url=config.stockmem_url)
     app.state.rag_builder = RAGContextBuilder(stockmem_client=stockmem_client)
     app.state.sentiment_model = factory.create_sentiment_model()
@@ -63,11 +65,11 @@ async def factors(request: FactorRequest, http: Request) -> FactorResponse:
 @app.post("/predict", response_model=PredictResponse)
 async def predict(request: PredictRequest, http: Request) -> PredictResponse:
     """Generate a trading signal using RAG with similar historical cases."""
-    groq: GroqClient = http.app.state.groq_client
+    predict_llm: LLMClient = http.app.state.predict_client
     rag_builder: RAGContextBuilder = http.app.state.rag_builder
     
     from aihub.src.predict.client import PredictClient
-    predict_client = PredictClient(llm=groq)
+    predict_client = PredictClient(llm=predict_llm)
 
     current_text, similar_text = await rag_builder.build(request.current, request.similar or None)
     
