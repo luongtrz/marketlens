@@ -35,3 +35,8 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .coverage
+
+# Crawler runtime artifacts (do not commit)
+crawler/logs/
+crawler/data/*.jsonl
+crawler/data/seen_*.json

@@ -57,6 +57,7 @@ testpaths = [
     "stockmem/tests",
     "factor_ledge/tests",
     "main_controller/tests",
+    "shared/tests",
 ]
 markers = [
     "integration: mark test as integration test",
