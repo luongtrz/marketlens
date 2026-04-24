@@ -14,17 +14,23 @@ similar historical cases presented to you, provide a trading signal.
 Analyze the provided data and how it compares to the historical cases.
 You MUST respond with a JSON object. Include a `reasoning_steps` field as a JSON array of strings, along with the other required fields.
 
-Expected JSON schema:
+Respond with a JSON object that matches this example (use real values, not placeholders):
 {{
   "reasoning_steps": [
     "step 1: analyze current factors and indicators...",
     "step 2: compare with historical cases...",
     "step 3: determine likely outcome..."
   ],
-  "signal": "BUY" | "SELL" | "HOLD",
-  "confidence": <float between 0 and 1>,
+  "signal": "BUY",
+  "confidence": 0.82,
   "explanation": "human-readable narrative summarizing the reasoning"
 }}
+
+Constraints:
+- `signal` must be exactly one of: "BUY", "SELL", or "HOLD".
+- `confidence` must be a float between 0.0 and 1.0 (inclusive).
+- `reasoning_steps` must be a non-empty array of strings.
+- `explanation` must be a non-empty string.
 """
 
 PREDICT_USER_PROMPT = """
