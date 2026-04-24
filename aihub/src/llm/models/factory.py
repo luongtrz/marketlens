@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from aihub.src.config import AIHubConfig
 from aihub.src.llm.base import LLMClient
-from aihub.src.llm.models.explain import ExplainModel
-from aihub.src.llm.models.predict import PredictModel
 from aihub.src.llm.models.sentiment import SentimentModel
 
 
@@ -53,10 +51,10 @@ def _build_client(backend: str, config: AIHubConfig) -> LLMClient:
 class AIModelFactory:
     """Factory for creating task-specific AI models.
 
-    Builds ExplainModel, PredictModel, and SentimentModel from configuration.
-    Each task can be assigned its own LLM backend (or fall back to the global
-    ``llm_backend`` setting). LLM clients are cached so the same backend is
-    not instantiated twice.
+    Builds SentimentModel from configuration and provides LLM clients for
+    prediction and other tasks. Each task can be assigned its own LLM backend
+    (or fall back to the global ``llm_backend`` setting). LLM clients are
+    cached so the same backend is not instantiated twice.
 
     Args:
         config: AIHubConfig with API keys, model names, and per-task backends.
