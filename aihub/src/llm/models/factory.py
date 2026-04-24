@@ -64,7 +64,7 @@ class AIModelFactory:
         self._config = config
         self._clients: dict[str, LLMClient] = {}
 
-    def _resolve_backend(self, task_backend: str) -> str:
+    def resolve_backend(self, task_backend: str) -> str:
         """Return the effective backend name for a task.
 
         If ``task_backend`` is empty, falls back to the global ``llm_backend``.

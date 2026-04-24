@@ -45,7 +45,7 @@ class GroqClient(LLMClient):
 
     async def _generate_raw(self, prompt: str, system: str | None = None) -> str:
         """Internal method to generate a raw response using the native Groq SDK."""
-        messages: list[dict] = []  # type: ignore[type-arg]
+        messages: list[dict[str, str]] = []
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
@@ -145,7 +145,7 @@ class GroqClient(LLMClient):
     def parse_json(text: str) -> dict:  # type: ignore[type-arg]
         """Parse a cleaned LLM response as JSON.
 
-        Strips markdown code fences (``\`\`\`json ... \`\`\```) that models
+        Strips markdown code fences (triple-backtick json blocks) that models
         sometimes wrap around their output before parsing.
 
         Args:

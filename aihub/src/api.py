@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     app.state.config = config
     app.state.predict_client = factory.get_client(
-        factory._resolve_backend(config.predict_llm_backend)
+        factory.resolve_backend(config.predict_llm_backend)
     )
     stockmem_client = StockMemClient(base_url=config.stockmem_url)
     app.state.rag_builder = RAGContextBuilder(stockmem_client=stockmem_client)
