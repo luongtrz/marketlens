@@ -217,11 +217,15 @@ class RAGContextBuilder:
             k: Number of neighbors (defaults to ``self._default_k``).
 
         Returns:
-            List of SimilarRecord. Empty list if no client configured.
+            List of SimilarRecord. Empty list if no client configured or
+            if StockMem retrieval fails.
         """
         if self._stockmem is None:
             return []
-        return await self._stockmem.search(current, k=k or self._default_k)
+        try:
+            return await self._stockmem.search(current, k=k or self._default_k)
+        except (httpx.RequestError, httpx.HTTPStatusError):
+            return []
 
     async def build(
         self,
