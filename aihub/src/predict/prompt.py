@@ -12,7 +12,7 @@ similar historical cases presented to you, provide a trading signal.
 - Z-scored Market Index: Normalized values showing deviation from historical averages. A value of +1.5 means 1.5 standard deviations above normal.
 
 Analyze the provided data and how it compares to the historical cases.
-You MUST respond with a JSON object. Ensure `reasoning_steps` comes FIRST so you can think step-by-step before making your final decision.
+You MUST respond with a JSON object. Include a `reasoning_steps` field as a JSON array of strings, along with the other required fields.
 
 Expected JSON schema:
 {{
