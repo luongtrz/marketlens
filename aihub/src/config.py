@@ -9,7 +9,10 @@ class AIHubConfig(BaseAppConfig):
     model_path: str = "models/cryptobert"
     hf_model_path: str = "https://dien2112-cryptobert.hf.space/api/sentiment"
 
-    # LLM backend: "gemini" | "openai"
+    # StockMem similarity search service
+    stockmem_url: str = "http://localhost:8003"
+
+    # Default LLM backend: "gemini" | "openai" | "groq"
     llm_backend: str = "gemini"
 
     gemini_api_key: str = ""
@@ -19,7 +22,14 @@ class AIHubConfig(BaseAppConfig):
     openai_model: str = "gpt-4o-mini"
     openai_base_url: str = ""
 
-    predict_backend: str = "llm"  
+    groq_api_key: str = ""
+    groq_model: str = "openai/gpt-oss-120b"
+
+    # Per-task backend overrides (empty = use global llm_backend)
+    explain_backend: str = ""
+    predict_llm_backend: str = ""
+
+    # Sentiment uses CryptoBert HTTP API, not an LLM backend
     mock_mode: bool = False
 
     model_config = {
