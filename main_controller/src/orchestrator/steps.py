@@ -10,10 +10,25 @@ Data-flow summary:
 import asyncio
 import logging
 from datetime import date
+from urllib.parse import urlparse
 
 from main_controller.src.orchestrator.context import PipelineContext
 from main_controller.src.orchestrator.exceptions import PipelineError
 from shared.models.memory import StockMemRecord
+
+
+def _headline(article) -> str:
+    """Return a usable headline for sentiment input.
+
+    Why: upstream sometimes stores the URL in article_name. Sentiment over a
+    raw URL collapses to ~0; extracting the slug recovers a headline-like signal.
+    """
+    name = (getattr(article, "article_name", "") or "").strip()
+    if name.startswith("http"):
+        path = urlparse(name).path.rstrip("/")
+        slug = path.rsplit("/", 1)[-1] if path else ""
+        return slug.replace("-", " ").replace("_", " ")
+    return name
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +73,7 @@ async def step_ai_score(ctx: PipelineContext, clients: ModuleClients) -> None:
     # Use article headlines as primary signal — raw_text from DB often contains
     # website boilerplate rather than actual article body text.
     combined_text = "\n".join(
-        a.article_name for a in ctx.latest_articles if a.article_name
+        h for a in ctx.latest_articles if (h := _headline(a))
     )[:5000]
 
     sentiment_result, factors_result = await asyncio.gather(
