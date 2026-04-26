@@ -55,8 +55,10 @@ async def step_collect(ctx: PipelineContext, clients: ModuleClients) -> None:
 
 async def step_ai_score(ctx: PipelineContext, clients: ModuleClients) -> None:
     """STEP 2: Call AIHub /sentiment and /factors, attach results to ctx."""
-    combined_text = "\n\n".join(
-        a.raw_text for a in ctx.latest_articles if a.raw_text
+    # Use article headlines as primary signal — raw_text from DB often contains
+    # website boilerplate rather than actual article body text.
+    combined_text = "\n".join(
+        a.article_name for a in ctx.latest_articles if a.article_name
     )[:5000]
 
     sentiment_result, factors_result = await asyncio.gather(
