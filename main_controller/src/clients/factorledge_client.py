@@ -1,34 +1,26 @@
 """FactorLedge module HTTP client."""
 
-from shared.http_client import get_client
 from shared.models.factor import NormalizedFactor
 
+from main_controller.src.clients.base import BaseHTTPClient
+from main_controller.src.clients.exceptions import FactorLedgeClientError
 
-class FactorLedgeClient:
-    """Async HTTP client for the FactorLedge module.
 
-    Args:
-        base_url: FactorLedge service base URL.
-    """
+class FactorLedgeClient(BaseHTTPClient):
+    """Async HTTP client for the FactorLedge module."""
 
-    def __init__(self, base_url: str) -> None:
-        self._base_url = base_url
+    def __init__(self, base_url: str = "http://localhost:8004") -> None:
+        super().__init__(base_url, FactorLedgeClientError)
 
     async def health_check(self) -> bool:
-        """Check if the FactorLedge service is healthy."""
-        raise NotImplementedError
+        body = await self._get("/health")
+        return body.get("status") == "ok"  # type: ignore[union-attr]
 
     async def ingest(
         self, article_id: str, factors: list[str], source: str
     ) -> list[NormalizedFactor]:
-        """Send raw factors to FactorLedge for normalization.
-
-        Args:
-            article_id: Source article ID.
-            factors: Raw factor strings.
-            source: Source identifier.
-
-        Returns:
-            List of processed NormalizedFactor objects.
-        """
-        raise NotImplementedError
+        body = await self._post(
+            "/ingest",
+            {"article_id": article_id, "factors": factors, "source": source},
+        )
+        return [NormalizedFactor.model_validate(f) for f in body]  # type: ignore[union-attr]
