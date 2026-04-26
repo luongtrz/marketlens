@@ -17,7 +17,7 @@ class StockMemRecord(BaseModel):
     date: date
     symbol: str
     sentiment_score: float
-    sentiment_label: str
+    sentiment_label: str = "neutral"
     factors: list[str]
     normalized_factors: list[NormalizedFactor] = []
     market_snapshot: MarketSnapshot
