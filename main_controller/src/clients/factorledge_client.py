@@ -23,4 +23,5 @@ class FactorLedgeClient(BaseHTTPClient):
             "/ingest",
             {"article_id": article_id, "factors": factors, "source": source},
         )
-        return [NormalizedFactor.model_validate(f) for f in body]  # type: ignore[union-attr]
+        items = body.get("factors", body) if isinstance(body, dict) else body  # type: ignore[union-attr]
+        return [NormalizedFactor.model_validate(f) for f in items]

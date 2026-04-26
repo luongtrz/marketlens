@@ -10,7 +10,7 @@ from typing import AsyncIterator, Literal
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from main_controller.src.clients.aihub_client import AIHubClient
 from main_controller.src.clients.crawler_client import CrawlerClient
@@ -29,7 +29,7 @@ class RunState(BaseModel):
     run_id: str
     symbol: str
     status: Literal["pending", "running", "done", "failed"] = "pending"
-    started_at: datetime
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     finished_at: datetime | None = None
     result: PredictionResult | None = None
     error: str | None = None

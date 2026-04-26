@@ -8,6 +8,11 @@ import httpx
 
 from shared.models.market import OHLCV, Ticker
 from market_data.src.sources.base import MarketSource
+from shared.http_client import get_client
+
+
+class BinanceSourceError(Exception):
+    """Raised when Binance REST API returns an error or unusable response."""
 
 
 class BinanceSource(MarketSource):
@@ -25,10 +30,13 @@ class BinanceSource(MarketSource):
     async def fetch_ohlcv(self, symbol: str, interval: str, limit: int) -> list[OHLCV]:
         url = f"{self._base_url}/api/v3/klines"
         params = {"symbol": symbol.upper(), "interval": interval, "limit": limit}
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(url, params=params)
-            resp.raise_for_status()
-            rows = resp.json()
+        try:
+            async with get_client() as client:
+                resp = await client.get(url, params=params)
+                resp.raise_for_status()
+                rows = resp.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise BinanceSourceError(f"fetch_ohlcv failed: {exc}") from exc
         return [
             OHLCV(
                 timestamp=datetime.fromtimestamp(row[0] / 1000, tz=timezone.utc),
@@ -44,10 +52,13 @@ class BinanceSource(MarketSource):
 
     async def fetch_ticker(self, symbol: str) -> Ticker:
         url = f"{self._base_url}/api/v3/ticker/24hr"
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(url, params={"symbol": symbol.upper()})
-            resp.raise_for_status()
-            data = resp.json()
+        try:
+            async with get_client() as client:
+                resp = await client.get(url, params={"symbol": symbol.upper()})
+                resp.raise_for_status()
+                data = resp.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise BinanceSourceError(f"fetch_ticker failed: {exc}") from exc
         return Ticker(
             symbol=data["symbol"],
             price=float(data["lastPrice"]),
