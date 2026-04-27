@@ -26,7 +26,10 @@ service = StockMemService(
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await service.startup()
-    yield
+    try:
+        yield
+    finally:
+        await service.repository.close()
 
 
 app = FastAPI(title="StockMem", version="0.1.0", lifespan=lifespan)

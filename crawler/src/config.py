@@ -12,4 +12,9 @@ class CrawlerConfig(BaseAppConfig):
     dedup_backend: str = "memory"  # "redis" | "memory"
     factor_publish: bool = True  # Whether to emit factors to MessageBus
 
-    model_config = {"env_prefix": "CRAWLER_", "extra": "ignore"}
+    supabase_url: str = "https://esctepjpgpjgrcymnabx.supabase.co"
+    supabase_anon_key: str = ""
+    supabase_service_key: str = ""
+    articles_limit: int = 20
+
+    model_config = {"env_prefix": "CRAWLER_", "env_file": "crawler/.env", "extra": "ignore"}

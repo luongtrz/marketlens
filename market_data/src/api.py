@@ -1,5 +1,9 @@
 """MarketData FastAPI application — /snapshot, /history, /indicators endpoints and WebSocket."""
 
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+from typing import Any, AsyncIterator
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -9,6 +13,14 @@ from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi import FastAPI, HTTPException, Query
+
+from market_data.src.config import MarketDataConfig
+from market_data.src.indicators.macd import calculate_macd
+from market_data.src.indicators.rsi import calculate_rsi
+from market_data.src.indicators.sma import calculate_sma
+from market_data.src.sources.binance import BinanceSource, BinanceSourceError
+from market_data.src.sources.fear_greed import FearGreedSource, FearGreedSourceError
 from shared.models.market import OHLCV, MarketSnapshot
 from market_data.src.config import MarketDataConfig
 from market_data.src.sources.binance import BinanceSource
@@ -17,7 +29,22 @@ from market_data.src.websocket_manager import websocket_manager
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="MarketData", description="Market data and indicator service")
+from datetime import datetime, timezone
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    config = MarketDataConfig()
+    app.state.binance = BinanceSource(
+        api_key=config.binance_api_key,
+        api_secret=config.binance_api_secret,
+    )
+    app.state.fear_greed = FearGreedSource()
+    app.state.config = config
+    yield
+
+
+app = FastAPI(title="MarketData", lifespan=lifespan)
 
 # Add CORS middleware
 app.add_middleware(
@@ -57,7 +84,6 @@ async def shutdown_event() -> None:
 
 @app.get("/health")
 async def health() -> dict:
-    """Health check endpoint."""
     return {"status": "ok"}
 
 
@@ -75,7 +101,7 @@ async def list_symbols() -> dict[str, list[str]]:
 @app.get("/snapshot", response_model=MarketSnapshot)
 async def snapshot(
     symbol: str = Query(..., description="Trading pair, e.g. BTCUSDT"),
-    interval: str = Query("1h", description="Candle interval"),
+    interval: str = Query("1d", description="Candle interval"),
 ) -> MarketSnapshot:
     """Get current market snapshot with computed indicators.
 

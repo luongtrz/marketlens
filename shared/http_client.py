@@ -34,7 +34,7 @@ async def get_client(
     Yields:
         Configured httpx.AsyncClient instance.
     """
-    timeout = httpx.Timeout(connect=connect_timeout, read=read_timeout)
+    timeout = httpx.Timeout(read_timeout, connect=connect_timeout)
     transport = httpx.AsyncHTTPTransport(retries=max_retries)
 
     async with httpx.AsyncClient(timeout=timeout, transport=transport) as client:

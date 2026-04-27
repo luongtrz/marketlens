@@ -6,11 +6,13 @@ from shared.models.market import OHLCV
 
 
 def calculate_rsi(ohlcv: list[OHLCV], period: int = 14) -> float:
-    """Calculate RSI indicator from OHLCV data.
+    closes = [c.close for c in ohlcv]
+    if len(closes) < period + 1:
+        return 50.0
 
-    Args:
-        ohlcv: List of OHLCV candles.
-        period: RSI lookback period.
+    deltas = [closes[i + 1] - closes[i] for i in range(len(closes) - 1)]
+    gains = [max(d, 0.0) for d in deltas]
+    losses = [max(-d, 0.0) for d in deltas]
 
     Returns:
         RSI value (0-100), or 50.0 if insufficient data.

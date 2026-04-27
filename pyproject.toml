@@ -34,9 +34,8 @@ market = [
     "python-binance>=1.0.0",
 ]
 stockmem = [
-    "faiss-cpu>=1.7.4",
+    "faiss-cpu>=1.8.0",
     "pgvector>=0.2.0",
-    "optuna>=3.6.0",
 ]
 dev = [
     "pytest>=8.0.0",

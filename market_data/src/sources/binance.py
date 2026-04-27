@@ -1,4 +1,10 @@
-"""Binance REST + WebSocket adapter for market data."""
+"""Binance REST adapter for market data."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+import httpx
 
 import logging
 from datetime import datetime, timezone
@@ -6,6 +12,7 @@ from datetime import datetime, timezone
 import httpx
 from shared.models.market import OHLCV, Ticker
 from market_data.src.sources.base import MarketSource
+from shared.http_client import get_client
 
 logger = logging.getLogger(__name__)
 
@@ -30,13 +37,7 @@ INTERVAL_MAP = {
 
 
 class BinanceSource(MarketSource):
-    """Binance market data adapter using REST API and WebSocket.
-
-    Args:
-        api_key: Binance API key.
-        api_secret: Binance API secret (optional for public endpoints).
-        base_url: Binance API base URL.
-    """
+    """Binance market data adapter using public REST API."""
 
     def __init__(
         self,

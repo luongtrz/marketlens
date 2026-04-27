@@ -7,9 +7,12 @@ services:
       DB_URL: postgresql+asyncpg://postgres:pass@db:5432/ingestion
       REDIS_URL: redis://redis:6379
     depends_on:
-      - db
-      - redis
-      - aihub
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      aihub:
+        condition: service_started
 
   aihub:
     build: ./aihub
@@ -28,16 +31,20 @@ services:
       MARKET_TRACKED_SYMBOLS: BTC,ETH,SOL,BNB,XRP  # Add/remove coins here
       DB_URL: postgresql+asyncpg://postgres:pass@db:5432/market
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   stockmem:
-    build: ./stockmem
+    build:
+      context: .
+      dockerfile: stockmem/Dockerfile
     ports: ["8003:8003"]
     environment:
       DB_URL: postgresql+asyncpg://postgres:pass@db:5432/stockmem
-      VECTOR_BACKEND: pgvector
+      VECTOR_BACKEND: memory
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   factor_ledge:
     build: ./factor_ledge
@@ -70,6 +77,11 @@ services:
     ports: ["5432:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine
