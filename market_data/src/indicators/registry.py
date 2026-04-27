@@ -2,6 +2,8 @@
 
 from typing import Any, Callable
 
+import numpy as np
+
 from shared.models.market import OHLCV
 from market_data.src.indicators.macd import calculate_macd
 from market_data.src.indicators.rsi import calculate_rsi
@@ -18,7 +20,18 @@ def calculate_ema(ohlcv: list[OHLCV], period: int = 20) -> list[float]:
     Returns:
         List of EMA values.
     """
-    raise NotImplementedError
+    if len(ohlcv) < period:
+        return []
+
+    closes = np.array([c.close for c in ohlcv])
+    ema = np.zeros(len(closes))
+    multiplier = 2 / (period + 1)
+    ema[0] = closes[0]
+
+    for i in range(1, len(closes)):
+        ema[i] = (closes[i] * multiplier) + (ema[i - 1] * (1 - multiplier))
+
+    return ema.tolist()
 
 
 def calculate_vwap(ohlcv: list[OHLCV]) -> list[float]:
@@ -30,7 +43,20 @@ def calculate_vwap(ohlcv: list[OHLCV]) -> list[float]:
     Returns:
         List of VWAP values.
     """
-    raise NotImplementedError
+    if not ohlcv:
+        return []
+
+    vwap = []
+    cumulative_volume = 0.0
+    cumulative_pv = 0.0  # price * volume
+
+    for candle in ohlcv:
+        typical_price = (candle.high + candle.low + candle.close) / 3
+        cumulative_volume += candle.volume
+        cumulative_pv += typical_price * candle.volume
+        vwap.append(cumulative_pv / cumulative_volume if cumulative_volume > 0 else 0.0)
+
+    return vwap
 
 
 INDICATOR_REGISTRY: dict[str, Callable[[list[OHLCV]], Any]] = {
