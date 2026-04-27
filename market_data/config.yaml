@@ -5,4 +5,10 @@ market_data:
     - "rsi"
     - "macd"
     - "bb"
+  tracked_symbols:
+    - "BTC"
+    - "ETH"
+    - "SOL"
+    - "BNB"
+    - "XRP"
   db_url: "postgresql+asyncpg://postgres:pass@db:5432/market"

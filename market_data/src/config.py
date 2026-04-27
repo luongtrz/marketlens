@@ -11,5 +11,6 @@ class MarketDataConfig(BaseAppConfig):
     binance_api_secret: str = ""
     default_interval: str = "1h"
     default_indicators: list[str] = ["rsi", "macd", "bb"]
+    tracked_symbols: list[str] = ["BTC", "ETH"]  # Symbols available for WebSocket streaming
 
     model_config = {"env_prefix": "MARKET_", "extra": "ignore"}
