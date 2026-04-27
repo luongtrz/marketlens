@@ -19,11 +19,9 @@ from market_data.src.config import MarketDataConfig
 from market_data.src.indicators.macd import calculate_macd
 from market_data.src.indicators.rsi import calculate_rsi
 from market_data.src.indicators.sma import calculate_sma
-from market_data.src.sources.binance import BinanceSource, BinanceSourceError
+from market_data.src.sources.binance import BinanceSource
 from market_data.src.sources.fear_greed import FearGreedSource, FearGreedSourceError
 from shared.models.market import OHLCV, MarketSnapshot
-from market_data.src.config import MarketDataConfig
-from market_data.src.sources.binance import BinanceSource
 from market_data.src.indicators.registry import calculate_indicators
 from market_data.src.websocket_manager import websocket_manager
 
@@ -32,16 +30,30 @@ logger = logging.getLogger(__name__)
 from datetime import datetime, timezone
 
 
+# Global Binance source instance
+_binance_source: BinanceSource | None = None
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    global _binance_source
     config = MarketDataConfig()
-    app.state.binance = BinanceSource(
+    _binance_source = BinanceSource(
         api_key=config.binance_api_key,
         api_secret=config.binance_api_secret,
     )
+    app.state.binance = _binance_source
     app.state.fear_greed = FearGreedSource()
     app.state.config = config
+    
+    await websocket_manager.start()
+    logger.info("MarketData service started")
+    
     yield
+    
+    if _binance_source:
+        await _binance_source.close()
+    await websocket_manager.stop()
+    logger.info("MarketData service stopped")
 
 
 app = FastAPI(title="MarketData", lifespan=lifespan)
@@ -54,32 +66,6 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
-
-# Global Binance source instance
-_binance_source: BinanceSource | None = None
-
-
-@app.on_event("startup")
-async def startup_event() -> None:
-    """Initialize Binance source on startup."""
-    global _binance_source
-    config = MarketDataConfig()
-    _binance_source = BinanceSource(
-        api_key=config.binance_api_key,
-        api_secret=config.binance_api_secret,
-    )
-    await websocket_manager.start()
-    logger.info("MarketData service started")
-
-
-@app.on_event("shutdown")
-async def shutdown_event() -> None:
-    """Cleanup on shutdown."""
-    global _binance_source
-    if _binance_source:
-        await _binance_source.close()
-    await websocket_manager.stop()
-    logger.info("MarketData service stopped")
 
 
 @app.get("/health")
