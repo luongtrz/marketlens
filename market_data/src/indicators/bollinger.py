@@ -2,6 +2,8 @@
 
 from typing import Any
 
+import numpy as np
+
 from shared.models.market import OHLCV
 
 
@@ -17,5 +19,28 @@ def calculate_bollinger(
 
     Returns:
         Dict with keys: upper, middle, lower (each a list of floats).
+        Returns empty lists if insufficient data.
     """
-    raise NotImplementedError
+    if len(ohlcv) < period:
+        return {"upper": [], "middle": [], "lower": []}
+
+    closes = np.array([c.close for c in ohlcv])
+
+    # Calculate rolling mean and std
+    middle = np.zeros(len(closes))
+    upper = np.zeros(len(closes))
+    lower = np.zeros(len(closes))
+
+    for i in range(period - 1, len(closes)):
+        window = closes[i - period + 1 : i + 1]
+        mean = np.mean(window)
+        std = np.std(window)
+        middle[i] = mean
+        upper[i] = mean + (num_std * std)
+        lower[i] = mean - (num_std * std)
+
+    return {
+        "upper": upper.tolist(),
+        "middle": middle.tolist(),
+        "lower": lower.tolist(),
+    }
