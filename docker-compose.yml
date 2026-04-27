@@ -1,6 +1,8 @@
 services:
   crawler:
-    build: ./crawler
+    build:
+      context: .
+      dockerfile: crawler/Dockerfile
     ports: ["8000:8000"]
     environment:
       AIHUB_URL: http://aihub:8001
@@ -15,20 +17,22 @@ services:
         condition: service_started
 
   aihub:
-    build: ./aihub
+    build:
+      context: .
+      dockerfile: aihub/Dockerfile
     ports: ["8001:8001"]
     environment:
       GPT_API_KEY: ${GPT_API_KEY}
       GPT_MODEL: gpt-oss-120b
 
   market_data:
-    build: ./market_data
+    build:
+      context: .
+      dockerfile: market_data/Dockerfile
     ports: ["8002:8002"]
     environment:
       MARKET_SOURCE: binance
-      MARKET_BINANCE_API_KEY: ${BINANCE_API_KEY}
-      MARKET_BINANCE_API_SECRET: ${BINANCE_API_SECRET}
-      MARKET_TRACKED_SYMBOLS: BTC,ETH,SOL,BNB,XRP  # Add/remove coins here
+      MARKET_TRACKED_SYMBOLS: '["BTC", "ETH"]'  # Add/remove coins here
       DB_URL: postgresql+asyncpg://postgres:pass@db:5432/market
     depends_on:
       db:
@@ -47,7 +51,9 @@ services:
         condition: service_healthy
 
   factor_ledge:
-    build: ./factor_ledge
+    build:
+      context: .
+      dockerfile: factor_ledge/Dockerfile
     ports: ["8004:8004"]
     environment:
       STOCKMEM_URL: http://stockmem:8003
@@ -55,7 +61,9 @@ services:
       - stockmem
 
   main_controller:
-    build: ./main_controller
+    build:
+      context: .
+      dockerfile: main_controller/Dockerfile
     ports: ["8005:8005"]
     environment:
       CRAWLER_URL: http://crawler:8000
@@ -69,6 +77,12 @@ services:
       - market_data
       - stockmem
       - factor_ledge
+
+  frontend:
+    build: ./frontend
+    ports: ["3000:80"]
+    depends_on:
+      - main_controller
 
   db:
     image: pgvector/pgvector:pg16

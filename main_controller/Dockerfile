@@ -2,10 +2,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY ../shared /app/shared
-COPY . /app/main_controller
+COPY shared /app/shared
+COPY main_controller /app/main_controller
 
-RUN pip install --no-cache-dir -r /app/main_controller/requirements.txt 2>/dev/null || true
+RUN pip install --no-cache-dir -r /app/main_controller/requirements.txt
 
 ENV PYTHONPATH=/app
 
