@@ -24,8 +24,7 @@ class AIHubClient(BaseHTTPClient):
 
     async def factors(self, text: str, ticker: str) -> list[Factor]:
         body = await self._post("/factors", {"ticker": ticker, "text": text})
-        factors_raw = body.get("factors", body)  # type: ignore[union-attr]
-        return [Factor.model_validate(f) for f in factors_raw]
+        return [Factor.model_validate(f) for f in body["factors"]]  # type: ignore[index]
 
     async def predict(
         self, current: StockMemRecord, similar: list[SimilarRecord]

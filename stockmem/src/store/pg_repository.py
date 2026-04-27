@@ -63,7 +63,8 @@ class PGRepository:
         return int(val or 0)
 
     async def upsert(self, record: StockMemRecord) -> str:
-        assert record.id is not None
+        if record.id is None:
+            raise ValueError("StockMemRecord.id must be set before upsert")
         pool = self._require_pool()
         record_date = record.date.isoformat()
         symbol = record.symbol.upper()

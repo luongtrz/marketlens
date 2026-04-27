@@ -5,8 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
-import httpx
-
+from shared.http_client import get_client
 from shared.models.article import IngestionRecord
 
 _TABLE = "news_articles"
@@ -49,7 +48,7 @@ class SupabaseReader:
             "limit": str(limit),
         }
         url = f"{self._base}/rest/v1/{_TABLE}"
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with get_client() as client:
             resp = await client.get(url, headers=self._headers, params=params)
             resp.raise_for_status()
             rows = resp.json()
