@@ -5,15 +5,29 @@ from .models import SimilarRecord, StockMemRecord
 from .search.embedder import RecordEmbedder
 from .search.index import MemoryVectorIndex
 from .search.searcher import RecordSearcher
+from .store.base import Repository
+from .store.pg_repository import PGRepository
 from .store.repository import RecordRepository
 from .store.writer import RecordWriter
+
+
+def _build_repository(db_url: str) -> Repository:
+    """Pick a Repository backend by db_url scheme.
+
+    Why: docker-compose ships a postgres URL while local dev defaults to
+    sqlite. RecordRepository.__init__ would reject the postgres URL outright,
+    so the scheme has to drive the selection here.
+    """
+    if db_url.startswith(("postgresql://", "postgresql+asyncpg://")):
+        return PGRepository(db_url)
+    return RecordRepository(db_url)
 
 
 class StockMemService:
     def __init__(self, db_url: str, vector_backend: str, weights: SearchWeights) -> None:
         self.vector_backend = vector_backend
         self.weights = weights
-        self.repository = RecordRepository(db_url)
+        self.repository: Repository = _build_repository(db_url)
         self.embedder = RecordEmbedder()
         self.index = MemoryVectorIndex()
         self.records_by_id: dict[str, StockMemRecord] = {}

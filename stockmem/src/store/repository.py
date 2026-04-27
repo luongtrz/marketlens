@@ -166,3 +166,7 @@ class RecordRepository:
             rows = await cursor.fetchall()
 
         return [StockMemRecord.model_validate(json.loads(r[0])) for r in rows]
+
+    async def close(self) -> None:
+        # SQLite connections are opened/closed per call, nothing to release.
+        return None
