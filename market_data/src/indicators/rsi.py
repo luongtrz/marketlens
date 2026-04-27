@@ -6,14 +6,13 @@ from shared.models.market import OHLCV
 
 
 def calculate_rsi(ohlcv: list[OHLCV], period: int = 14) -> float:
-    closes = [c.close for c in ohlcv]
-    if len(closes) < period + 1:
-        return 50.0
-
-    deltas = [closes[i + 1] - closes[i] for i in range(len(closes) - 1)]
-    gains = [max(d, 0.0) for d in deltas]
-    losses = [max(-d, 0.0) for d in deltas]
-
+    """
+    Calculate the Relative Strength Index (RSI).
+    
+    Args:
+        ohlcv: List of OHLCV data points
+        period: RSI calculation period
+        
     Returns:
         RSI value (0-100), or 50.0 if insufficient data.
     """

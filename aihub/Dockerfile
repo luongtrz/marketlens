@@ -2,10 +2,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY ../shared /app/shared
-COPY . /app/aihub
+COPY shared /app/shared
+COPY aihub /app/aihub
 
-RUN pip install --no-cache-dir -r /app/aihub/requirements.txt 2>/dev/null || true
+RUN pip install --no-cache-dir -r /app/aihub/requirements.txt
 
 ENV PYTHONPATH=/app
 
