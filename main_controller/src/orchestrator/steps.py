@@ -1,30 +1,43 @@
 """Individual pipeline step functions.
 
 Data-flow summary:
-  Step 1 COLLECT  (parallel): crawler.get_latest [REQUIRED] + market.get_snapshot [REQUIRED]
-  Step 2 AI SCORE (parallel): aihub.sentiment + aihub.factors → factorledge.ingest [graceful]
-  Step 3 STOCKMEM (sequential, REQUIRED): stockmem.save → stockmem.search(k=5)
-  Step 4 PREDICT  (REQUIRED): aihub.predict(current, similar)
+  Step 1 COLLECT   (parallel)  : crawler.get_latest [REQUIRED] + market.get_snapshot [REQUIRED]
+  Step 2 AI SCORE  (sequential): aggregate pre-computed sentiment from articles;
+                                  aihub.factors(summaries) → factorledge.update_ledger [graceful]
+  Step 3 STOCKMEM  (sequential, REQUIRED): stockmem.save → stockmem.search(k=5)
+  Step 4 PREDICT   (REQUIRED)  : aihub.predict(current, similar)
+
+Note — Step 2 no longer calls aihub.sentiment separately.
+  Each IngestionRecord already carries sentiment_score + sentiment_label produced
+  by the crawler enrichment pipeline (CryptoBERT / FinBERT).  We average those
+  pre-computed scores across all fetched articles.
 """
 
 import asyncio
 import logging
 from datetime import date
-from urllib.parse import urlparse
 
 from main_controller.src.orchestrator.context import PipelineContext
 from main_controller.src.orchestrator.exceptions import PipelineError
 from shared.models.memory import StockMemRecord
 
 
-def _headline(article) -> str:
-    """Return a usable headline for sentiment input.
+def _best_text(article) -> str:
+    """Return the richest available text for an article.
 
-    Why: upstream sometimes stores the URL in article_name. Sentiment over a
-    raw URL collapses to ~0; extracting the slug recovers a headline-like signal.
+    Priority: summary → raw_text (truncated) → headline slug.
     """
+    summary = (getattr(article, "summary", None) or "").strip()
+    if summary:
+        return summary
+
+    raw = (getattr(article, "raw_text", None) or "").strip()
+    if raw:
+        return raw[:800]  # keep token budget sane per-article
+
     name = (getattr(article, "article_name", "") or "").strip()
     if name.startswith("http"):
+        from urllib.parse import urlparse
         path = urlparse(name).path.rstrip("/")
         slug = path.rsplit("/", 1)[-1] if path else ""
         return slug.replace("-", " ").replace("_", " ")
@@ -69,27 +82,46 @@ async def step_collect(ctx: PipelineContext, clients: ModuleClients) -> None:
 
 
 async def step_ai_score(ctx: PipelineContext, clients: ModuleClients) -> None:
-    """STEP 2: Call AIHub /sentiment and /factors, attach results to ctx."""
-    # Use article headlines as primary signal — raw_text from DB often contains
-    # website boilerplate rather than actual article body text.
-    combined_text = "\n".join(
-        h for a in ctx.latest_articles if (h := _headline(a))
-    )[:5000]
+    """STEP 2: Aggregate pre-computed sentiment; extract factors via LLM; push to ledger.
 
-    sentiment_result, factors_result = await asyncio.gather(
-        clients.aihub.sentiment(combined_text),
+    Sentiment — each IngestionRecord already carries sentiment_score (CryptoBERT/FinBERT)
+    produced by the crawler enrichment pipeline.  We take the mean across all
+    articles so that a single outlier does not dominate.
+
+    Factors — concatenate the richest available text per article (summary preferred)
+    and ask the LLM to identify the top market-moving factors.  Summaries give the
+    model structured, boilerplate-free context which produces higher-quality factors
+    than raw headlines or full article bodies.
+    """
+    articles = ctx.latest_articles or []
+
+    # ── Sentiment: aggregate pre-computed scores ──────────────────────────────
+    scores = [a.sentiment_score for a in articles if a.sentiment_score is not None]
+    if scores:
+        avg = sum(scores) / len(scores)
+        ctx.sentiment_score = round(avg, 4)
+        ctx.sentiment_label = (
+            "bullish" if avg > 0.1 else "bearish" if avg < -0.1 else "neutral"
+        )
+        logger.info(
+            "[step_ai_score] sentiment aggregated from %d articles: %.4f (%s)",
+            len(scores), avg, ctx.sentiment_label,
+        )
+    else:
+        ctx.sentiment_score = 0.0
+        ctx.sentiment_label = "neutral"
+        logger.warning("[step_ai_score] no pre-computed sentiment found, defaulting to 0.0")
+
+    # ── Factors: use summaries (or raw_text/headline fallback) ───────────────
+    combined_text = "\n\n".join(
+        t for a in articles if (t := _best_text(a))
+    )[:6000]  # ~1500 tokens — keeps LLM cost reasonable
+
+    factors_result = await asyncio.gather(
         clients.aihub.factors(combined_text, ticker=ctx.symbol),
         return_exceptions=True,
     )
-
-    if isinstance(sentiment_result, Exception):
-        ctx.errors.append(f"AIHub sentiment failed: {sentiment_result}")
-        logger.warning("Sentiment degraded to 0.0: %s", sentiment_result)
-        ctx.sentiment_score = 0.0
-        ctx.sentiment_label = "neutral"
-    else:
-        ctx.sentiment_score = sentiment_result.get("score", 0.0)
-        ctx.sentiment_label = sentiment_result.get("label", "neutral")
+    factors_result = factors_result[0]  # unwrap single-item gather
 
     raw_factors = []
     if isinstance(factors_result, Exception):
@@ -97,12 +129,18 @@ async def step_ai_score(ctx: PipelineContext, clients: ModuleClients) -> None:
         logger.warning("Factors degraded to []: %s", factors_result)
     else:
         raw_factors = factors_result
+        logger.info("[step_ai_score] extracted %d factors", len(raw_factors))
 
+    # ── Factor Ledge: push factors → build/update rolling ledger ─────────────
     try:
-        ctx.factors = await clients.factorledge.ingest(
-            article_id=f"batch_{ctx.run_id}",
-            factors=[f.name for f in raw_factors],
-            source="aihub",
+        ctx.factors = await clients.factorledge.update_ledger(
+            records=[
+                {
+                    "date": str(date.today()),
+                    "factors": [f.name for f in raw_factors],
+                }
+            ],
+            window_days=7,
         )
     except Exception as exc:
         ctx.errors.append(f"FactorLedge failed: {exc}")

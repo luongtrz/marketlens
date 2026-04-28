@@ -54,13 +54,11 @@ class GroqClient(LLMClient):
             model=self._model,
             messages=messages,  # type: ignore[arg-type]
             temperature=0.5,
-            max_completion_tokens=20461,
+            max_tokens=4096,
             top_p=1,
-            reasoning_effort="high",
             stream=False,
             response_format={"type": "json_object"},
             stop=None,
-            tools=[{"type": "browser_search"}],  # type: ignore[list-item]
         )
         return resp.choices[0].message.content or ""
 
