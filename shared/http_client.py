@@ -7,7 +7,7 @@ import httpx
 
 
 DEFAULT_CONNECT_TIMEOUT = 10.0  # seconds
-DEFAULT_READ_TIMEOUT = 30.0  # seconds
+DEFAULT_READ_TIMEOUT = 120.0  # seconds
 DEFAULT_MAX_RETRIES = 3
 
 
