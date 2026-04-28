@@ -9,4 +9,4 @@ RUN pip install --no-cache-dir -r /app/crawler/requirements.txt
 
 ENV PYTHONPATH=/app
 
-CMD ["python", "-m", "crawler.src.main"]
+CMD ["uvicorn", "crawler.src.api:app", "--host", "0.0.0.0", "--port", "8000"]
