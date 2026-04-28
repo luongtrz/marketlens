@@ -4,34 +4,28 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
 
-import httpx
-
 from shared.models.article import IngestionRecord
+from shared.supabase_service import SupabaseReadService
 
 logger = logging.getLogger(__name__)
 
 
-def _supabase_rest_config(
+def _news_service(
     supabase_url: str | None = None,
     supabase_key: str | None = None,
     table: str | None = None,
-) -> tuple[str, str, str] | None:
-    base = (supabase_url or os.getenv("SUPABASE_URL") or "").rstrip("/")
-    key = (
-        supabase_key
-        or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        or os.getenv("SUPABASE_ANON_KEY")
-        or ""
+    timeout: float = 20.0,
+) -> SupabaseReadService | None:
+    return SupabaseReadService.from_env(
+        supabase_url=supabase_url,
+        supabase_key=supabase_key,
+        default_table=table,
+        timeout=timeout,
     )
-    tbl = table or os.getenv("SUPABASE_TABLE", "news_articles")
-    if not base or not key:
-        return None
-    return base, key, tbl
 
 
 def _source_from_url(url: str) -> str:
@@ -94,23 +88,10 @@ def _row_text_matches_symbol(header: str, content: str, symbol: str) -> bool:
 
 async def check_supabase_rest_reachable(timeout: float = 10.0) -> bool:
     """Return True if PostgREST returns 2xx for a minimal ``select`` on the news table."""
-    cfg = _supabase_rest_config()
-    if cfg is None:
+    svc = _news_service(timeout=timeout)
+    if svc is None:
         return False
-    base, key, tbl = cfg
-    endpoint = f"{base}/rest/v1/{tbl}"
-    headers = {
-        "apikey": key,
-        "Authorization": f"Bearer {key}",
-        "Accept": "application/json",
-    }
-    params = {"select": "source_url", "limit": "1"}
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.get(endpoint, headers=headers, params=params)
-    except httpx.HTTPError:
-        return False
-    return 200 <= resp.status_code < 300
+    return await svc.ping()
 
 
 async def fetch_news_articles_from_supabase(
@@ -127,38 +108,15 @@ async def fetch_news_articles_from_supabase(
     Uses ``SUPABASE_URL`` and ``SUPABASE_SERVICE_ROLE_KEY`` (or ``SUPABASE_ANON_KEY``)
     when arguments are omitted.
     """
-    cfg = _supabase_rest_config(supabase_url, supabase_key, table)
-    if cfg is None:
+    svc = _news_service(supabase_url, supabase_key, table, timeout=timeout)
+    if svc is None:
         logger.warning("Supabase fetch skipped: missing URL or API key in environment")
         return []
-    base, key, tbl = cfg
 
-    endpoint = f"{base}/rest/v1/{tbl}"
-    headers = {
-        "apikey": key,
-        "Authorization": f"Bearer {key}",
-        "Accept": "application/json",
-    }
-    params = {"select": "*", "order": "publish_at.desc", "limit": str(max(1, limit))}
-
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.get(endpoint, headers=headers, params=params)
-    except httpx.HTTPError as exc:
-        logger.warning("Supabase fetch HTTP error: %s", str(exc)[:200])
-        return []
-
-    if not (200 <= resp.status_code < 300):
-        logger.warning(
-            "Supabase fetch failed status=%s body=%s",
-            resp.status_code,
-            (resp.text or "")[:200],
-        )
-        return []
-
-    rows = resp.json()
-    if not isinstance(rows, list):
-        return []
+    rows = await svc.select_rows(
+        order="publish_at.desc",
+        limit=limit,
+    )
 
     records: list[IngestionRecord] = []
     for raw in rows:
