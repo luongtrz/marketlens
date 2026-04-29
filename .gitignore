@@ -40,3 +40,4 @@ __pycache__/
 crawler/logs/
 crawler/data/*.jsonl
 crawler/data/seen_*.json
+crawler/pids/
