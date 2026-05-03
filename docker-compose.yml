@@ -1,43 +1,60 @@
 services:
   crawler:
-    build: ./crawler
+    build:
+      context: .
+      dockerfile: crawler/Dockerfile
+    command: uvicorn crawler.src.api:app --host 0.0.0.0 --port 8000
     ports: ["8000:8000"]
     environment:
       AIHUB_URL: http://aihub:8001
       DB_URL: postgresql+asyncpg://postgres:pass@db:5432/ingestion
       REDIS_URL: redis://redis:6379
     depends_on:
-      - db
-      - redis
-      - aihub
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      aihub:
+        condition: service_started
 
   aihub:
-    build: ./aihub
+    build:
+      context: .
+      dockerfile: aihub/Dockerfile
     ports: ["8001:8001"]
     environment:
       GPT_API_KEY: ${GPT_API_KEY}
       GPT_MODEL: gpt-oss-120b
 
   market_data:
-    build: ./market_data
+    build:
+      context: .
+      dockerfile: market_data/Dockerfile
     ports: ["8002:8002"]
     environment:
-      BINANCE_API_KEY: ${BINANCE_API_KEY}
+      MARKET_SOURCE: binance
+      MARKET_TRACKED_SYMBOLS: '["BTC", "ETH"]'  # Add/remove coins here
       DB_URL: postgresql+asyncpg://postgres:pass@db:5432/market
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   stockmem:
-    build: ./stockmem
+    build:
+      context: .
+      dockerfile: stockmem/Dockerfile
     ports: ["8003:8003"]
     environment:
-      DB_URL: postgresql+asyncpg://postgres:pass@db:5432/stockmem
-      VECTOR_BACKEND: pgvector
+      DB_URL: postgresql+asyncpg://postgres:pass@db:5432/postgres
+      VECTOR_BACKEND: memory
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   factor_ledge:
-    build: ./factor_ledge
+    build:
+      context: .
+      dockerfile: factor_ledge/Dockerfile
     ports: ["8004:8004"]
     environment:
       STOCKMEM_URL: http://stockmem:8003
@@ -45,20 +62,28 @@ services:
       - stockmem
 
   main_controller:
-    build: ./main_controller
+    build:
+      context: .
+      dockerfile: main_controller/Dockerfile
     ports: ["8005:8005"]
     environment:
-      CRAWLER_URL: http://crawler:8000
-      AIHUB_URL: http://aihub:8001
-      MARKET_DATA_URL: http://market_data:8002
-      STOCKMEM_URL: http://stockmem:8003
-      FACTOR_LEDGE_URL: http://factor_ledge:8004
+      MAIN_CONTROLLER_CRAWLER_URL: http://crawler:8000
+      MAIN_CONTROLLER_AIHUB_URL: http://aihub:8001
+      MAIN_CONTROLLER_MARKET_DATA_URL: http://market_data:8002
+      MAIN_CONTROLLER_STOCKMEM_URL: http://stockmem:8003
+      MAIN_CONTROLLER_FACTORLEDGE_URL: http://factor_ledge:8004
     depends_on:
       - crawler
       - aihub
       - market_data
       - stockmem
       - factor_ledge
+
+  frontend:
+    build: ./frontend
+    ports: ["3000:80"]
+    depends_on:
+      - main_controller
 
   db:
     image: pgvector/pgvector:pg16
@@ -67,6 +92,11 @@ services:
     ports: ["5432:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine

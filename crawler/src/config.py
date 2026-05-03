@@ -63,4 +63,9 @@ class CrawlerConfig(BaseAppConfig):
     articles_file: str = str(Path(__file__).resolve().parents[1] / "data" / "articles.jsonl")
     feeds: list[FeedSourceConfig] = Field(default_factory=lambda: list(DEFAULT_FEEDS))
 
-    model_config = {"env_prefix": "CRAWLER_", "extra": "ignore"}
+    supabase_url: str = "https://esctepjpgpjgrcymnabx.supabase.co"
+    supabase_anon_key: str = ""
+    supabase_service_key: str = ""
+    articles_limit: int = 20
+
+    model_config = {"env_prefix": "CRAWLER_", "env_file": "crawler/.env", "extra": "ignore"}

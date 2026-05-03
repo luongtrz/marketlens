@@ -1,9 +1,19 @@
-"""Full pipeline orchestrator — runs all steps in sequence."""
+"""Full pipeline orchestrator — runs all steps in sequence.
 
-from uuid import uuid4
+POST /run?symbol=BTCUSDT
+  → Step 1 COLLECT (parallel): crawler.get_latest [REQUIRED] + market.get_snapshot [REQUIRED]
+  → Step 2 AI SCORE (parallel): aihub.sentiment + aihub.factors → factorledge.ingest [graceful]
+  → Step 3 STOCKMEM (sequential, REQUIRED): stockmem.save → stockmem.search(k=5)
+  → Step 4 PREDICT (REQUIRED): aihub.predict(current, similar)
+  → PredictionResult { signal, confidence, explanation, similar_cases, errors[] }
+"""
 
-from shared.models.prediction import PredictionResult
+import logging
+from uuid import UUID, uuid4
+
+from shared.models.prediction import PredictionResult, SignalType
 from main_controller.src.orchestrator.context import PipelineContext
+from main_controller.src.orchestrator.exceptions import PipelineError
 from main_controller.src.orchestrator.steps import (
     ModuleClients,
     step_collect,
@@ -11,6 +21,8 @@ from main_controller.src.orchestrator.steps import (
     step_stockmem,
     step_predict,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class PipelineConfig:
@@ -34,38 +46,70 @@ class Pipeline:
         self._clients = clients
         self._config = config or PipelineConfig()
 
-    async def run(self, symbol: str) -> PredictionResult:
+    async def run(self, symbol: str, run_id: UUID | None = None) -> PredictionResult:
         """Execute the full pipeline for a given symbol.
-
-        Steps:
-        1. Collect — Crawler + MarketData in parallel
-        2. AI Score — AIHub sentiment + factors
-        3. StockMem — Save record + retrieve similar
-        4. Predict — AIHub RAG predict/explain
 
         Args:
             symbol: Trading pair symbol (e.g. "BTCUSDT").
+            run_id: Pre-generated run UUID from the API layer (generated here if None).
 
         Returns:
-            Complete PredictionResult.
+            Complete PredictionResult — always returns, never raises.
         """
-        ctx = PipelineContext(symbol=symbol, run_id=uuid4())
+        ctx = PipelineContext(symbol=symbol, run_id=run_id or uuid4())
 
-        await self._step_collect(ctx)
-        await self._step_ai_score(ctx)
-        await self._step_stockmem(ctx)
-        await self._step_predict(ctx)
+        try:
+            await step_collect(ctx, self._clients)
+        except Exception as exc:
+            logger.exception("step_collect raised unexpectedly: %s", exc)
+            ctx.errors.append(f"step_collect failed: {exc}")
+
+        try:
+            await step_ai_score(ctx, self._clients)
+        except Exception as exc:
+            logger.exception("step_ai_score raised unexpectedly: %s", exc)
+            ctx.errors.append(f"step_ai_score failed: {exc}")
+
+        try:
+            await step_stockmem(ctx, self._clients)
+        except PipelineError as exc:
+            logger.error("step_stockmem PipelineError: %s", exc)
+            ctx.errors.append(str(exc))
+            return _hold_result(ctx)
+        except Exception as exc:
+            logger.exception("step_stockmem raised unexpectedly: %s", exc)
+            ctx.errors.append(f"step_stockmem failed: {exc}")
+            return _hold_result(ctx)
+
+        try:
+            await step_predict(ctx, self._clients)
+        except PipelineError as exc:
+            logger.error("step_predict PipelineError: %s", exc)
+            ctx.errors.append(str(exc))
+            return _hold_result(ctx)
+        except Exception as exc:
+            logger.exception("step_predict raised unexpectedly: %s", exc)
+            ctx.errors.append(f"step_predict failed: {exc}")
+            return _hold_result(ctx)
 
         return ctx.build_result()
 
-    async def _step_collect(self, ctx: PipelineContext) -> None:
-        await step_collect(ctx, self._clients)
 
-    async def _step_ai_score(self, ctx: PipelineContext) -> None:
-        await step_ai_score(ctx, self._clients)
+def _hold_result(ctx: PipelineContext) -> PredictionResult:
+    """Build a HOLD result when a required step fails."""
+    from datetime import datetime, timezone
 
-    async def _step_stockmem(self, ctx: PipelineContext) -> None:
-        await step_stockmem(ctx, self._clients)
-
-    async def _step_predict(self, ctx: PipelineContext) -> None:
-        await step_predict(ctx, self._clients)
+    return PredictionResult(
+        run_id=str(ctx.run_id),
+        symbol=ctx.symbol,
+        timestamp=datetime.now(timezone.utc),
+        signal=SignalType.HOLD,
+        confidence=0.0,
+        explanation="Pipeline encountered a critical error; defaulting to HOLD.",
+        reasoning_steps=[],
+        similar_cases=ctx.similar_records,
+        sentiment_score=ctx.sentiment_score or 0.0,
+        key_factors=ctx.factors,
+        market_snapshot=ctx.market_snapshot,
+        errors=ctx.errors,
+    )

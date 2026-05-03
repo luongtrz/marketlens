@@ -1,0 +1,140 @@
+{
+  "records": [
+    {
+      "date": "2024-04-14",
+      "factors": [
+        "SEC reviewing new ETF approval",
+        "Strong whale accumulation",
+        "CPI lower than expected",
+        "Fed holds interest rate steady",
+        "BlackRock increases BTC holdings",
+        "Major corporation accepts BTC payments",
+        "Hash rate hits new all-time high",
+        "Institutional adoption increasing",
+        "Record ETF inflows",
+        "Gold positively correlated with BTC",
+        "Stablecoin inflows to exchanges rising",
+        "Partnership with major bank",
+        "Successful protocol upgrade",
+        "Significant volume surge"
+      ]
+    },
+    {
+      "date": "2024-04-15",
+      "factors": [
+        "Developer activity surging",
+        "Positive on-chain metrics",
+        "Supply decreasing due to halving effect",
+        "DXY dollar index declining",
+        "BTC dominance rising",
+        "New payment integration",
+        "Grayscale GBTC premium rising",
+        "MicroStrategy buys more BTC",
+        "El Salvador increases BTC reserves",
+        "Lightning Network adoption growing",
+        "DeFi TVL on Bitcoin rising",
+        "Fidelity opens BTC custody service",
+        "JP Morgan positive outlook on BTC",
+        "Hash rate recovering after sell-off"
+      ]
+    },
+    {
+      "date": "2024-04-16",
+      "factors": [
+        "Binance Proof of Reserve stable",
+        "Bitcoin spot volume hits record",
+        "Mining difficulty adjustment decreasing",
+        "Central bank record gold buying - bullish for BTC",
+        "Nasdaq positively correlated with crypto",
+        "New Layer 2 scaling solution",
+        "Fed pivot signal - market expects rate cut",
+        "US Treasury yield falling - capital flows to risk assets",
+        "Ordinals and BRC-20 adoption growing",
+        "Bitcoin ETF options approved",
+        "Tether minting USDT - liquidity flowing in",
+        "Coinbase revenue beats expectations",
+        "SEC rejects new ETF",
+        "Strong whale selling"
+      ]
+    },
+    {
+      "date": "2024-04-17",
+      "factors": [
+        "CPI higher than expected",
+        "Fed raises interest rate",
+        "Regulatory concerns from China",
+        "Major exchange hack",
+        "Miner selling pressure increasing",
+        "Large market liquidations",
+        "Significant ETF outflows",
+        "Stablecoin outflows from exchanges",
+        "Regulatory risk from EU",
+        "Exchange insolvency concerns",
+        "Extreme greed index - correction risk",
+        "Dollar index surging",
+        "Bond yield rising - risk for crypto",
+        "Volume declining - liquidity drying up"
+      ]
+    },
+    {
+      "date": "2024-04-18",
+      "factors": [
+        "BTC dominance declining",
+        "Systemic risk concerns",
+        "Major project rug pull",
+        "Legal action against founder",
+        "FTX exchange collapse event",
+        "Terra Luna collapse impact",
+        "Celsius Network freezes withdrawals",
+        "Genesis Trading halts operations",
+        "Three Arrows Capital bankruptcy",
+        "USDC temporary depeg",
+        "Mt. Gox distributing BTC to creditors",
+        "SEC sues Binance and Coinbase",
+        "Silvergate Bank closes",
+        "Tether FUD - reserve concerns"
+      ]
+    },
+    {
+      "date": "2024-04-19",
+      "factors": [
+        "Mining ban in Kazakhstan",
+        "China tightens crypto regulations again",
+        "Iran temporary mining ban",
+        "US debt ceiling concerns",
+        "Grayscale GBTC discount widening",
+        "Leverage ratio too high - cascade liquidation risk",
+        "Dormant BTC wallet suddenly moves funds",
+        "SEC investigates staking services",
+        "CBDC competing with crypto",
+        "Whale sends large BTC to exchange",
+        "Market sideways waiting for signal",
+        "Analyst opinions divided",
+        "Neutral industry report",
+        "Protocol proposal under review",
+        "Routine developer milestone"
+      ]
+    },
+    {
+      "date": "2024-04-20",
+      "factors": [
+        "Minor sector rotation",
+        "Market cap stable",
+        "Normal on-chain flow",
+        "New testnet under testing",
+        "Industry report compilation",
+        "Consolidation phase - accumulation",
+        "Neutral funding rate",
+        "Open interest stable",
+        "Hashrate unchanged",
+        "DXY sideways",
+        "No notable macro data",
+        "Weekend options expiry",
+        "Bitcoin Pizza Day - no price impact",
+        "Crypto conference in Europe",
+        "US Congress crypto hearing"
+      ]
+    }
+  ],
+  "windowDays": 7
+}

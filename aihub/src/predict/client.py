@@ -1,32 +1,53 @@
-"""External model API client for GPT-oss-120b predictions."""
+"""Prediction client — sends RAG-assembled context to the LLM and parses the result."""
+
+from aihub.src.llm.base import LLMClient
+from aihub.src.predict.prompt import PREDICT_SYSTEM_PROMPT, PREDICT_USER_PROMPT
 
 
 class PredictClient:
-    """Client for the external GPT-oss-120b model API.
+    """Generates a trading signal by calling the LLM with a RAG context prompt.
 
     Args:
-        api_key: API key for authentication.
-        model_name: Model identifier (default: gpt-oss-120b).
-        base_url: External API base URL.
+        llm: Configured LLMClient backend (e.g. GroqClient).
     """
 
-    def __init__(
-        self,
-        api_key: str,
-        model_name: str = "gpt-oss-120b",
-        base_url: str | None = None,
-    ) -> None:
-        self._api_key = api_key
-        self._model_name = model_name
-        self._base_url = base_url
+    def __init__(self, llm: LLMClient) -> None:
+        self._llm = llm
 
-    async def generate(self, prompt: str) -> str:
-        """Send a prompt to the external model and return the response.
+    async def generate(self, today_record: str, similar_records: str) -> dict:  # type: ignore[type-arg]
+        """Send the assembled RAG prompt to the LLM and return the parsed JSON dict.
 
         Args:
-            prompt: The assembled RAG prompt.
+            today_record: Formatted text of the current market situation.
+            similar_records: Formatted text of similar historical cases.
 
         Returns:
-            Raw text response from the model.
+            Dict with keys: signal, confidence, explanation, reasoning_steps.
         """
-        raise NotImplementedError
+        user_prompt = PREDICT_USER_PROMPT.format(
+            today_record=today_record,
+            similar_records=similar_records
+        )
+        
+        # We try to use generate_with_reasoning if the client supports it (e.g. GroqClient)
+        if hasattr(self._llm, "generate_with_reasoning"):
+            resp = await self._llm.generate_with_reasoning(
+                prompt=user_prompt, 
+                system=PREDICT_SYSTEM_PROMPT
+            )
+            data = getattr(self._llm, "parse_json", lambda x: getattr(self._llm, "generate_json", lambda y: y))(resp.content)
+            if callable(data): 
+                # fallback parsing
+                import json
+                import re
+                text = re.sub(r"^```(?:json)?\s*", "", resp.content.strip())
+                text = re.sub(r"\s*```$", "", text.strip())
+                data = json.loads(text)
+            data["reasoning_steps"] = resp.reasoning_steps
+            return data
+            
+        else:
+            return await getattr(self._llm, "generate_json")(
+                prompt=user_prompt, 
+                system=PREDICT_SYSTEM_PROMPT
+            )

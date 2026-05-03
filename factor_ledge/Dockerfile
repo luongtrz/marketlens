@@ -2,10 +2,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY ../shared /app/shared
-COPY . /app/factor_ledge
+COPY shared /app/shared
+COPY factor_ledge /app/factor_ledge
 
-RUN pip install --no-cache-dir -r /app/factor_ledge/requirements.txt 2>/dev/null || true
+RUN pip install --no-cache-dir -r /app/factor_ledge/requirements.txt
 
 ENV PYTHONPATH=/app
 

@@ -26,6 +26,7 @@ Thumbs.db
 
 # Python
 .venv/
+venv/
 __pycache__/
 **/__pycache__/
 *.pyc
@@ -35,6 +36,9 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .coverage
+
+.rtk/
+CLAUDE.md
 
 # Crawler runtime artifacts (do not commit)
 crawler/logs/

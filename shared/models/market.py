@@ -38,6 +38,7 @@ class MarketSnapshot(BaseModel):
 
     symbol: str
     timestamp: datetime
-    ohlcv: OHLCV  # Latest candle
-    indicators: dict[str, Any]  # e.g. {"rsi": 58.4, "macd": {...}}
+    ohlcv: OHLCV
+    recent_candles: list[OHLCV] = []
+    indicators: dict[str, Any]
     source: str  # "binance" | "tradingview"

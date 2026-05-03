@@ -1,54 +1,83 @@
 """AIHub FastAPI application — exposes /sentiment, /factors, /predict endpoints."""
 
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
+from fastapi import FastAPI, Request
 
 from aihub.src.sentiment.schema import SentimentRequest, SentimentResponse
 from aihub.src.factors.schema import FactorRequest, FactorResponse
 from aihub.src.predict.schema import PredictRequest, PredictResponse
+from aihub.src.factors.extractor import FactorExtractor
+from aihub.src.predict.rag_builder import RAGContextBuilder, StockMemClient
+from aihub.src.config import AIHubConfig
+from aihub.src.llm.base import LLMClient
+from aihub.src.llm.models.factory import AIModelFactory
+from aihub.src.llm.models.sentiment import SentimentModel
+from shared.models.prediction import SignalType
 
-app = FastAPI(title="AIHub", description="AI inference service for crypto pipeline")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Load config and heavy models once at startup; clean up on shutdown."""
+    config = AIHubConfig()
+    factory = AIModelFactory(config)
+
+    app.state.config = config
+    app.state.predict_client = factory.get_client(
+        factory.resolve_backend(config.predict_llm_backend)
+    )
+    stockmem_client = StockMemClient(base_url=config.stockmem_url)
+    app.state.rag_builder = RAGContextBuilder(stockmem_client=stockmem_client)
+    app.state.sentiment_model = factory.create_sentiment_model()
+    app.state.factor_extractor = FactorExtractor(factory.get_default_client())
+    yield
+    # (teardown if needed)
+
+
+app = FastAPI(
+    title="AIHub",
+    description="AI inference service for crypto pipeline",
+    lifespan=lifespan,
+)
 
 
 @app.get("/health")
-async def health() -> dict:
-    """Health check endpoint."""
-    return {"status": "ok", "models_loaded": False}  # TODO: wire up real model status
+async def health() -> dict: 
+    return {"status": "ok", "models_loaded": True}
 
 
 @app.post("/sentiment", response_model=SentimentResponse)
-async def sentiment(request: SentimentRequest) -> SentimentResponse:
-    """Analyze sentiment of the provided text using CryptoBert.
-
-    Args:
-        request: SentimentRequest containing the text to analyze.
-
-    Returns:
-        SentimentResponse with score and label.
-    """
-    raise NotImplementedError
+async def sentiment(request: SentimentRequest, http: Request) -> SentimentResponse:
+    """Analyse sentiment of the provided text using CryptoBert."""
+    model: SentimentModel = http.app.state.sentiment_model
+    result = await model.run(request.text)
+    return SentimentResponse(score=result.score, label=result.label)
 
 
 @app.post("/factors", response_model=FactorResponse)
-async def factors(request: FactorRequest) -> FactorResponse:
-    """Extract market factors from the provided text using SKGP.
-
-    Args:
-        request: FactorRequest containing the text to analyze.
-
-    Returns:
-        FactorResponse with list of extracted factors.
-    """
-    raise NotImplementedError
+async def factors(request: FactorRequest, http: Request) -> FactorResponse:
+    """Extract market factors from the provided text using SKGP + LLM."""
+    extractor: FactorExtractor = http.app.state.factor_extractor
+    return FactorResponse(factors=await extractor.extract(request.ticker, request.text))
 
 
 @app.post("/predict", response_model=PredictResponse)
-async def predict(request: PredictRequest) -> PredictResponse:
-    """Generate trading signal using RAG with similar historical cases.
+async def predict(request: PredictRequest, http: Request) -> PredictResponse:
+    """Generate a trading signal using RAG with similar historical cases."""
+    predict_llm: LLMClient = http.app.state.predict_client
+    rag_builder: RAGContextBuilder = http.app.state.rag_builder
+    
+    from aihub.src.predict.client import PredictClient
+    predict_client = PredictClient(llm=predict_llm)
 
-    Args:
-        request: PredictRequest with current record and similar cases.
+    current_text, similar_text = await rag_builder.build(request.current, request.similar or None)
+    
+    result = await predict_client.generate(current_text, similar_text)
 
-    Returns:
-        PredictResponse with signal, confidence, and explanation.
-    """
-    raise NotImplementedError
+    return PredictResponse(
+        signal=SignalType(result["signal"]),
+        confidence=float(result["confidence"]),
+        explanation=result.get("explanation", ""),
+        reasoning_steps=result.get("reasoning_steps", []),
+    )

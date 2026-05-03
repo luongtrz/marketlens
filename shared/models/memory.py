@@ -17,12 +17,16 @@ class StockMemRecord(BaseModel):
     date: date
     symbol: str
     sentiment_score: float
-    sentiment_label: str
+    sentiment_label: str = "neutral"
     factors: list[str]
     normalized_factors: list[NormalizedFactor] = []
     market_snapshot: MarketSnapshot
+    indicator_vec: list[float] = []  # Pre-computed market indicator vector
     summary: str | None = None
     article_ids: list[str] = []
+    future_return_1d: float | None = None
+    future_return_7d: float | None = None
+    future_return_30d: float | None = None
     run_id: str | None = None
 
 
