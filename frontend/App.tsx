@@ -14,11 +14,11 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <main className="flex-1 pt-14 overflow-hidden flex flex-col">
-      <div className={`flex-1 overflow-hidden flex-col ${isDashboard ? 'flex' : 'hidden'}`}>
+    <main className="flex flex-1 min-h-0 flex-col pt-14">
+      <div className={`min-h-0 flex-1 flex-col overflow-hidden ${isDashboard ? 'flex' : 'hidden'}`}>
         <Dashboard />
       </div>
-      <div className={`flex-1 overflow-hidden flex-col ${isNews ? 'flex' : 'hidden'}`}>
+      <div className={`min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain ${isNews ? 'flex' : 'hidden'}`}>
         <NewsAnalysis />
       </div>
     </main>

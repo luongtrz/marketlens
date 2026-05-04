@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { CoinData, ForecastResult, HistoryPoint, NewsArticle } from '../types';
 import LightweightChart from '../components/LightweightChart';
 
@@ -43,15 +43,24 @@ const getRangeParams = (range: string) => {
 type SortKey = 'price' | 'change' | 'percent';
 type SortDirection = 'asc' | 'desc';
 
+const CONTEXT_NEWS_PAGE_SIZE = 8;
 
 const Dashboard: React.FC = () => {
     const [coins, setCoins] = useState<CoinData[]>([]);
     const [selectedCoinSymbol, setSelectedCoinSymbol] = useState<string>(() => {
         return localStorage.getItem('marketlens_selected_coin') || 'BTC';
     });
+    const lastContextNewsFetchKeyRef = useRef<string>('');
 
     useEffect(() => {
         localStorage.setItem('marketlens_selected_coin', selectedCoinSymbol);
+    }, [selectedCoinSymbol]);
+
+    /** New coin ⇒ drop manual range before paint so news fetch never uses the previous coin's range. */
+    useLayoutEffect(() => {
+        setChartVisibleRange(null);
+        setHasActiveRange(false);
+        lastContextNewsFetchKeyRef.current = '';
     }, [selectedCoinSymbol]);
     const [forecastResult, setForecastResult] = useState<ForecastResult | null>(null);
     const [loadingForecast, setLoadingForecast] = useState(false);
@@ -67,6 +76,7 @@ const Dashboard: React.FC = () => {
     const wsRef = useRef<MarketWebSocket | null>(null);
     const currentSymbolRef = useRef<string>('');
     const sidebarRef = useRef<HTMLDivElement>(null);
+    const contextNewsListScrollRef = useRef<HTMLDivElement>(null);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [favorites, setFavorites] = useState<Set<string>>(new Set(['BTC', 'ETH']));
@@ -83,6 +93,7 @@ const Dashboard: React.FC = () => {
 
     // News State
     const [contextNews, setContextNews] = useState<NewsArticle[]>([]);
+    const [contextNewsPage, setContextNewsPage] = useState(1);
     const [loadingNews, setLoadingNews] = useState(false);
 
     const [chartType, setChartType] = useState<'area' | 'candle'>('candle');
@@ -429,31 +440,80 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    // Fetch news when chart range or selected coin changes
+    // Headlines for the selected coin; when a chart time range is active, filter to [start, end] (ISO UTC).
     useEffect(() => {
-        const fetchContextNews = async () => {
-            if (!chartVisibleRange) return;
+        if (!selectedCoin?.symbol) {
+            return;
+        }
 
+        const useRangeFilter = Boolean(hasActiveRange && chartVisibleRange);
+        const startIso =
+            useRangeFilter && chartVisibleRange
+                ? new Date(chartVisibleRange.from * 1000).toISOString()
+                : undefined;
+        const endIso =
+            useRangeFilter && chartVisibleRange
+                ? new Date(chartVisibleRange.to * 1000).toISOString()
+                : undefined;
+
+        const fetchKey =
+            `${selectedCoin.symbol}:` +
+            (useRangeFilter && chartVisibleRange
+                ? `${chartVisibleRange.from}-${chartVisibleRange.to}`
+                : 'all');
+        if (fetchKey === lastContextNewsFetchKeyRef.current) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const fetchContextNews = async () => {
             setLoadingNews(true);
             try {
-                // Convert unix timestamp to ISO string
-                const startIso = new Date(chartVisibleRange.from * 1000).toISOString();
-                const endIso = new Date(chartVisibleRange.to * 1000).toISOString();
-
-                // Fetch news filtered by date AND selected coin tag
                 const articles = await fetchLatestNews(startIso, endIso, selectedCoin.symbol);
-                setContextNews(articles);
+                if (!cancelled) {
+                    setContextNewsPage(1);
+                    setContextNews(articles);
+                    lastContextNewsFetchKeyRef.current = fetchKey;
+                }
             } catch (err) {
-                console.error("Failed to fetch context news", err);
+                if (!cancelled) {
+                    console.error("Failed to fetch context news", err);
+                    setContextNews([]);
+                    lastContextNewsFetchKeyRef.current = fetchKey;
+                }
             } finally {
-                setLoadingNews(false);
+                if (!cancelled) {
+                    setLoadingNews(false);
+                }
             }
         };
 
-        // Debounce slightly to avoid too many requests during drag
-        const timeoutId = setTimeout(fetchContextNews, 500);
-        return () => clearTimeout(timeoutId);
-    }, [chartVisibleRange, selectedCoin?.symbol]);
+        const timeoutId = setTimeout(() => {
+            void fetchContextNews();
+        }, 120);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timeoutId);
+        };
+    }, [selectedCoin?.symbol, hasActiveRange, chartVisibleRange?.from, chartVisibleRange?.to]);
+
+    const contextNewsTotalPages = Math.max(1, Math.ceil(contextNews.length / CONTEXT_NEWS_PAGE_SIZE));
+    const contextNewsSafePage = Math.min(contextNewsPage, contextNewsTotalPages);
+    const contextNewsPageArticles = useMemo(() => {
+        const start = (contextNewsSafePage - 1) * CONTEXT_NEWS_PAGE_SIZE;
+        return contextNews.slice(start, start + CONTEXT_NEWS_PAGE_SIZE);
+    }, [contextNews, contextNewsSafePage]);
+
+    useEffect(() => {
+        contextNewsListScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [contextNewsSafePage]);
+
+    useEffect(() => {
+        const tp = Math.max(1, Math.ceil(contextNews.length / CONTEXT_NEWS_PAGE_SIZE));
+        setContextNewsPage((p) => (p > tp ? tp : p));
+    }, [contextNews.length]);
 
     const processedCoins = useMemo(() => {
         let result = [...coins];
@@ -1041,26 +1101,21 @@ const Dashboard: React.FC = () => {
 
                             {/* TOP: News Context (50%) */}
                             <div className="flex-1 flex flex-col border-b border-slate-200 dark:border-slate-800 min-h-0 overflow-hidden">
-                                <div className="p-3 bg-slate-50 dark:bg-slate-950/50 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center flex-none">
+                                <div className="p-3 bg-slate-50 dark:bg-slate-950/50 border-b border-slate-100 dark:border-slate-800 flex-none">
                                     <h4 className="font-bold text-xs text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                                         <Globe size={14} className="text-blue-500" />
                                         Contextual News
                                     </h4>
-                                    {hasActiveRange && (
-                                        <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-full">
-                                            Filtered by Range
-                                        </span>
-                                    )}
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+                                <div ref={contextNewsListScrollRef} className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar min-h-0">
                                     {loadingNews ? (
                                         <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2 py-8">
                                             <Loader2 size={20} className="animate-spin" />
                                             <p className="text-xs">Finding insights...</p>
                                         </div>
                                     ) : contextNews.length > 0 ? (
-                                        contextNews.map((article) => (
+                                        contextNewsPageArticles.map((article) => (
                                             <div key={article.id} className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-800 transition-all group shadow-sm">
                                                 <div className="flex justify-between items-start mb-1.5">
                                                     <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-full">
@@ -1093,10 +1148,41 @@ const Dashboard: React.FC = () => {
                                     ) : (
                                         <div className="flex flex-col items-center justify-center h-full text-slate-400 py-8">
                                             <Globe size={24} className="mb-2 opacity-20" />
-                                            <p className="text-xs text-center">No news related to {selectedCoin.symbol} in this range.</p>
+                                            <p className="text-xs text-center">
+                                                {hasActiveRange && chartVisibleRange
+                                                    ? `No news related to ${selectedCoin.symbol} in the selected time range.`
+                                                    : `No recent news related to ${selectedCoin.symbol}.`}
+                                            </p>
                                         </div>
                                     )}
                                 </div>
+
+                                {!loadingNews && contextNewsTotalPages > 1 && (
+                                    <div className="flex-none flex items-center justify-between gap-2 px-3 py-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/50">
+                                        <button
+                                            type="button"
+                                            disabled={contextNewsSafePage <= 1}
+                                            onClick={() => setContextNewsPage((p) => Math.max(1, p - 1))}
+                                            className="flex items-center justify-center p-1.5 rounded-md text-slate-600 dark:text-slate-400 disabled:opacity-30 disabled:pointer-events-none hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                                            aria-label="Previous page"
+                                        >
+                                            <ChevronLeft size={18} />
+                                        </button>
+                                        <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 tabular-nums">
+                                            {contextNewsSafePage} / {contextNewsTotalPages}
+                                            <span className="text-slate-400 dark:text-slate-500 font-normal"> · {contextNews.length} articles</span>
+                                        </span>
+                                        <button
+                                            type="button"
+                                            disabled={contextNewsSafePage >= contextNewsTotalPages}
+                                            onClick={() => setContextNewsPage((p) => Math.min(contextNewsTotalPages, p + 1))}
+                                            className="flex items-center justify-center p-1.5 rounded-md text-slate-600 dark:text-slate-400 disabled:opacity-30 disabled:pointer-events-none hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                                            aria-label="Next page"
+                                        >
+                                            <ChevronRight size={18} />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
 
                             {/* BOTTOM: AI Forecast & Summary */}

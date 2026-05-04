@@ -10,6 +10,7 @@ from typing import AsyncIterator, Literal
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from main_controller.src.clients.aihub_client import AIHubClient
@@ -20,6 +21,7 @@ from main_controller.src.clients.stockmem_client import StockMemClient
 from main_controller.src.config import MainControllerConfig
 from main_controller.src.orchestrator.pipeline import Pipeline, PipelineConfig
 from main_controller.src.orchestrator.steps import ModuleClients
+from main_controller.src.ui_routes import router as ui_router
 from shared.models.prediction import PredictionResult
 
 logger = logging.getLogger(__name__)
@@ -46,6 +48,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         factorledge=FactorLedgeClient(config.factorledge_url),
     )
     app.state.pipeline = Pipeline(clients, PipelineConfig(k_similar=config.k_similar))
+    app.state.clients = clients
     app.state.run_states: dict[str, RunState] = {}
     app.state.background_tasks: set[asyncio.Task] = set()
     yield
@@ -54,6 +57,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="MainController", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.include_router(ui_router)
 
 
 @app.get("/health")

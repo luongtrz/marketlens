@@ -1,6 +1,10 @@
 import { CoinData, HistoryPoint, NewsArticle, ForecastResult, ChatMessage } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+/** Same-origin ``/api`` when using Vite proxy (dev) or nginx (Docker). Override with VITE_API_URL if needed. */
+const API_BASE_URL =
+    (typeof import.meta.env.VITE_API_URL === 'string' && import.meta.env.VITE_API_URL.trim() !== ''
+        ? import.meta.env.VITE_API_URL
+        : '/api');
 
 // Re-export market data functions from marketService
 export {
@@ -117,12 +121,14 @@ export const getHistoricalNews = async (coinName: string, dateStr: string): Prom
 
 export const fetchLatestNews = async (start?: string, end?: string, tag?: string): Promise<NewsArticle[]> => {
     try {
-        const url = new URL(`${API_BASE_URL}/ai/latest-news`);
-        if (start) url.searchParams.append('start', start);
-        if (end) url.searchParams.append('end', end);
-        if (tag) url.searchParams.append('tag', tag);
-
-        const res = await fetch(url.toString());
+        const params = new URLSearchParams();
+        if (start) params.append('start', start);
+        if (end) params.append('end', end);
+        if (tag) params.append('tag', tag);
+        const query = params.toString();
+        const base = API_BASE_URL.replace(/\/$/, '');
+        const url = `${base}/ai/latest-news${query ? `?${query}` : ''}`;
+        const res = await fetch(url);
         if (!res.ok) {
             console.error('fetchLatestNews failed with status:', res.status);
             return [];

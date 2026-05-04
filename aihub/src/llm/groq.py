@@ -17,7 +17,7 @@ class GroqResponse:
 
 
 class GroqClient(LLMClient):
-    """Groq backend for open-source models (e.g. openai/gpt-oss-120b).
+    """Groq backend for chat-completions (e.g. Llama, Mixtral, GPT-OSS on Groq).
 
     Uses the native Groq Python SDK (``groq.AsyncGroq``) to access
     Groq-specific parameters such as ``reasoning_effort`` and
@@ -32,7 +32,7 @@ class GroqClient(LLMClient):
 
     Args:
         api_key: Groq API key.
-        model: Model identifier (default: openai/gpt-oss-120b).
+        model: Model identifier (see Groq docs; default suits free-tier input limits).
     """
 
     def __init__(
@@ -50,18 +50,21 @@ class GroqClient(LLMClient):
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
-        resp = await self._client.chat.completions.create(
+        create_kwargs: dict = dict(
             model=self._model,
             messages=messages,  # type: ignore[arg-type]
             temperature=0.5,
-            max_completion_tokens=20461,
+            max_completion_tokens=2048,
             top_p=1,
-            reasoning_effort="high",
             stream=False,
-            response_format={"type": "json_object"},
             stop=None,
-            tools=[{"type": "browser_search"}],  # type: ignore[list-item]
+            response_format={"type": "json_object"},
         )
+        # Only GPT-OSS supports ``reasoning_effort``; Llama/Mixtral reject it.
+        if "gpt-oss" in self._model.lower():
+            create_kwargs["reasoning_effort"] = "low"
+
+        resp = await self._client.chat.completions.create(**create_kwargs)
         return resp.choices[0].message.content or ""
 
     async def generate(self, prompt: str, system: str | None = None) -> str:

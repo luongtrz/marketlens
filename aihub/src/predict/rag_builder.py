@@ -188,6 +188,21 @@ def record_to_text(record: StockMemRecord, *, include_outcome: bool = False) -> 
     return "\n".join(lines)
 
 
+# Groq free / on_demand tier enforces tight per-request input limits (~8k tokens for
+# some models). Oversized prompts raise 413 / rate_limit_exceeded — clamp RAG aggressively.
+_MAX_PREDICT_SIMILAR_COUNT = 3
+_MAX_PREDICT_CHARS_CURRENT = 3600
+_MAX_PREDICT_CHARS_PER_CASE = 1200
+_MAX_PREDICT_CHARS_SIMILAR_TOTAL = 6000
+
+
+def _clip_predict_context(text: str, max_chars: int) -> str:
+    text = (text or "").strip()
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 3].rstrip() + "..."
+
+
 # ---------------------------------------------------------------------------
 # RAG context builder
 # ---------------------------------------------------------------------------
@@ -200,7 +215,7 @@ class RAGContextBuilder:
     def __init__(
         self,
         stockmem_client: StockMemClient | None = None,
-        default_k: int = 5,
+        default_k: int = 3,
     ) -> None:
         self._stockmem = stockmem_client
         self._default_k = default_k
@@ -223,7 +238,8 @@ class RAGContextBuilder:
         if self._stockmem is None:
             return []
         try:
-            return await self._stockmem.search(current, k=k or self._default_k)
+            eff = min(k or self._default_k, _MAX_PREDICT_SIMILAR_COUNT)
+            return await self._stockmem.search(current, k=eff)
         except (httpx.RequestError, httpx.HTTPStatusError):
             return []
 
@@ -242,30 +258,40 @@ class RAGContextBuilder:
         Returns:
             Tuple of (current_text, similar_text).
         """
-        # Auto-fetch from StockMem when no similar records supplied
-        if not similar:
-            similar = await self.fetch_similar(current, k=k)
+        eff_k = min(k or self._default_k, _MAX_PREDICT_SIMILAR_COUNT)
+        similar_list = similar
 
-        current_lines: list[str] = []
-        current_lines.append(record_to_text(current, include_outcome=False))
-        
+        # Auto-fetch from StockMem when no similar records supplied
+        if not similar_list:
+            similar_list = await self.fetch_similar(current, k=eff_k)
+
+        capped = list(similar_list or [])[:_MAX_PREDICT_SIMILAR_COUNT]
+
+        current_txt = _clip_predict_context(
+            record_to_text(current, include_outcome=False),
+            _MAX_PREDICT_CHARS_CURRENT,
+        )
+
         similar_lines: list[str] = []
-        if similar:
-            for i, case in enumerate(similar, 1):
+        if capped:
+            for i, case in enumerate(capped, 1):
                 rec = case.record
                 similar_lines.append(
                     f"Case {i}  similarity={case.similarity:.3f}  date={rec.date}"
                 )
-                similar_lines.append(
-                    _indent(record_to_text(rec, include_outcome=True), prefix="  ")
-                )
+                body = _indent(record_to_text(rec, include_outcome=True), prefix="  ")
+                similar_lines.append(_clip_predict_context(body, _MAX_PREDICT_CHARS_PER_CASE))
                 if case.outcome:
                     similar_lines.append(f"  Outcome: {case.outcome}")
-                similar_lines.append("")  # Blank line between cases
+                similar_lines.append("")
         else:
             similar_lines.append("No similar historical cases found.")
 
-        return "\n".join(current_lines), "\n".join(similar_lines).strip()
+        similar_txt = _clip_predict_context(
+            "\n".join(similar_lines).strip(),
+            _MAX_PREDICT_CHARS_SIMILAR_TOTAL,
+        )
+        return current_txt, similar_txt
 
 
 def _indent(text: str, prefix: str = "  ") -> str:

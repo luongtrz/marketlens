@@ -33,6 +33,21 @@ class SupabaseReadService:
         self._key = api_key
         self._default_table = default_table
         self._timeout = timeout
+        self._http: httpx.AsyncClient | None = None
+
+    def _ensure_http(self) -> httpx.AsyncClient:
+        """Reuse one client per instance so connections stay warm (lower latency vs new client/request)."""
+        if self._http is None:
+            self._http = httpx.AsyncClient(
+                timeout=self._timeout,
+                limits=httpx.Limits(max_connections=12, max_keepalive_connections=6),
+            )
+        return self._http
+
+    async def aclose(self) -> None:
+        if self._http is not None:
+            await self._http.aclose()
+            self._http = None
 
     @classmethod
     def from_env(
@@ -78,8 +93,8 @@ class SupabaseReadService:
         endpoint = f"{self._base}/rest/v1/{tbl}"
         params = {"select": "*", "limit": "1"}
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                resp = await client.get(endpoint, headers=self._headers(), params=params)
+            client = self._ensure_http()
+            resp = await client.get(endpoint, headers=self._headers(), params=params)
         except httpx.HTTPError:
             return False
         return 200 <= resp.status_code < 300
@@ -92,22 +107,30 @@ class SupabaseReadService:
         order: str | None = None,
         limit: int = 100,
         extra_params: dict[str, str] | None = None,
+        extra_duplicate_params: list[tuple[str, str]] | None = None,
     ) -> list[dict[str, Any]]:
         """Run a read query; returns decoded JSON rows or an empty list on failure.
 
         ``extra_params`` are merged into the query string (PostgREST filters, etc.).
+        ``extra_duplicate_params`` appends extra ``(key, value)`` pairs so the same key
+        can appear twice (e.g. two ``publish_at`` filters).
         """
         tbl = self._resolve_table(table)
         endpoint = f"{self._base}/rest/v1/{tbl}"
-        params: dict[str, str] = {"select": columns, "limit": str(max(1, limit))}
+        params_kv: list[tuple[str, str]] = [
+            ("select", columns),
+            ("limit", str(max(1, limit))),
+        ]
         if order:
-            params["order"] = order
+            params_kv.append(("order", order))
         if extra_params:
-            params.update(extra_params)
+            params_kv.extend((k, str(v)) for k, v in extra_params.items())
+        if extra_duplicate_params:
+            params_kv.extend(extra_duplicate_params)
 
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                resp = await client.get(endpoint, headers=self._headers(), params=params)
+            client = self._ensure_http()
+            resp = await client.get(endpoint, headers=self._headers(), params=params_kv)
         except httpx.HTTPError as exc:
             logger.warning("Supabase select HTTP error: %s", str(exc)[:200])
             return []

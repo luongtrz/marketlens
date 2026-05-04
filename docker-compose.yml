@@ -9,6 +9,9 @@ services:
       AIHUB_URL: http://aihub:8001
       DB_URL: postgresql+asyncpg://postgres:pass@db:5432/ingestion
       REDIS_URL: redis://redis:6379
+      CRAWLER_SUPABASE_URL: ${SUPABASE_URL:-}
+      CRAWLER_SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      CRAWLER_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
     depends_on:
       db:
         condition: service_healthy
@@ -23,8 +26,12 @@ services:
       dockerfile: aihub/Dockerfile
     ports: ["8001:8001"]
     environment:
-      GPT_API_KEY: ${GPT_API_KEY}
-      GPT_MODEL: gpt-oss-120b
+      AIHUB_STOCKMEM_URL: http://stockmem:8003
+      AIHUB_LLM_BACKEND: ${AIHUB_LLM_BACKEND:-groq}
+      AIHUB_GROQ_API_KEY: ${AIHUB_GROQ_API_KEY:-}
+      AIHUB_GROQ_MODEL: ${AIHUB_GROQ_MODEL:-llama-3.3-70b-versatile}
+      AIHUB_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AIHUB_GEMINI_API_KEY: ${GEMINI_API_KEY:-}
 
   market_data:
     build:
@@ -72,6 +79,10 @@ services:
       MAIN_CONTROLLER_MARKET_DATA_URL: http://market_data:8002
       MAIN_CONTROLLER_STOCKMEM_URL: http://stockmem:8003
       MAIN_CONTROLLER_FACTORLEDGE_URL: http://factor_ledge:8004
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      SUPABASE_TABLE: ${SUPABASE_TABLE:-news_articles}
     depends_on:
       - crawler
       - aihub

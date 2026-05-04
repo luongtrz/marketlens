@@ -23,7 +23,7 @@ class AIHubConfig(BaseAppConfig):
     openai_base_url: str = ""
 
     groq_api_key: str = ""
-    groq_model: str = "openai/gpt-oss-120b"
+    groq_model: str = "llama-3.3-70b-versatile"
 
     # Per-task backend overrides (empty = use global llm_backend)
     explain_backend: str = ""

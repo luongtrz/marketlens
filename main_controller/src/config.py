@@ -13,7 +13,7 @@ class MainControllerConfig(BaseAppConfig):
     market_data_url: str = "http://localhost:8002"
     stockmem_url: str = "http://localhost:8003"
     factorledge_url: str = "http://localhost:8004"
-    k_similar: int = 5
+    k_similar: int = 3
 
     model_config = SettingsConfigDict(
         env_prefix="MAIN_CONTROLLER_",

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { NewsArticle } from '../types';
 import { fetchLatestNews } from '../services/apiService';
 import NewsCard from '../components/NewsCard';
@@ -6,7 +6,18 @@ import ArticleDetailModal from '../components/ArticleDetailModal';
 import { Loader2, Filter, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatSource } from '../utils/formatters';
 
-const ITEMS_PER_PAGE = 6;
+const ITEMS_PER_PAGE = 20;
+
+/** UI filter tags (BTC / ETH / General) when API omitted ``tag``. */
+function effectiveArticleTag(a: NewsArticle): string {
+  if (a.tag) return a.tag;
+  const hay = `${a.title} ${a.snippet}`.toLowerCase();
+  const hasBtc = hay.includes('btc') || hay.includes('bitcoin');
+  const hasEth = hay.includes('ethereum') || /\beth\b/.test(hay);
+  if (hasBtc && !hasEth) return 'BTC';
+  if (hasEth && !hasBtc) return 'ETH';
+  return 'General';
+}
 
 const NewsAnalysis: React.FC = () => {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
@@ -24,6 +35,8 @@ const NewsAnalysis: React.FC = () => {
 
   // Modal State
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
+
+  const pageTopRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadNews = async () => {
@@ -52,8 +65,8 @@ const NewsAnalysis: React.FC = () => {
   const filteredArticles = useMemo(() => {
     return articles
       .filter(article => {
-        // Tag Filter
-        if (tagFilter !== 'All' && article.tag !== tagFilter) {
+        // Tag Filter (backend may omit ``tag``; infer from headline like API)
+        if (tagFilter !== 'All' && effectiveArticleTag(article) !== tagFilter) {
           return false;
         }
         // Sentiment Filter
@@ -77,7 +90,10 @@ const NewsAnalysis: React.FC = () => {
         if (sortBy === 'Impact') {
           return (b.impactScore || 0) - (a.impactScore || 0);
         }
-        // Default to keeping original order (Latest based on mock fetch)
+        // Latest: descending by ISO timestamp string (API sends newest-first; keep stable after filter)
+        if (sortBy === 'Latest') {
+          return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        }
         return 0;
       });
   }, [articles, sentimentFilter, impactFilter, sourceFilter, tagFilter, sortBy]);
@@ -92,7 +108,7 @@ const NewsAnalysis: React.FC = () => {
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      pageTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
@@ -101,7 +117,8 @@ const NewsAnalysis: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 relative p-6">
+    <div className="relative space-y-6 p-6 pb-14">
+      <div ref={pageTopRef} className="pointer-events-none h-0 scroll-mt-[4.25rem]" aria-hidden />
       <header className="flex flex-col gap-4">
         <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
           <div>
@@ -215,14 +232,19 @@ const NewsAnalysis: React.FC = () => {
                 ))}
               </div>
 
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-4 mt-8 pt-4 border-t border-slate-200">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
+              {/* Pagination */}
+              <div className="flex justify-center items-center gap-4 mt-8 pt-4 border-t border-slate-200">
+                <span className="text-xs text-slate-500 mr-2 tabular-nums">
+                  {(currentPage - 1) * ITEMS_PER_PAGE + 1}
+                  –
+                  {Math.min(currentPage * ITEMS_PER_PAGE, filteredArticles.length)} of{' '}
+                  {filteredArticles.length}
+                </span>
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
                     <ChevronLeft size={20} />
                   </button>
 
@@ -238,7 +260,6 @@ const NewsAnalysis: React.FC = () => {
                     <ChevronRight size={20} />
                   </button>
                 </div>
-              )}
             </>
           )}
         </>
