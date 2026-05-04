@@ -3,7 +3,7 @@
 POST /run?symbol=BTCUSDT
   → Step 1 COLLECT (parallel): crawler.get_latest [REQUIRED] + market.get_snapshot [REQUIRED]
   → Step 2 AI SCORE (parallel): aihub.sentiment + aihub.factors → factorledge.ingest [graceful]
-  → Step 3 STOCKMEM (sequential, REQUIRED): stockmem.save → stockmem.search(k=5)
+  → Step 3 STOCKMEM (sequential, REQUIRED): stockmem.save → stockmem.search(k_similar)
   → Step 4 PREDICT (REQUIRED): aihub.predict(current, similar)
   → PredictionResult { signal, confidence, explanation, similar_cases, errors[] }
 """
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class PipelineConfig:
     """Configuration for the pipeline orchestrator."""
 
-    def __init__(self, k_similar: int = 5) -> None:
+    def __init__(self, k_similar: int = 3) -> None:
         self.k_similar = k_similar
 
 
@@ -71,7 +71,7 @@ class Pipeline:
             ctx.errors.append(f"step_ai_score failed: {exc}")
 
         try:
-            await step_stockmem(ctx, self._clients)
+            await step_stockmem(ctx, self._clients, self._config.k_similar)
         except PipelineError as exc:
             logger.error("step_stockmem PipelineError: %s", exc)
             ctx.errors.append(str(exc))

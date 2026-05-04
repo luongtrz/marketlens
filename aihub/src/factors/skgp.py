@@ -73,5 +73,6 @@ class SKGPExtractor:
                 )
                 for f in factors_raw
             ]
-        except (AttributeError, KeyError, TypeError, ValueError):
+        except Exception:
+            # LLM errors, malformed JSON, or invalid FactorType — degrade to no factors.
             return []

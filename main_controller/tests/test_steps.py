@@ -159,6 +159,8 @@ async def test_step_stockmem_saves_and_searches(sample_market_snapshot, sample_s
 
     await step_stockmem(ctx, clients)
 
+    stockmem.search.assert_awaited_once()
+    assert stockmem.search.await_args.kwargs.get("k") == 3
     assert ctx.current_record_id == "rec-999"
     assert ctx.similar_records == [sample_similar_record]
     assert ctx.current_record is not None

@@ -3,7 +3,7 @@
 Data-flow summary:
   Step 1 COLLECT  (parallel): crawler.get_latest [REQUIRED] + market.get_snapshot [REQUIRED]
   Step 2 AI SCORE (parallel): aihub.sentiment + aihub.factors → factorledge.ingest [graceful]
-  Step 3 STOCKMEM (sequential, REQUIRED): stockmem.save → stockmem.search(k=5)
+  Step 3 STOCKMEM (sequential, REQUIRED): stockmem.save → stockmem.search(k_similar, default 3)
   Step 4 PREDICT  (REQUIRED): aihub.predict(current, similar)
 """
 
@@ -74,7 +74,7 @@ async def step_ai_score(ctx: PipelineContext, clients: ModuleClients) -> None:
     # website boilerplate rather than actual article body text.
     combined_text = "\n".join(
         h for a in ctx.latest_articles if (h := _headline(a))
-    )[:5000]
+    )[:3500]
 
     sentiment_result, factors_result = await asyncio.gather(
         clients.aihub.sentiment(combined_text),
@@ -110,8 +110,23 @@ async def step_ai_score(ctx: PipelineContext, clients: ModuleClients) -> None:
         ctx.factors = []
 
 
-async def step_stockmem(ctx: PipelineContext, clients: ModuleClients) -> None:
-    """STEP 3: Save current record to StockMem, retrieve k=5 most similar past records."""
+def _short_headlines_for_summary(articles: list) -> str:
+    """Avoid multi-kB URL titles in StockMem summaries (bloats Groq input)."""
+    parts: list[str] = []
+    for a in articles[:3]:
+        h = _headline(a)
+        if not h:
+            continue
+        if len(h) > 220:
+            h = h[:219].rstrip() + "…"
+        parts.append(h)
+    return " ".join(parts)
+
+
+async def step_stockmem(
+    ctx: PipelineContext, clients: ModuleClients, k_similar: int = 3
+) -> None:
+    """STEP 3: Save current record to StockMem, retrieve k nearest past records."""
     if ctx.market_snapshot is None:
         raise PipelineError("market_snapshot is None — cannot build StockMem record")
 
@@ -124,7 +139,7 @@ async def step_stockmem(ctx: PipelineContext, clients: ModuleClients) -> None:
         normalized_factors=ctx.factors,
         market_snapshot=ctx.market_snapshot,
         indicator_vec=[],
-        summary=" ".join(a.article_name for a in ctx.latest_articles[:3]),
+        summary=_short_headlines_for_summary(ctx.latest_articles),
         article_ids=[a.id for a in ctx.latest_articles],
         run_id=str(ctx.run_id),
     )
@@ -132,7 +147,7 @@ async def step_stockmem(ctx: PipelineContext, clients: ModuleClients) -> None:
 
     try:
         ctx.current_record_id = await clients.stockmem.save(current_record)
-        ctx.similar_records = await clients.stockmem.search(query=current_record, k=5)
+        ctx.similar_records = await clients.stockmem.search(query=current_record, k=k_similar)
     except Exception as exc:
         raise PipelineError(f"StockMem failed: {exc}") from exc
 
