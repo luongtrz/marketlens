@@ -45,8 +45,10 @@ async def test_select_rows_returns_parsed_list() -> None:
     assert rows == [{"id": "a"}, {"id": "b"}]
     mock_client.get.assert_awaited_once()
     call_kwargs = mock_client.get.await_args.kwargs
-    assert call_kwargs["params"]["order"] == "id.desc"
-    assert call_kwargs["params"]["limit"] == "5"
+    params_kv = call_kwargs["params"]
+    assert isinstance(params_kv, list)
+    assert ("order", "id.desc") in params_kv
+    assert ("limit", "5") in params_kv
 
 
 @pytest.mark.asyncio

@@ -215,7 +215,13 @@ async def api_latest_news(
             ),
         )
     try:
-        raw = await clients.crawler.get_latest(pair, limit=_UI_NEWS_FETCH_LIMIT)
+        raw = await clients.crawler.get_latest(
+            pair,
+            limit=_UI_NEWS_FETCH_LIMIT,
+            lite=True,
+            publish_gte=start_dt,
+            publish_lte=end_dt,
+        )
     except Exception as exc:
         logger.exception("latest-news crawler failed")
         raise HTTPException(status_code=502, detail=str(exc)) from exc

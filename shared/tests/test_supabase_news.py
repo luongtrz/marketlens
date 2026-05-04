@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from shared.supabase_news import supabase_row_to_ingestion
+from shared.supabase_news import _row_text_matches_symbol, supabase_row_to_ingestion
 
 
 def test_supabase_row_to_ingestion_maps_fields() -> None:
@@ -33,3 +33,29 @@ def test_supabase_row_uses_id_when_present() -> None:
     }
     rec = supabase_row_to_ingestion(row)
     assert rec.id == "row-uuid"
+
+
+def test_symbol_filter_eth_does_not_match_tether_substring() -> None:
+    assert not _row_text_matches_symbol(
+        "Blockspace: Tether’s USDtb and stablecoins",
+        "",
+        "ETHUSDT",
+    )
+
+
+def test_symbol_filter_eth_matches_ethereum_terms() -> None:
+    assert _row_text_matches_symbol(
+        "Ethereum Foundation sells ETH",
+        "",
+        "ETHUSDT",
+    )
+    assert _row_text_matches_symbol("ETH staking update", "", "ETH")
+
+
+def test_symbol_filter_btc_uses_whole_words() -> None:
+    assert _row_text_matches_symbol("Bitcoin ETF flows", "", "BTCUSDT")
+    assert not _row_text_matches_symbol(
+        "Unrelated tether headline without bitcoin",
+        "",
+        "BTCUSDT",
+    )

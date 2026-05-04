@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
@@ -12,6 +13,9 @@ from shared.models.article import IngestionRecord
 from shared.supabase_service import SupabaseReadService
 
 logger = logging.getLogger(__name__)
+
+# List views: omit ``content`` → much smaller payloads than ``select=*`` (major latency win).
+_NEWS_LITE_COLUMNS = "id,header,source_url,publish_at,crawled_at"
 
 
 def _news_service(
@@ -77,13 +81,32 @@ def supabase_row_to_ingestion(row: dict[str, Any]) -> IngestionRecord:
 
 
 def _row_text_matches_symbol(header: str, content: str, symbol: str) -> bool:
-    sym = symbol.upper()
-    text = f"{header} {content}".lower()
+    """Match articles to a trading pair using whole tokens, not naive substrings.
+
+    Substrings like ``"eth" in "tether"`` falsely tag stablecoin/podcast headlines as ETH.
+    """
+    sym = symbol.upper().strip()
+    text = f"{header} {content}".strip()
+    if not sym:
+        return True
     if "BTC" in sym:
-        return "btc" in text or "bitcoin" in text
+        return bool(re.search(r"\b(btc|bitcoin)\b", text, re.IGNORECASE))
     if "ETH" in sym:
-        return "eth" in text or "ethereum" in text
-    return True
+        return bool(re.search(r"\b(eth|ethereum)\b", text, re.IGNORECASE))
+    # Other pairs e.g. SOLUSDT → require the base ticker as a word.
+    base = sym.replace("USDT", "").replace("USD", "").replace("BUSD", "")
+    if base.isalpha() and 2 <= len(base) <= 8:
+        return bool(re.search(rf"\b{re.escape(base)}\b", text, re.IGNORECASE))
+    return False
+
+
+def _fmt_postgrest_dt(dt: datetime) -> str:
+    """RFC3339 UTC with ``Z`` suffix for PostgREST ``publish_at`` filters."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    dt = dt.astimezone(timezone.utc)
+    s = dt.isoformat(timespec="seconds")
+    return s.replace("+00:00", "Z")
 
 
 async def check_supabase_rest_reachable(timeout: float = 10.0) -> bool:
@@ -102,20 +125,39 @@ async def fetch_news_articles_from_supabase(
     supabase_key: str | None = None,
     table: str | None = None,
     timeout: float = 20.0,
+    lite: bool = False,
+    publish_gte: datetime | None = None,
+    publish_lte: datetime | None = None,
 ) -> list[IngestionRecord]:
     """Fetch recent rows from the Supabase news table, newest first.
 
     Uses ``SUPABASE_URL`` and ``SUPABASE_SERVICE_ROLE_KEY`` (or ``SUPABASE_ANON_KEY``)
     when arguments are omitted.
+
+    When ``publish_gte`` / ``publish_lte`` are set, the query is narrowed in PostgREST
+    (not only in Python), so ranges in the past still return matching rows.
     """
     svc = _news_service(supabase_url, supabase_key, table, timeout=timeout)
     if svc is None:
         logger.warning("Supabase fetch skipped: missing URL or API key in environment")
         return []
 
+    dup_filters: list[tuple[str, str]] = []
+    if publish_gte is not None:
+        dup_filters.append(("publish_at", f"gte.{_fmt_postgrest_dt(publish_gte)}"))
+    if publish_lte is not None:
+        dup_filters.append(("publish_at", f"lte.{_fmt_postgrest_dt(publish_lte)}"))
+
+    # Broader slice when narrowing by calendar window so symbol text-filter still fills ``limit``.
+    db_limit = limit
+    if publish_gte is not None or publish_lte is not None:
+        db_limit = min(1000, max(limit, 500))
+
     rows = await svc.select_rows(
         order="publish_at.desc",
-        limit=limit,
+        limit=db_limit,
+        columns=_NEWS_LITE_COLUMNS if lite else "*",
+        extra_duplicate_params=dup_filters or None,
     )
 
     records: list[IngestionRecord] = []

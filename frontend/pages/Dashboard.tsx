@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { CoinData, ForecastResult, HistoryPoint, NewsArticle } from '../types';
 import LightweightChart from '../components/LightweightChart';
 
@@ -43,15 +43,22 @@ const getRangeParams = (range: string) => {
 type SortKey = 'price' | 'change' | 'percent';
 type SortDirection = 'asc' | 'desc';
 
-
 const Dashboard: React.FC = () => {
     const [coins, setCoins] = useState<CoinData[]>([]);
     const [selectedCoinSymbol, setSelectedCoinSymbol] = useState<string>(() => {
         return localStorage.getItem('marketlens_selected_coin') || 'BTC';
     });
+    const lastContextNewsFetchKeyRef = useRef<string>('');
 
     useEffect(() => {
         localStorage.setItem('marketlens_selected_coin', selectedCoinSymbol);
+    }, [selectedCoinSymbol]);
+
+    /** New coin ⇒ drop manual range before paint so news fetch never uses the previous coin's range. */
+    useLayoutEffect(() => {
+        setChartVisibleRange(null);
+        setHasActiveRange(false);
+        lastContextNewsFetchKeyRef.current = '';
     }, [selectedCoinSymbol]);
     const [forecastResult, setForecastResult] = useState<ForecastResult | null>(null);
     const [loadingForecast, setLoadingForecast] = useState(false);
@@ -429,31 +436,63 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    // Fetch news when chart range or selected coin changes
+    // Headlines for the selected coin; when a chart time range is active, filter to [start, end] (ISO UTC).
     useEffect(() => {
-        const fetchContextNews = async () => {
-            if (!chartVisibleRange) return;
+        if (!selectedCoin?.symbol) {
+            return;
+        }
 
+        const useRangeFilter = Boolean(hasActiveRange && chartVisibleRange);
+        const startIso =
+            useRangeFilter && chartVisibleRange
+                ? new Date(chartVisibleRange.from * 1000).toISOString()
+                : undefined;
+        const endIso =
+            useRangeFilter && chartVisibleRange
+                ? new Date(chartVisibleRange.to * 1000).toISOString()
+                : undefined;
+
+        const fetchKey =
+            `${selectedCoin.symbol}:` +
+            (useRangeFilter && chartVisibleRange
+                ? `${chartVisibleRange.from}-${chartVisibleRange.to}`
+                : 'all');
+        if (fetchKey === lastContextNewsFetchKeyRef.current) {
+            return;
+        }
+
+        let cancelled = false;
+
+        const fetchContextNews = async () => {
             setLoadingNews(true);
             try {
-                // Convert unix timestamp to ISO string
-                const startIso = new Date(chartVisibleRange.from * 1000).toISOString();
-                const endIso = new Date(chartVisibleRange.to * 1000).toISOString();
-
-                // Fetch news filtered by date AND selected coin tag
                 const articles = await fetchLatestNews(startIso, endIso, selectedCoin.symbol);
-                setContextNews(articles);
+                if (!cancelled) {
+                    setContextNews(articles.slice(0, 30));
+                    lastContextNewsFetchKeyRef.current = fetchKey;
+                }
             } catch (err) {
-                console.error("Failed to fetch context news", err);
+                if (!cancelled) {
+                    console.error("Failed to fetch context news", err);
+                    setContextNews([]);
+                    lastContextNewsFetchKeyRef.current = fetchKey;
+                }
             } finally {
-                setLoadingNews(false);
+                if (!cancelled) {
+                    setLoadingNews(false);
+                }
             }
         };
 
-        // Debounce slightly to avoid too many requests during drag
-        const timeoutId = setTimeout(fetchContextNews, 500);
-        return () => clearTimeout(timeoutId);
-    }, [chartVisibleRange, selectedCoin?.symbol]);
+        const timeoutId = setTimeout(() => {
+            void fetchContextNews();
+        }, 120);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timeoutId);
+        };
+    }, [selectedCoin?.symbol, hasActiveRange, chartVisibleRange?.from, chartVisibleRange?.to]);
 
     const processedCoins = useMemo(() => {
         let result = [...coins];
@@ -1041,14 +1080,17 @@ const Dashboard: React.FC = () => {
 
                             {/* TOP: News Context (50%) */}
                             <div className="flex-1 flex flex-col border-b border-slate-200 dark:border-slate-800 min-h-0 overflow-hidden">
-                                <div className="p-3 bg-slate-50 dark:bg-slate-950/50 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center flex-none">
-                                    <h4 className="font-bold text-xs text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                <div className="p-3 bg-slate-50 dark:bg-slate-950/50 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center flex-none gap-2">
+                                    <h4 className="font-bold text-xs text-slate-700 dark:text-slate-300 flex items-center gap-1.5 shrink-0">
                                         <Globe size={14} className="text-blue-500" />
                                         Contextual News
                                     </h4>
-                                    {hasActiveRange && (
-                                        <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-full">
-                                            Filtered by Range
+                                    {hasActiveRange && chartVisibleRange && (
+                                        <span
+                                            className="text-[10px] font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-full whitespace-nowrap"
+                                            title={`${new Date(chartVisibleRange.from * 1000).toISOString()} – ${new Date(chartVisibleRange.to * 1000).toISOString()}`}
+                                        >
+                                            Range filter on
                                         </span>
                                     )}
                                 </div>
@@ -1093,7 +1135,11 @@ const Dashboard: React.FC = () => {
                                     ) : (
                                         <div className="flex flex-col items-center justify-center h-full text-slate-400 py-8">
                                             <Globe size={24} className="mb-2 opacity-20" />
-                                            <p className="text-xs text-center">No news related to {selectedCoin.symbol} in this range.</p>
+                                            <p className="text-xs text-center">
+                                                {hasActiveRange && chartVisibleRange
+                                                    ? `No news related to ${selectedCoin.symbol} in the selected time range.`
+                                                    : `No recent news related to ${selectedCoin.symbol}.`}
+                                            </p>
                                         </div>
                                     )}
                                 </div>
