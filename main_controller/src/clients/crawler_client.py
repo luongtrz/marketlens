@@ -28,6 +28,6 @@ class CrawlerClient:
             return False
         return await check_supabase_rest_reachable()
 
-    async def get_latest(self, symbol: str) -> list[IngestionRecord]:
+    async def get_latest(self, symbol: str, *, limit: int = 50) -> list[IngestionRecord]:
         """Get the latest news rows, optionally filtered by ``symbol`` (e.g. BTCUSDT)."""
-        return await fetch_news_articles_from_supabase(limit=50, symbol=symbol)
+        return await fetch_news_articles_from_supabase(limit=limit, symbol=symbol)
