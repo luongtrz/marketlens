@@ -95,19 +95,19 @@ async def health() -> dict:
 async def run(
     symbol: str,
     trigger: str = "manual",
-    date: date | None = Query(default=None, description="Historical date (YYYY-MM-DD). Omit for live mode."),
+    as_of_date: date | None = Query(default=None, alias="date", description="Historical date (YYYY-MM-DD). Omit for live mode."),
 ) -> dict:
     run_id = str(uuid4())
     state = RunState(run_id=run_id, symbol=symbol, started_at=datetime.now(timezone.utc))
     app.state.run_states[run_id] = state
 
     task = asyncio.create_task(
-        _execute_run(run_id, symbol, app.state.pipeline, app.state.run_states, as_of_date=date)
+        _execute_run(run_id, symbol, app.state.pipeline, app.state.run_states, as_of_date=as_of_date)
     )
     app.state.background_tasks.add(task)
     task.add_done_callback(app.state.background_tasks.discard)
 
-    return {"run_id": run_id, "status": "pending", "as_of_date": str(date) if date else None}
+    return {"run_id": run_id, "status": "pending", "as_of_date": str(as_of_date) if as_of_date else None}
 
 
 @app.get("/status/{run_id}")
