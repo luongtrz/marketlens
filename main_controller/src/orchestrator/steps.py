@@ -70,7 +70,7 @@ async def step_collect(ctx: PipelineContext, clients: ModuleClients) -> None:
             publish_lte=cutoff,  # articles published before target date only
         )
         history_task = clients.market.get_history(
-            ctx.symbol, interval="1d", limit=5, end_time=str(end_ts)
+            ctx.symbol, interval="1d", limit=50, end_time=str(end_ts)
         )
         results = await asyncio.gather(articles_task, history_task, return_exceptions=True)
 
@@ -88,12 +88,19 @@ async def step_collect(ctx: PipelineContext, clients: ModuleClients) -> None:
         )
         if match is None:
             raise PipelineError(f"No OHLCV candle found for {target}")
+
+        try:
+            indicators = await clients.market.get_indicators(candles)
+        except Exception as exc:
+            logger.warning("Failed to compute historical indicators: %s", exc)
+            indicators = {}
+
         ctx.market_snapshot = MarketSnapshot(
             symbol=ctx.symbol,
             timestamp=match.timestamp,
             ohlcv=match,
-            recent_candles=candles,
-            indicators={},
+            recent_candles=candles[-5:],
+            indicators=indicators,
             source="binance",
         )
     else:

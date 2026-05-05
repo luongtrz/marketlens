@@ -33,6 +33,12 @@ class RecordSearcher:
     def _cosine(a: np.ndarray, b: np.ndarray) -> float:
         if a.shape[0] != b.shape[0]:
             return 0.0
+        norm_a = float(np.linalg.norm(a))
+        norm_b = float(np.linalg.norm(b))
+        if norm_a <= 1e-12 and norm_b <= 1e-12:
+            return 1.0  # both zero vectors → identical
+        if norm_a <= 1e-12 or norm_b <= 1e-12:
+            return 0.0
         return float(np.dot(a, b))
 
     def _weighted_score(self, query: SplitEmbedding, candidate: SplitEmbedding) -> float:

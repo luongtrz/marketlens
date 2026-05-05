@@ -28,3 +28,16 @@ class MarketClient(BaseHTTPClient):
             params["end_time"] = end_time
         body = await self._get("/history", **params)
         return [OHLCV.model_validate(c) for c in body]  # type: ignore[union-attr]
+
+    async def get_indicators(
+        self, candles: list[OHLCV], indicator_names: list[str] | None = None
+    ) -> dict:
+        names = indicator_names or ["rsi", "macd", "bb"]
+        body = await self._post(
+            "/indicators",
+            json_body={
+                "ohlcv": [c.model_dump(mode="json") for c in candles],
+                "indicator_names": names,
+            },
+        )
+        return body if isinstance(body, dict) else {}
