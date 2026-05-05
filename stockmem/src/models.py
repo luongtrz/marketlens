@@ -70,6 +70,7 @@ class StockMemRecord(BaseModel):
     sentiment_score: float
     sentiment_label: str = "neutral"
     factors: list[str]
+    normalized_factors: list[Any] = Field(default_factory=list)
     market_snapshot: MarketSnapshot
     summary: Optional[str] = None
     article_ids: list[str] = Field(default_factory=list)
