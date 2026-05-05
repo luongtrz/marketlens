@@ -1,7 +1,11 @@
 """SKGP (Structured Knowledge-Guided Parsing) — LLM-based factor extraction."""
 
+import logging
+
 from shared.models.factor import Factor, FactorType
 from aihub.src.llm.base import LLMClient
+
+logger = logging.getLogger(__name__)
 
 K_FACTORS = 5
 
@@ -63,16 +67,22 @@ class SKGPExtractor:
         )
         try:
             data = await self._llm.generate_json(prompt, system=_SYSTEM)
-            factors_raw = data.get("factors", [])
-            return [
-                Factor(
+        except Exception as exc:
+            logger.warning("SKGP LLM call failed: %s", exc)
+            return []
+
+        factors_raw = data.get("factors", [])
+        results: list[Factor] = []
+        for f in factors_raw:
+            try:
+                # Normalise type: "on-chain" → "on_chain", uppercase → lower
+                raw_type = str(f.get("type", "macro")).lower().replace("-", "_").replace(" ", "_")
+                results.append(Factor(
                     name=f["factor"],
-                    type=FactorType(f["type"]),
+                    type=FactorType(raw_type),
                     polarity=float(f["polarity"]),
                     confidence=float(f["confidence"]) / 100.0,
-                )
-                for f in factors_raw
-            ]
-        except Exception:
-            # LLM errors, malformed JSON, or invalid FactorType — degrade to no factors.
-            return []
+                ))
+            except Exception as exc:
+                logger.debug("Skipping malformed factor %s: %s", f, exc)
+        return results
