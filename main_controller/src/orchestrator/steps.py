@@ -61,9 +61,9 @@ async def step_collect(ctx: PipelineContext, clients: ModuleClients) -> None:
     """
     if ctx.as_of_date is not None:
         target = ctx.as_of_date
-        # Cut-off = midnight before target date — strictly no look-ahead
+        # Cut-off = 1ms before midnight of target date so Binance excludes that day's candle
         cutoff = datetime(target.year, target.month, target.day, tzinfo=timezone.utc)
-        end_ts = int(cutoff.timestamp() * 1000)
+        end_ts = int(cutoff.timestamp() * 1000) - 1
 
         articles_task = clients.crawler.get_latest(
             ctx.symbol,
@@ -191,7 +191,11 @@ async def step_stockmem(
 
     try:
         ctx.current_record_id = await clients.stockmem.save(current_record)
-        ctx.similar_records = await clients.stockmem.search(query=current_record, k=k_similar)
+        results = await clients.stockmem.search(query=current_record, k=k_similar + 1)
+        # Exclude the record we just saved so it doesn't appear as its own similar case
+        ctx.similar_records = [
+            r for r in results if r.record.id != ctx.current_record_id
+        ][:k_similar]
     except Exception as exc:
         raise PipelineError(f"StockMem failed: {exc}") from exc
 
