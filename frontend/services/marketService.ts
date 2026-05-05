@@ -13,11 +13,15 @@ import { CoinData, HistoryPoint } from '../types';
 // --- Configuration ---
 
 const MARKET_BASE_URL =
-    import.meta.env.VITE_MARKET_DATA_URL || 'http://localhost:8002';
+    import.meta.env.VITE_MARKET_DATA_URL || '/market';
 
-// WebSocket URL: replace http(s) with ws(s)
+// WebSocket URL — handle both absolute URLs and same-origin paths
 function getWsUrl(): string {
-    return MARKET_BASE_URL.replace(/^http/, 'ws') + '/ws';
+    if (MARKET_BASE_URL.startsWith('http')) {
+        return MARKET_BASE_URL.replace(/^http/, 'ws') + '/ws';
+    }
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    return `${proto}://${window.location.host}${MARKET_BASE_URL}/ws`;
 }
 
 // --- REST API ---
