@@ -61,14 +61,13 @@ async def step_collect(ctx: PipelineContext, clients: ModuleClients) -> None:
     """
     if ctx.as_of_date is not None:
         target = ctx.as_of_date
-        day_start = datetime(target.year, target.month, target.day, tzinfo=timezone.utc)
-        day_end = day_start + timedelta(days=1)
-        end_ts = int(day_end.timestamp() * 1000)
+        # Cut-off = midnight before target date — strictly no look-ahead
+        cutoff = datetime(target.year, target.month, target.day, tzinfo=timezone.utc)
+        end_ts = int(cutoff.timestamp() * 1000)
 
         articles_task = clients.crawler.get_latest(
             ctx.symbol,
-            publish_gte=day_start,
-            publish_lte=day_end,
+            publish_lte=cutoff,  # articles published before target date only
         )
         history_task = clients.market.get_history(
             ctx.symbol, interval="1d", limit=5, end_time=str(end_ts)
