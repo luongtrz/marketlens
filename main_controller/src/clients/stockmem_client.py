@@ -26,3 +26,24 @@ class StockMemClient(BaseHTTPClient):
             {"query": query.model_dump(mode="json"), "k": k},
         )
         return [SimilarRecord.model_validate(r) for r in body["results"]]  # type: ignore[index]
+
+    async def list_missing_returns(self, symbol: str | None = None) -> list[StockMemRecord]:
+        params = {"symbol": symbol} if symbol else {}
+        body = await self._get("/records/missing-returns", **params)
+        return [StockMemRecord.model_validate(r) for r in body]  # type: ignore[union-attr]
+
+    async def update_future_returns(
+        self,
+        record_id: str,
+        future_return_1d: float | None = None,
+        future_return_7d: float | None = None,
+        future_return_30d: float | None = None,
+    ) -> None:
+        await self._patch(
+            f"/record/{record_id}/returns",
+            {k: v for k, v in {
+                "future_return_1d": future_return_1d,
+                "future_return_7d": future_return_7d,
+                "future_return_30d": future_return_30d,
+            }.items() if v is not None},
+        )

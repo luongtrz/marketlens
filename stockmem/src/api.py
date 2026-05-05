@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel
 
 from .config import settings
 from .models import (
@@ -14,6 +17,12 @@ from .models import (
     StockMemRecord,
 )
 from .service import StockMemService
+
+
+class UpdateReturnsRequest(BaseModel):
+    future_return_1d: Optional[float] = None
+    future_return_7d: Optional[float] = None
+    future_return_30d: Optional[float] = None
 
 
 service = StockMemService(
@@ -54,6 +63,24 @@ async def search(payload: SearchRequest) -> SearchResponse:
     k = max(1, payload.k)
     results = await service.search(payload.query, k=k)
     return SearchResponse(results=results)
+
+
+@app.get("/records/missing-returns", response_model=list[StockMemRecord])
+async def missing_returns(symbol: str | None = Query(default=None)) -> list[StockMemRecord]:
+    return await service.list_missing_returns(symbol)
+
+
+@app.patch("/record/{record_id}/returns")
+async def update_returns(record_id: str, payload: UpdateReturnsRequest) -> dict:
+    ok = await service.update_future_returns(
+        record_id,
+        future_return_1d=payload.future_return_1d,
+        future_return_7d=payload.future_return_7d,
+        future_return_30d=payload.future_return_30d,
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="record not found")
+    return {"updated": record_id}
 
 
 @app.get("/health", response_model=HealthResponse)

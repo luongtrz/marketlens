@@ -110,3 +110,51 @@ class PGRepository:
         async with pool.acquire() as conn:
             rows = await conn.fetch("SELECT payload FROM stockmem_records")
         return [StockMemRecord.model_validate(json.loads(r["payload"])) for r in rows]
+
+    async def list_missing_returns(self, symbol: str | None = None) -> list[StockMemRecord]:
+        """Return records that still have null future_return_1d."""
+        pool = self._require_pool()
+        async with pool.acquire() as conn:
+            if symbol:
+                rows = await conn.fetch(
+                    "SELECT payload FROM stockmem_records WHERE symbol = $1"
+                    " AND (payload::json->>'future_return_1d') IS NULL"
+                    " ORDER BY record_date",
+                    symbol.upper(),
+                )
+            else:
+                rows = await conn.fetch(
+                    "SELECT payload FROM stockmem_records"
+                    " WHERE (payload::json->>'future_return_1d') IS NULL"
+                    " ORDER BY record_date"
+                )
+        return [StockMemRecord.model_validate(json.loads(r["payload"])) for r in rows]
+
+    async def update_future_returns(
+        self,
+        record_id: str,
+        future_return_1d: float | None = None,
+        future_return_7d: float | None = None,
+        future_return_30d: float | None = None,
+    ) -> bool:
+        """Patch future_return fields into the stored JSON payload. Returns True if found."""
+        pool = self._require_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT payload FROM stockmem_records WHERE id = $1", record_id
+            )
+            if row is None:
+                return False
+            payload = json.loads(row["payload"])
+            if future_return_1d is not None:
+                payload["future_return_1d"] = future_return_1d
+            if future_return_7d is not None:
+                payload["future_return_7d"] = future_return_7d
+            if future_return_30d is not None:
+                payload["future_return_30d"] = future_return_30d
+            await conn.execute(
+                "UPDATE stockmem_records SET payload = $1 WHERE id = $2",
+                json.dumps(payload, ensure_ascii=True),
+                record_id,
+            )
+        return True

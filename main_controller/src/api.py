@@ -308,3 +308,75 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
         "skipped_no_ohlcv": skipped,
         "errors": errors[:10],
     }
+
+
+@app.post("/fill-returns")
+async def fill_returns(symbol: str) -> dict:
+    """Backfill future_return_1d/7d/30d for StockMem records that are missing them.
+
+    Fetches close price from Binance for D+1, D+7, D+30 relative to each record's
+    date, then computes % change vs the record's own close price.
+    Only processes records where future_return_1d IS NULL.
+    """
+    clients: ModuleClients = app.state.clients
+    today = date.today()
+
+    records = await clients.stockmem.list_missing_returns(symbol=symbol)
+    updated = 0
+    skipped = 0
+    errors: list[str] = []
+
+    for record in records:
+        record_date = record.date
+        base_close = record.market_snapshot.ohlcv.close if record.market_snapshot else None
+        if base_close is None or base_close == 0:
+            skipped += 1
+            continue
+
+        r1d = r7d = r30d = None
+
+        for offset_days, attr in [(1, "r1d"), (7, "r7d"), (30, "r30d")]:
+            target = record_date + timedelta(days=offset_days)
+            if target > today:
+                continue
+            try:
+                end_ts = int(
+                    (datetime(target.year, target.month, target.day, tzinfo=timezone.utc)
+                     + timedelta(days=1)).timestamp() * 1000
+                )
+                candles = await clients.market.get_history(
+                    symbol=symbol, interval="1d", limit=3, end_time=str(end_ts)
+                )
+                match = next(
+                    (c for c in reversed(candles) if c.timestamp.date() <= target), None
+                )
+                if match:
+                    pct = (match.close - base_close) / base_close * 100.0
+                    if attr == "r1d":
+                        r1d = round(pct, 4)
+                    elif attr == "r7d":
+                        r7d = round(pct, 4)
+                    else:
+                        r30d = round(pct, 4)
+            except Exception as exc:
+                errors.append(f"{record_date} D+{offset_days}: {exc}")
+
+        if r1d is None and r7d is None and r30d is None:
+            skipped += 1
+            continue
+
+        try:
+            await clients.stockmem.update_future_returns(
+                record.id, future_return_1d=r1d, future_return_7d=r7d, future_return_30d=r30d
+            )
+            updated += 1
+        except Exception as exc:
+            errors.append(f"{record_date}: update failed: {exc}")
+
+    return {
+        "symbol": symbol,
+        "records_found": len(records),
+        "updated": updated,
+        "skipped": skipped,
+        "errors": errors[:20],
+    }

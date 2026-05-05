@@ -79,3 +79,27 @@ class StockMemService:
 
     async def search(self, query: StockMemRecord, k: int = 5) -> list[SimilarRecord]:
         return self.searcher.search(query, k)
+
+    async def list_missing_returns(self, symbol: str | None = None) -> list[StockMemRecord]:
+        return await self.repository.list_missing_returns(symbol)
+
+    async def update_future_returns(
+        self,
+        record_id: str,
+        future_return_1d: float | None = None,
+        future_return_7d: float | None = None,
+        future_return_30d: float | None = None,
+    ) -> bool:
+        ok = await self.repository.update_future_returns(
+            record_id, future_return_1d, future_return_7d, future_return_30d
+        )
+        if ok and record_id in self.records_by_id:
+            rec = self.records_by_id[record_id]
+            self.records_by_id[record_id] = rec.model_copy(update={
+                k: v for k, v in {
+                    "future_return_1d": future_return_1d,
+                    "future_return_7d": future_return_7d,
+                    "future_return_30d": future_return_30d,
+                }.items() if v is not None
+            })
+        return ok

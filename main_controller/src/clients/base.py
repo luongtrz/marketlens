@@ -25,6 +25,9 @@ class BaseHTTPClient:
     async def _post(self, path: str, json_body: dict) -> dict | list:
         return await self._request("POST", path, json=json_body)
 
+    async def _patch(self, path: str, json_body: dict) -> dict | list:
+        return await self._request("PATCH", path, json=json_body)
+
     async def _request(self, method: str, path: str, **kwargs) -> dict | list:
         url = f"{self._base_url}{path}"
         try:
