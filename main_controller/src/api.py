@@ -202,17 +202,19 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
     end_date = today - timedelta(days=offset)
     start_date = end_date - timedelta(days=days)
 
-    # Fetch OHLCV for this specific window
+    # Fetch OHLCV with 20 extra days so each record can include recent_candles
+    CANDLE_CONTEXT = 22  # 20 preceding candles + buffer
     ohlcv_by_date: dict[date, object] = {}
+    all_candles: list = []
     try:
         end_ts = int((datetime(end_date.year, end_date.month, end_date.day, tzinfo=timezone.utc)
                       + timedelta(days=1)).timestamp() * 1000)
-        candles = await clients.market.get_history(
+        all_candles = await clients.market.get_history(
             symbol=symbol, interval="1d",
-            limit=days + 5,
+            limit=days + CANDLE_CONTEXT,
             end_time=str(end_ts),
         )
-        for c in candles:
+        for c in all_candles:
             ohlcv_by_date[c.timestamp.date()] = c
     except Exception as exc:
         logger.warning("backfill: market history failed: %s", exc)
@@ -258,12 +260,15 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
         else:
             label = "neutral"
 
+        # Build a 20-candle context window ending on (not including) target_date
+        preceding = [c for c in all_candles if c.timestamp.date() < target_date][-20:]
+
         day_start = datetime(target_date.year, target_date.month, target_date.day, tzinfo=timezone.utc)
         snapshot = MarketSnapshot(
             symbol=symbol,
             timestamp=day_start,
             ohlcv=ohlcv,
-            recent_candles=[],
+            recent_candles=preceding,
             indicators={},
             source="binance",
         )
