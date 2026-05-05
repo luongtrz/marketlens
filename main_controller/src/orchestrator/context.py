@@ -1,7 +1,7 @@
 """PipelineContext dataclass — accumulates state across pipeline steps."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from uuid import UUID
 
 from shared.models.article import IngestionRecord
@@ -17,6 +17,7 @@ class PipelineContext:
 
     symbol: str
     run_id: UUID
+    as_of_date: date | None = None  # None = today (live mode), set = historical backtest
     latest_articles: list[IngestionRecord] = field(default_factory=list)
     market_snapshot: MarketSnapshot | None = None
     sentiment_score: float | None = None

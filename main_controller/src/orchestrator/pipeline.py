@@ -9,6 +9,7 @@ POST /run?symbol=BTCUSDT
 """
 
 import logging
+from datetime import date
 from uuid import UUID, uuid4
 
 from shared.models.prediction import PredictionResult, SignalType
@@ -46,7 +47,7 @@ class Pipeline:
         self._clients = clients
         self._config = config or PipelineConfig()
 
-    async def run(self, symbol: str, run_id: UUID | None = None) -> PredictionResult:
+    async def run(self, symbol: str, run_id: UUID | None = None, as_of_date: date | None = None) -> PredictionResult:
         """Execute the full pipeline for a given symbol.
 
         Args:
@@ -56,7 +57,7 @@ class Pipeline:
         Returns:
             Complete PredictionResult — always returns, never raises.
         """
-        ctx = PipelineContext(symbol=symbol, run_id=run_id or uuid4())
+        ctx = PipelineContext(symbol=symbol, run_id=run_id or uuid4(), as_of_date=as_of_date)
 
         try:
             await step_collect(ctx, self._clients)

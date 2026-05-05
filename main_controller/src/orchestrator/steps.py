@@ -9,11 +9,12 @@ Data-flow summary:
 
 import asyncio
 import logging
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from urllib.parse import urlparse
 
 from main_controller.src.orchestrator.context import PipelineContext
 from main_controller.src.orchestrator.exceptions import PipelineError
+from shared.models.market import MarketSnapshot
 from shared.models.memory import StockMemRecord
 
 
@@ -52,20 +53,63 @@ class ModuleClients:
 
 
 async def step_collect(ctx: PipelineContext, clients: ModuleClients) -> None:
-    """STEP 1: Collect articles and market snapshot in parallel — both REQUIRED."""
-    results = await asyncio.gather(
-        clients.crawler.get_latest(ctx.symbol),
-        clients.market.get_snapshot(ctx.symbol),
-        return_exceptions=True,
-    )
+    """STEP 1: Collect articles and market snapshot in parallel — both REQUIRED.
 
-    if isinstance(results[0], Exception):
-        raise PipelineError(f"Crawler failed: {results[0]}")
-    ctx.latest_articles = results[0]
+    In historical mode (ctx.as_of_date set), fetches only data available on that
+    date — no look-ahead. Articles are filtered to that day; OHLCV is fetched via
+    /history with end_time so future candles are excluded.
+    """
+    if ctx.as_of_date is not None:
+        target = ctx.as_of_date
+        day_start = datetime(target.year, target.month, target.day, tzinfo=timezone.utc)
+        day_end = day_start + timedelta(days=1)
+        end_ts = int(day_end.timestamp() * 1000)
 
-    if isinstance(results[1], Exception):
-        raise PipelineError(f"MarketData failed: {results[1]}")
-    ctx.market_snapshot = results[1]
+        articles_task = clients.crawler.get_latest(
+            ctx.symbol,
+            publish_gte=day_start,
+            publish_lte=day_end,
+        )
+        history_task = clients.market.get_history(
+            ctx.symbol, interval="1d", limit=5, end_time=str(end_ts)
+        )
+        results = await asyncio.gather(articles_task, history_task, return_exceptions=True)
+
+        if isinstance(results[0], Exception):
+            raise PipelineError(f"Crawler failed: {results[0]}")
+        ctx.latest_articles = results[0]
+
+        if isinstance(results[1], Exception):
+            raise PipelineError(f"MarketData history failed: {results[1]}")
+        candles = results[1]
+        # Pick the candle whose date matches target_date (last one ≤ target)
+        match = next(
+            (c for c in reversed(candles) if c.timestamp.date() <= target),
+            candles[-1] if candles else None,
+        )
+        if match is None:
+            raise PipelineError(f"No OHLCV candle found for {target}")
+        ctx.market_snapshot = MarketSnapshot(
+            symbol=ctx.symbol,
+            timestamp=match.timestamp,
+            ohlcv=match,
+            recent_candles=candles,
+            indicators={},
+            source="binance",
+        )
+    else:
+        results = await asyncio.gather(
+            clients.crawler.get_latest(ctx.symbol),
+            clients.market.get_snapshot(ctx.symbol),
+            return_exceptions=True,
+        )
+        if isinstance(results[0], Exception):
+            raise PipelineError(f"Crawler failed: {results[0]}")
+        ctx.latest_articles = results[0]
+
+        if isinstance(results[1], Exception):
+            raise PipelineError(f"MarketData failed: {results[1]}")
+        ctx.market_snapshot = results[1]
 
 
 async def step_ai_score(ctx: PipelineContext, clients: ModuleClients) -> None:
@@ -132,7 +176,7 @@ async def step_stockmem(
         raise PipelineError("market_snapshot is None — cannot build StockMem record")
 
     current_record = StockMemRecord(
-        date=date.today(),
+        date=ctx.as_of_date or date.today(),
         symbol=ctx.symbol,
         sentiment_score=ctx.sentiment_score or 0.0,
         sentiment_label=ctx.sentiment_label or "neutral",
