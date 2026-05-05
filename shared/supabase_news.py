@@ -64,6 +64,13 @@ def supabase_row_to_ingestion(row: dict[str, Any]) -> IngestionRecord:
     pub = _parse_dt(row.get("publish_at") or datetime.now(timezone.utc).isoformat())
     crawled_raw = row.get("crawled_at")
     crawled = _parse_dt(crawled_raw) if crawled_raw is not None else pub
+    score = float(row.get("sentiment_score") or 0.0)
+    if score > 0.15:
+        label = "bullish"
+    elif score < -0.15:
+        label = "bearish"
+    else:
+        label = "neutral"
     return IngestionRecord(
         id=rid,
         article_name=header[:500],
@@ -71,9 +78,9 @@ def supabase_row_to_ingestion(row: dict[str, Any]) -> IngestionRecord:
         url=source_url or "#",
         date_published=pub,
         date_crawled=crawled,
-        summary=(content[:2000] if content else None),
-        sentiment_score=0.0,
-        sentiment_label="neutral",
+        summary=(row.get("summary") or content[:2000] if content else None),
+        sentiment_score=score,
+        sentiment_label=label,
         factors=[],
         raw_text=content or None,
         metadata={},

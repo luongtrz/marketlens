@@ -69,27 +69,28 @@ async def step_collect(ctx: PipelineContext, clients: ModuleClients) -> None:
 
 
 async def step_ai_score(ctx: PipelineContext, clients: ModuleClients) -> None:
-    """STEP 2: Call AIHub /sentiment and /factors, attach results to ctx."""
-    # Use article headlines as primary signal — raw_text from DB often contains
-    # website boilerplate rather than actual article body text.
+    """STEP 2: Derive sentiment from pre-scored articles, call AIHub /factors."""
+    # Sentiment comes directly from Supabase-scored articles — no extra LLM call needed.
+    scored = [a.sentiment_score for a in ctx.latest_articles if a.sentiment_score != 0.0]
+    avg_score = sum(scored) / len(scored) if scored else 0.0
+    ctx.sentiment_score = max(-1.0, min(1.0, avg_score))
+    if ctx.sentiment_score > 0.15:
+        ctx.sentiment_label = "bullish"
+    elif ctx.sentiment_score < -0.15:
+        ctx.sentiment_label = "bearish"
+    else:
+        ctx.sentiment_label = "neutral"
+    logger.info("Sentiment from %d articles: score=%.3f label=%s", len(scored), ctx.sentiment_score, ctx.sentiment_label)
+
     combined_text = "\n".join(
         h for a in ctx.latest_articles if (h := _headline(a))
     )[:3500]
 
-    sentiment_result, factors_result = await asyncio.gather(
-        clients.aihub.sentiment(combined_text),
+    factors_result = await asyncio.gather(
         clients.aihub.factors(combined_text, ticker=ctx.symbol),
         return_exceptions=True,
     )
-
-    if isinstance(sentiment_result, Exception):
-        ctx.errors.append(f"AIHub sentiment failed: {sentiment_result}")
-        logger.warning("Sentiment degraded to 0.0: %s", sentiment_result)
-        ctx.sentiment_score = 0.0
-        ctx.sentiment_label = "neutral"
-    else:
-        ctx.sentiment_score = sentiment_result.get("score", 0.0)
-        ctx.sentiment_label = sentiment_result.get("label", "neutral")
+    factors_result = factors_result[0]
 
     raw_factors = []
     if isinstance(factors_result, Exception):

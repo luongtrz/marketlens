@@ -1,11 +1,11 @@
-"""MainController FastAPI application — /run, /status, /result endpoints."""
+"""MainController FastAPI application — /run, /status, /result, /backfill endpoints."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import AsyncIterator, Literal
 from uuid import UUID, uuid4
 
@@ -22,7 +22,10 @@ from main_controller.src.config import MainControllerConfig
 from main_controller.src.orchestrator.pipeline import Pipeline, PipelineConfig
 from main_controller.src.orchestrator.steps import ModuleClients
 from main_controller.src.ui_routes import router as ui_router
+from shared.models.market import MarketSnapshot
+from shared.models.memory import StockMemRecord
 from shared.models.prediction import PredictionResult
+from shared.supabase_news import fetch_news_articles_from_supabase
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +54,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.clients = clients
     app.state.run_states: dict[str, RunState] = {}
     app.state.background_tasks: set[asyncio.Task] = set()
+
+    cron_task = asyncio.create_task(
+        _daily_cron(
+            symbols=[s.strip() for s in config.cron_symbols.split(",") if s.strip()],
+            cron_hour=config.cron_hour,
+            cron_minute=config.cron_minute,
+            pipeline=app.state.pipeline,
+            run_states=app.state.run_states,
+        )
+    )
+    app.state.background_tasks.add(cron_task)
+    cron_task.add_done_callback(app.state.background_tasks.discard)
+
     yield
+
+    cron_task.cancel()
     if app.state.background_tasks:
         await asyncio.gather(*app.state.background_tasks, return_exceptions=True)
 
@@ -131,3 +149,157 @@ async def _execute_run(
         state.status = "failed"
     finally:
         state.finished_at = datetime.now(timezone.utc)
+
+
+async def _daily_cron(
+    symbols: list[str],
+    cron_hour: int,
+    pipeline: Pipeline,
+    run_states: dict[str, RunState],
+    cron_minute: int = 0,
+) -> None:
+    """Wake up daily at cron_hour:cron_minute UTC and run the pipeline for each symbol."""
+    logger.info("Daily cron started — symbols=%s time=%02d:%02d UTC", symbols, cron_hour, cron_minute)
+    while True:
+        now = datetime.now(timezone.utc)
+        next_run = now.replace(hour=cron_hour, minute=cron_minute, second=0, microsecond=0)
+        if next_run <= now:
+            next_run += timedelta(days=1)
+        wait_secs = (next_run - now).total_seconds()
+        logger.info("Cron: next run at %s (%.0fs)", next_run.isoformat(), wait_secs)
+        try:
+            await asyncio.sleep(wait_secs)
+        except asyncio.CancelledError:
+            break
+        for symbol in symbols:
+            run_id = str(uuid4())
+            run_states[run_id] = RunState(
+                run_id=run_id, symbol=symbol, started_at=datetime.now(timezone.utc)
+            )
+            logger.info("Cron: triggering pipeline run_id=%s symbol=%s", run_id, symbol)
+            try:
+                await _execute_run(run_id, symbol, pipeline, run_states)
+            except Exception as exc:
+                logger.exception("Cron run failed for %s: %s", symbol, exc)
+
+
+@app.post("/backfill")
+async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
+    """Populate StockMem with historical records from Supabase + market history.
+
+    Call repeatedly with increasing ``offset`` to page through history:
+      POST /backfill?symbol=BTC&days=30&offset=0
+      POST /backfill?symbol=BTC&days=30&offset=30
+      POST /backfill?symbol=BTC&days=30&offset=60  ...
+    """
+    clients: ModuleClients = app.state.clients
+    today = date.today()
+    end_date = today - timedelta(days=offset)
+    start_date = end_date - timedelta(days=days)
+
+    # Fetch OHLCV for this specific window
+    ohlcv_by_date: dict[date, object] = {}
+    try:
+        end_ts = int((datetime(end_date.year, end_date.month, end_date.day, tzinfo=timezone.utc)
+                      + timedelta(days=1)).timestamp() * 1000)
+        candles = await clients.market.get_history(
+            symbol=symbol, interval="1d",
+            limit=days + 5,
+            end_time=str(end_ts),
+        )
+        for c in candles:
+            ohlcv_by_date[c.timestamp.date()] = c
+    except Exception as exc:
+        logger.warning("backfill: market history failed: %s", exc)
+
+
+    # Fetch all articles for this window in one call, group by date in Python
+    day_start_all = datetime(start_date.year, start_date.month, start_date.day, tzinfo=timezone.utc)
+    day_end_all = datetime(end_date.year, end_date.month, end_date.day, tzinfo=timezone.utc)
+    try:
+        all_articles = await fetch_news_articles_from_supabase(
+            limit=days * 50,
+            symbol=symbol,
+            publish_gte=day_start_all,
+            publish_lte=day_end_all,
+        )
+    except Exception as exc:
+        return {"error": f"Supabase fetch failed: {exc}"}
+
+    # Group articles by date
+    from collections import defaultdict
+    articles_by_date: dict[date, list] = defaultdict(list)
+    for a in all_articles:
+        articles_by_date[a.date_published.date()].append(a)
+
+    logger.info("backfill: %d articles across %d dates", len(all_articles), len(articles_by_date))
+
+    saved = 0
+    skipped = 0
+    errors = []
+
+    for target_date, articles in sorted(articles_by_date.items()):
+        ohlcv = ohlcv_by_date.get(target_date)
+        if ohlcv is None:
+            skipped += 1
+            continue
+
+        scored = [a.sentiment_score for a in articles if a.sentiment_score != 0.0]
+        avg_score = sum(scored) / len(scored) if scored else 0.0
+        if avg_score > 0.15:
+            label = "bullish"
+        elif avg_score < -0.15:
+            label = "bearish"
+        else:
+            label = "neutral"
+
+        day_start = datetime(target_date.year, target_date.month, target_date.day, tzinfo=timezone.utc)
+        snapshot = MarketSnapshot(
+            symbol=symbol,
+            timestamp=day_start,
+            ohlcv=ohlcv,
+            recent_candles=[],
+            indicators={},
+            source="binance",
+        )
+
+        from urllib.parse import urlparse
+        summary_parts = []
+        for a in articles[:3]:
+            name = (a.article_name or "").strip()
+            if name.startswith("http"):
+                slug = urlparse(name).path.rstrip("/").rsplit("/", 1)[-1]
+                name = slug.replace("-", " ")
+            if name:
+                summary_parts.append(name[:120])
+
+        record = StockMemRecord(
+            date=target_date,
+            symbol=symbol,
+            sentiment_score=avg_score,
+            sentiment_label=label,
+            factors=[],
+            normalized_factors=[],
+            market_snapshot=snapshot,
+            indicator_vec=[],
+            summary=" ".join(summary_parts),
+            article_ids=[a.id for a in articles],
+        )
+
+        try:
+            await clients.stockmem.save(record)
+            saved += 1
+        except Exception as exc:
+            errors.append(f"{target_date}: stockmem save failed: {exc}")
+
+    return {
+        "symbol": symbol,
+        "days": days,
+        "offset": offset,
+        "window": f"{start_date} → {end_date}",
+        "articles_fetched": len(all_articles),
+        "dates_with_articles": len(articles_by_date),
+        "saved": saved,
+        "skipped_no_ohlcv": skipped,
+        "errors": errors[:10],
+    }

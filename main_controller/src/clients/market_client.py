@@ -21,7 +21,10 @@ class MarketClient(BaseHTTPClient):
         return MarketSnapshot.model_validate(body)
 
     async def get_history(
-        self, symbol: str, interval: str = "1d", limit: int = 200
+        self, symbol: str, interval: str = "1d", limit: int = 200, end_time: str | None = None
     ) -> list[OHLCV]:
-        body = await self._get("/history", symbol=symbol, interval=interval, limit=limit)
+        params: dict = dict(symbol=symbol, interval=interval, limit=limit)
+        if end_time:
+            params["end_time"] = end_time
+        body = await self._get("/history", **params)
         return [OHLCV.model_validate(c) for c in body]  # type: ignore[union-attr]

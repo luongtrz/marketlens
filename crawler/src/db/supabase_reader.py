@@ -59,6 +59,13 @@ def _to_record(row: dict) -> IngestionRecord:
     source_url = row.get("source_url") or ""
     source = urlparse(source_url).hostname or "unknown"
     now = datetime.now(timezone.utc)
+    score = float(row.get("sentiment_score") or 0.0)
+    if score > 0.15:
+        label = "bullish"
+    elif score < -0.15:
+        label = "bearish"
+    else:
+        label = "neutral"
     return IngestionRecord(
         id=str(row["id"]),
         article_name=row.get("header") or "",
@@ -66,9 +73,9 @@ def _to_record(row: dict) -> IngestionRecord:
         url=source_url,
         date_published=row.get("publish_at") or now,
         date_crawled=row.get("crawled_at") or now,
-        summary=None,
-        sentiment_score=0.0,
-        sentiment_label="neutral",
+        summary=row.get("summary"),
+        sentiment_score=score,
+        sentiment_label=label,
         factors=[],
         raw_text=row.get("content"),
         metadata={},

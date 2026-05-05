@@ -15,6 +15,12 @@ class MainControllerConfig(BaseAppConfig):
     factorledge_url: str = "http://localhost:8004"
     k_similar: int = 3
 
+    # Cron: comma-separated symbols to run daily, e.g. "BTC,ETH"
+    cron_symbols: str = "BTC"
+    # UTC hour to trigger daily run (0-23)
+    cron_hour: int = 23
+    cron_minute: int = 50
+
     model_config = SettingsConfigDict(
         env_prefix="MAIN_CONTROLLER_",
         env_file="main_controller/.env",
