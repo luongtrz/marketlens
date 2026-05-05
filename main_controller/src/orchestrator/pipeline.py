@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 class PipelineConfig:
     """Configuration for the pipeline orchestrator."""
 
-    def __init__(self, k_similar: int = 3) -> None:
+    def __init__(self, k_similar: int = 5) -> None:
         self.k_similar = k_similar
 
 
