@@ -82,6 +82,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!trimmedEmail || !password.trim()) {
       throw new Error('Email and password are required.');
     }
+    if (password.length < 8) {
+      throw new Error('Password must be at least 8 characters.');
+    }
     if (new TextEncoder().encode(password).length > 72) {
       throw new Error('Password must be 72 bytes or fewer.');
     }
@@ -93,6 +96,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !password.trim()) {
       throw new Error('Email and password are required.');
+    }
+    if (password.length < 8) {
+      throw new Error('Password must be at least 8 characters.');
     }
     if (new TextEncoder().encode(password).length > 72) {
       throw new Error('Password must be 72 bytes or fewer.');

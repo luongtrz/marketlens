@@ -66,7 +66,7 @@ def _infer_ui_tag(title: str, snippet: str) -> str:
     return "General"
 
 
-def _ingestion_to_news_article(record: IngestionRecord, impact: int = 0) -> dict[str, Any]:
+def _ingestion_to_news_article(record: IngestionRecord, sentiment_score: int = 0) -> dict[str, Any]:
     label_raw = (record.sentiment_label or "").lower()
     sentiment: str
     if "bull" in label_raw:
@@ -91,7 +91,7 @@ def _ingestion_to_news_article(record: IngestionRecord, impact: int = 0) -> dict
         "url": record.url,
         "sentiment": sentiment,
         "summary": record.summary,
-        "impactScore": impact,
+        "sentimentScore": sentiment_score,
         "tag": ui_tag,
     }
 
@@ -233,9 +233,9 @@ async def api_latest_news(
             continue
         if end_dt and ts > end_dt:
             continue
-        impact = int(round((rec.sentiment_score + 1) * 50)) if hasattr(rec, "sentiment_score") else 50
-        impact = max(0, min(100, impact))
-        out.append(_ingestion_to_news_article(rec, impact=impact))
+        score = int(round((rec.sentiment_score + 1) * 50)) if hasattr(rec, "sentiment_score") else 50
+        score = max(0, min(100, score))
+        out.append(_ingestion_to_news_article(rec, sentiment_score=score))
 
     out.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
     return out
@@ -250,7 +250,7 @@ async def api_analyze_article(request: Request, body: AnalyzeArticlePayload) -> 
         return {
             "sentiment": "Neutral",
             "summary": "No text supplied.",
-            "impactScore": 0,
+            "sentimentScore": 0,
         }
     try:
         res = await clients.aihub.sentiment(blob)
@@ -261,7 +261,7 @@ async def api_analyze_article(request: Request, body: AnalyzeArticlePayload) -> 
         return {
             "sentiment": "Neutral",
             "summary": f"Sentiment unavailable: {exc}"[:280],
-            "impactScore": 0,
+            "sentimentScore": 0,
         }
 
     if score > 0.15:
@@ -271,9 +271,9 @@ async def api_analyze_article(request: Request, body: AnalyzeArticlePayload) -> 
     else:
         sent = "Neutral"
     summary = blob[:280] + ("…" if len(blob) > 280 else "")
-    impact = int(round((score + 1) * 50))
-    impact = max(0, min(100, impact))
-    return {"sentiment": sent, "summary": summary, "impactScore": impact}
+    sentiment_score = int(round((score + 1) * 50))
+    sentiment_score = max(0, min(100, sentiment_score))
+    return {"sentiment": sent, "summary": summary, "sentimentScore": sentiment_score}
 
 
 @router.post("/ai/forecast")

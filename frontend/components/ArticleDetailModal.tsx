@@ -149,12 +149,12 @@ const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article, onClos
                                 {/* Stats Row */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                        <span className="text-xs text-slate-500 uppercase">Market Impact</span>
+                                        <span className="text-xs text-slate-500 uppercase">Sentiment Score</span>
                                         <div className="flex items-center gap-2 mt-1">
                                             <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
-                                                <div className="h-full bg-orange-500" style={{ width: `${enrichedArticle.impactScore || 0}%` }}></div>
+                                                <div className="h-full bg-emerald-500" style={{ width: `${enrichedArticle.sentimentScore || 0}%` }}></div>
                                             </div>
-                                            <span className="font-bold text-slate-900">{enrichedArticle.impactScore}/100</span>
+                                            <span className="font-bold text-slate-900">{enrichedArticle.sentimentScore}/100</span>
                                         </div>
                                     </div>
                                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">

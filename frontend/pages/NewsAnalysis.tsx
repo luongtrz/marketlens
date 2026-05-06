@@ -99,6 +99,9 @@ const NewsAnalysis: React.FC = () => {
         return true;
       })
       .sort((a, b) => {
+        if (sortBy === 'SentimentScore') {
+          return (b.sentimentScore || 0) - (a.sentimentScore || 0);
+        }
         // Latest: descending by ISO timestamp string (API sends newest-first; keep stable after filter)
         if (sortBy === 'Latest') {
           return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
@@ -200,6 +203,7 @@ const NewsAnalysis: React.FC = () => {
                 className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
               >
                 <option value="Latest">Sort: Latest</option>
+                <option value="SentimentScore">Sort: Sentiment Score</option>
               </select>
             </div>
 

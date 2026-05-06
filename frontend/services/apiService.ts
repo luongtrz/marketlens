@@ -45,7 +45,7 @@ const mockNews = (tag?: string): NewsArticle[] => {
     return base.map((item, index) => ({
         ...item,
         sentiment: sentiments[Math.floor(Math.random() * sentiments.length)],
-        impactScore: Math.floor(30 + Math.random() * 60),
+        sentimentScore: Math.floor(30 + Math.random() * 60),
         timestamp: new Date(Date.now() - index * 3600_000).toISOString(),
         url: 'https://example.com/mock-article',
         tag: tagValue,
@@ -63,6 +63,14 @@ const mockAuthResponse = (email: string): AuthResponse => ({
 const readAuthError = async (res: Response): Promise<string> => {
     try {
         const data = await res.json();
+        if (Array.isArray(data?.detail)) {
+            const parts = data.detail.map((item: any) => {
+                const loc = Array.isArray(item?.loc) ? item.loc.join('.') : 'field';
+                const msg = item?.msg || 'Invalid value';
+                return `${loc}: ${msg}`;
+            });
+            return parts.join(' | ');
+        }
         if (data?.detail) return String(data.detail);
     } catch {
         // ignore
@@ -113,7 +121,7 @@ export const analyzeArticle = async (article: { title: string; snippet: string; 
         return {
             sentiment: 'Neutral',
             summary: `Mock summary for ${article.title || 'article'}.`,
-            impactScore: 55,
+            sentimentScore: 55,
             detailedSummary: 'This is a mock AI summary used for UI testing.',
             keyTakeaways: ['Mock takeaway 1', 'Mock takeaway 2', 'Mock takeaway 3'],
         };
@@ -128,7 +136,7 @@ export const analyzeArticle = async (article: { title: string; snippet: string; 
         return await res.json();
     } catch (e) {
         console.error('analyzeArticle failed', e);
-        return { sentiment: 'Neutral', summary: 'Analysis unavailable.', impactScore: 0 };
+        return { sentiment: 'Neutral', summary: 'Analysis unavailable.', sentimentScore: 0 };
     }
 };
 

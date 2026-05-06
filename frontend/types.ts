@@ -10,7 +10,7 @@ export interface NewsArticle {
   summary?: string;
   detailedSummary?: string;
   keyTakeaways?: string[];
-  impactScore?: number; // 0-100
+  sentimentScore?: number; // 0-100
   tag?: string;
 }
 

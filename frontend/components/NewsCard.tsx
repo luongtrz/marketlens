@@ -43,7 +43,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, onClick }) => {
     }
   };
 
-  const getImpactColor = (sentiment?: string) => {
+  const getScoreColor = (sentiment?: string) => {
     switch (sentiment) {
       case 'Positive': return 'text-emerald-600';
       case 'Negative': return 'text-red-600';
@@ -77,9 +77,9 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, onClick }) => {
       {/* Mini Footer */}
       <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-          {article.impactScore !== undefined && (
-            <span className={getImpactColor(article.sentiment)}>
-              Impact Score: {article.impactScore}
+          {article.sentimentScore !== undefined && (
+            <span className={getScoreColor(article.sentiment)}>
+              Sentiment Score: {article.sentimentScore}
             </span>
           )}
         </div>
