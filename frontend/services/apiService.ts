@@ -1,4 +1,4 @@
-import { CoinData, HistoryPoint, NewsArticle, ForecastResult, ChatMessage } from '../types';
+import { CoinData, HistoryPoint, LatestNewsPage, NewsArticle, ForecastResult, ChatMessage } from '../types';
 
 /** Same-origin ``/api`` when using Vite proxy (dev) or nginx (Docker). Override with VITE_API_URL if needed. */
 const API_BASE_URL =
@@ -290,6 +290,35 @@ export const fetchLatestNews = async (start?: string, end?: string, tag?: string
     } catch (e) {
         console.error('fetchLatestNews failed', e);
         return [];
+    }
+};
+
+/** Server-side Supabase pagination via MainController (News Intelligence). */
+export const fetchLatestNewsPaged = async (
+    page: number,
+    pageSize: number = 20,
+    start?: string,
+    end?: string,
+    tag?: string,
+): Promise<LatestNewsPage | null> => {
+    try {
+        const params = new URLSearchParams();
+        params.append('page', String(page));
+        params.append('page_size', String(pageSize));
+        if (start) params.append('start', start);
+        if (end) params.append('end', end);
+        if (tag) params.append('tag', tag);
+        const base = API_BASE_URL.replace(/\/$/, '');
+        const url = `${base}/ai/latest-news?${params.toString()}`;
+        const res = await fetch(url);
+        if (!res.ok) {
+            console.error('fetchLatestNewsPaged failed with status:', res.status);
+            return null;
+        }
+        return (await res.json()) as LatestNewsPage;
+    } catch (e) {
+        console.error('fetchLatestNewsPaged failed', e);
+        return null;
     }
 };
 

@@ -14,6 +14,14 @@ export interface NewsArticle {
   tag?: string;
 }
 
+/** Response from ``GET /api/ai/latest-news?page=&page_size=``. */
+export interface LatestNewsPage {
+  items: NewsArticle[];
+  page: number;
+  page_size: number;
+  total: number;
+}
+
 export interface HistoryPoint {
   time: string;
   ts: number; // Raw timestamp for calculations
