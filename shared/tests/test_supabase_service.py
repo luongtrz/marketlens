@@ -52,6 +52,25 @@ async def test_select_rows_returns_parsed_list() -> None:
 
 
 @pytest.mark.asyncio
+async def test_select_rows_includes_offset_when_nonzero() -> None:
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = []
+
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=mock_resp)
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+
+    with patch("shared.supabase_service.httpx.AsyncClient", return_value=mock_client):
+        svc = SupabaseReadService("https://x.supabase.co", "k", default_table="t")
+        await svc.select_rows(order="id.desc", limit=10, offset=40)
+
+    params_kv = mock_client.get.await_args.kwargs["params"]
+    assert ("offset", "40") in params_kv
+
+
+@pytest.mark.asyncio
 async def test_ping_false_on_http_error() -> None:
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(side_effect=httpx.ConnectError("network", request=MagicMock()))

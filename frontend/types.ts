@@ -10,8 +10,16 @@ export interface NewsArticle {
   summary?: string;
   detailedSummary?: string;
   keyTakeaways?: string[];
-  impactScore?: number; // 0-100
+  sentimentScore?: number; // model scale -1 (bearish) … +1 (bullish)
   tag?: string;
+}
+
+/** Response from ``GET /api/ai/latest-news?page=&page_size=``. */
+export interface LatestNewsPage {
+  items: NewsArticle[];
+  page: number;
+  page_size: number;
+  total: number;
 }
 
 export interface HistoryPoint {
@@ -23,7 +31,7 @@ export interface HistoryPoint {
   low?: number;
   volume?: number; // Volume traded
   forecast?: number;
-  sentimentScore?: number; // 0-100
+  sentimentScore?: number; // optional chart overlay (not normalized to news API)
   newsSummary?: string;
 }
 

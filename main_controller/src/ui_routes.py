@@ -18,13 +18,17 @@ from main_controller.src.orchestrator.pipeline import Pipeline
 from main_controller.src.orchestrator.steps import ModuleClients
 from shared.models.article import IngestionRecord
 from shared.models.prediction import PredictionResult, SignalType
+from shared.supabase_news import (
+    count_news_articles_from_supabase,
+    count_news_articles_matching_symbol_from_supabase,
+)
 from shared.supabase_service import SupabaseReadService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["ui"])
 
-# Max rows pulled from Supabase for the SPA news views (pagination is client-side after filter).
+# Legacy (no ``page`` query): bounded fetch when the SPA still filters/slices client-side.
 _UI_NEWS_FETCH_LIMIT = 300
 
 
@@ -66,15 +70,24 @@ def _infer_ui_tag(title: str, snippet: str) -> str:
     return "General"
 
 
-def _ingestion_to_news_article(record: IngestionRecord, impact: int = 0) -> dict[str, Any]:
-    label_raw = (record.sentiment_label or "").lower()
-    sentiment: str
-    if "bull" in label_raw:
-        sentiment = "Positive"
-    elif "bear" in label_raw:
-        sentiment = "Negative"
-    else:
-        sentiment = "Neutral"
+def _clamp_unit_sentiment(value: float) -> float:
+    return max(-1.0, min(1.0, float(value)))
+
+
+def _sentiment_from_model_score(score: float) -> str:
+    """Map ``-1..1`` model score to UI polarity (same ±0.15 band as pipeline)."""
+
+    s = _clamp_unit_sentiment(score)
+    if s > 0.15:
+        return "Positive"
+    if s < -0.15:
+        return "Negative"
+    return "Neutral"
+
+
+def _ingestion_to_news_article(record: IngestionRecord, sentiment_score: float = 0.0) -> dict[str, Any]:
+    s = _clamp_unit_sentiment(sentiment_score)
+    sentiment = _sentiment_from_model_score(s)
     snippet = (
         record.summary
         if record.summary
@@ -91,9 +104,37 @@ def _ingestion_to_news_article(record: IngestionRecord, impact: int = 0) -> dict
         "url": record.url,
         "sentiment": sentiment,
         "summary": record.summary,
-        "impactScore": impact,
+        "sentimentScore": s,
         "tag": ui_tag,
     }
+
+
+def _records_to_news_payload(
+    raw: list[IngestionRecord],
+    *,
+    start_dt: datetime | None,
+    end_dt: datetime | None,
+) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for rec in raw:
+        ts = rec.date_published.replace(tzinfo=timezone.utc) if rec.date_published.tzinfo is None else rec.date_published
+        if start_dt and ts < start_dt:
+            continue
+        if end_dt and ts > end_dt:
+            continue
+        s = _clamp_unit_sentiment(float(getattr(rec, "sentiment_score", 0.0)))
+        out.append(_ingestion_to_news_article(rec, sentiment_score=s))
+    out.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+    return out
+
+
+class LatestNewsPageResponse(BaseModel):
+    """Paged ``/ai/latest-news`` JSON when ``page`` is present."""
+
+    items: list[dict[str, Any]]
+    page: int
+    page_size: int
+    total: int
 
 
 class AnalyzeArticlePayload(BaseModel):
@@ -192,14 +233,22 @@ def _prediction_to_forecast(pred: PredictionResult, base_price: float, trend_hin
     }
 
 
-@router.get("/ai/latest-news")
+@router.get("/ai/latest-news", response_model=None)
 async def api_latest_news(
     request: Request,
     start: str | None = None,
     end: str | None = None,
     tag: str | None = None,
-) -> list[dict[str, Any]]:
-    """Return recent articles in the frontend ``NewsArticle`` shape."""
+    page: int | None = Query(default=None, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+) -> LatestNewsPageResponse | list[dict[str, Any]]:
+    """Recent articles.
+
+    Without ``page``: returns a legacy JSON **array** up to `_UI_NEWS_FETCH_LIMIT`.
+
+    With ``page``: returns ``{items, page, page_size, total}`` using Supabase ``LIMIT/OFFSET``
+    (symbol filters use a capped scan described in ``shared.supabase_news``).
+    """
     clients: ModuleClients = request.app.state.clients
     start_dt = _parse_iso_maybe(start)
     end_dt = _parse_iso_maybe(end)
@@ -215,9 +264,41 @@ async def api_latest_news(
             ),
         )
     try:
+        if page is not None:
+            offset = (page - 1) * page_size
+            raw = await clients.crawler.get_latest(
+                pair,
+                limit=page_size,
+                offset=offset,
+                lite=True,
+                publish_gte=start_dt,
+                publish_lte=end_dt,
+            )
+            total: int = 0
+            if pair:
+                total = await count_news_articles_matching_symbol_from_supabase(
+                    symbol=pair,
+                    publish_gte=start_dt,
+                    publish_lte=end_dt,
+                )
+            else:
+                total_val = await count_news_articles_from_supabase(
+                    publish_gte=start_dt,
+                    publish_lte=end_dt,
+                )
+                total = int(total_val or 0)
+            items = _records_to_news_payload(raw, start_dt=start_dt, end_dt=end_dt)
+            return LatestNewsPageResponse(
+                items=items,
+                page=page,
+                page_size=page_size,
+                total=max(total, 0),
+            )
+
         raw = await clients.crawler.get_latest(
             pair,
             limit=_UI_NEWS_FETCH_LIMIT,
+            offset=0,
             lite=True,
             publish_gte=start_dt,
             publish_lte=end_dt,
@@ -226,19 +307,7 @@ async def api_latest_news(
         logger.exception("latest-news crawler failed")
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-    out: list[dict[str, Any]] = []
-    for rec in raw:
-        ts = rec.date_published.replace(tzinfo=timezone.utc) if rec.date_published.tzinfo is None else rec.date_published
-        if start_dt and ts < start_dt:
-            continue
-        if end_dt and ts > end_dt:
-            continue
-        impact = int(round((rec.sentiment_score + 1) * 50)) if hasattr(rec, "sentiment_score") else 50
-        impact = max(0, min(100, impact))
-        out.append(_ingestion_to_news_article(rec, impact=impact))
-
-    out.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
-    return out
+    return _records_to_news_payload(raw, start_dt=start_dt, end_dt=end_dt)
 
 
 @router.post("/ai/analyze-article")
@@ -250,18 +319,17 @@ async def api_analyze_article(request: Request, body: AnalyzeArticlePayload) -> 
         return {
             "sentiment": "Neutral",
             "summary": "No text supplied.",
-            "impactScore": 0,
+            "sentimentScore": 0.0,
         }
     try:
         res = await clients.aihub.sentiment(blob)
         score = float(res.get("score", 0.0))
-        label_raw = str(res.get("label", "neutral")).lower()
     except Exception as exc:
         logger.warning("analyze-article sentiment failed: %s", exc)
         return {
             "sentiment": "Neutral",
             "summary": f"Sentiment unavailable: {exc}"[:280],
-            "impactScore": 0,
+            "sentimentScore": 0.0,
         }
 
     if score > 0.15:
@@ -271,9 +339,8 @@ async def api_analyze_article(request: Request, body: AnalyzeArticlePayload) -> 
     else:
         sent = "Neutral"
     summary = blob[:280] + ("…" if len(blob) > 280 else "")
-    impact = int(round((score + 1) * 50))
-    impact = max(0, min(100, impact))
-    return {"sentiment": sent, "summary": summary, "impactScore": impact}
+    s = _clamp_unit_sentiment(score)
+    return {"sentiment": sent, "summary": summary, "sentimentScore": s}
 
 
 @router.post("/ai/forecast")

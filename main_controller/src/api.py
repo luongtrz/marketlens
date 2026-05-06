@@ -19,6 +19,9 @@ from main_controller.src.clients.factorledge_client import FactorLedgeClient
 from main_controller.src.clients.market_client import MarketClient
 from main_controller.src.clients.stockmem_client import StockMemClient
 from main_controller.src.config import MainControllerConfig
+from main_controller.src.auth.repository import AuthRepository
+from main_controller.src.auth.routes import router as auth_router
+from main_controller.src.auth.service import AuthService
 from main_controller.src.orchestrator.pipeline import Pipeline, PipelineConfig
 from main_controller.src.orchestrator.steps import ModuleClients
 from main_controller.src.ui_routes import router as ui_router
@@ -40,6 +43,16 @@ class RunState(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     config = MainControllerConfig()
+    auth_repo = AuthRepository(config.db_url)
+    await auth_repo.init()
+    app.state.auth = AuthService(
+        auth_repo,
+        jwt_secret=config.jwt_secret,
+        jwt_algorithm=config.jwt_algorithm,
+        access_ttl_minutes=config.jwt_access_ttl_minutes,
+        refresh_ttl_days=config.jwt_refresh_ttl_days,
+        issuer=config.jwt_issuer,
+    )
     clients = ModuleClients(
         crawler=CrawlerClient(config.crawler_url),
         aihub=AIHubClient(config.aihub_url),
@@ -54,6 +67,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
     if app.state.background_tasks:
         await asyncio.gather(*app.state.background_tasks, return_exceptions=True)
+    await auth_repo.aclose()
 
 
 app = FastAPI(title="MainController", lifespan=lifespan)
@@ -66,6 +80,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(ui_router)
+app.include_router(auth_router)
 
 
 @app.get("/health")

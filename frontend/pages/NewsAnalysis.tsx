@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { NewsArticle } from '../types';
-import { fetchLatestNews } from '../services/apiService';
+import { fetchLatestNews, fetchLatestNewsPaged } from '../services/apiService';
 import NewsCard from '../components/NewsCard';
 import ArticleDetailModal from '../components/ArticleDetailModal';
 import { Loader2, Filter, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -21,89 +22,157 @@ function effectiveArticleTag(a: NewsArticle): string {
 
 const NewsAnalysis: React.FC = () => {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
+  /** When using server paging, equals Supabase-visible total rows (see API). Legacy: capped batch size after fetch. */
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Filter States
   const [sentimentFilter, setSentimentFilter] = useState<string>('All');
-  const [impactFilter, setImpactFilter] = useState<string>('All');
   const [sourceFilter, setSourceFilter] = useState<string>('All');
   const [tagFilter, setTagFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<string>('Latest');
 
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Modal State
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
 
   const pageTopRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const autoOpenRef = useRef<string | null>(null);
+
+  const articleIdParam = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('articleId');
+  }, [location.search]);
+
+  /** True when filters allow PostgREST-backed paging (no client-only dimensions / “General” tag). */
+  const canUseServerPaging = useMemo(
+    () =>
+      sentimentFilter === 'All' &&
+      sourceFilter === 'All' &&
+      sortBy === 'Latest' &&
+      (tagFilter === 'All' || tagFilter === 'BTC' || tagFilter === 'ETH'),
+    [sentimentFilter, sourceFilter, sortBy, tagFilter],
+  );
 
   useEffect(() => {
-    const loadNews = async () => {
+    setCurrentPage(1);
+  }, [sentimentFilter, sourceFilter, tagFilter, sortBy, canUseServerPaging]);
+
+  useEffect(() => {
+    if (canUseServerPaging) return;
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
       try {
         const data = await fetchLatestNews();
-        setArticles(data);
+        if (!cancelled) {
+          setArticles(data);
+          setTotalCount(data.length);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
-    loadNews();
-  }, []);
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [canUseServerPaging, sentimentFilter, sourceFilter, tagFilter, sortBy]);
 
-  // Compute Unique Sources
+  useEffect(() => {
+    if (!canUseServerPaging) return;
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const tagParam = tagFilter === 'All' ? undefined : tagFilter;
+        const pg = await fetchLatestNewsPaged(currentPage, ITEMS_PER_PAGE, undefined, undefined, tagParam);
+        if (!cancelled && pg) {
+          setArticles(pg.items);
+          setTotalCount(pg.total);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [canUseServerPaging, currentPage, tagFilter]);
+
+  useEffect(() => {
+    if (!articleIdParam || selectedArticle || articles.length === 0) return;
+    if (autoOpenRef.current === articleIdParam) return;
+    const match = articles.find((article) => String(article.id) === String(articleIdParam));
+    if (match) {
+      autoOpenRef.current = articleIdParam;
+      setSelectedArticle(match);
+      navigate('/news', { replace: true });
+    }
+  }, [articleIdParam, articles, selectedArticle, navigate]);
+
   const uniqueSources = useMemo(() => {
-    const sources = new Set(articles.map(a => a.source));
+    const sources = new Set(articles.map((a) => a.source));
     return Array.from(sources);
   }, [articles]);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [sentimentFilter, impactFilter, sourceFilter, tagFilter, sortBy]);
-
-  // Filter and Sort Logic
   const filteredArticles = useMemo(() => {
+    if (canUseServerPaging) {
+      return articles;
+    }
     return articles
-      .filter(article => {
-        // Tag Filter (backend may omit ``tag``; infer from headline like API)
+      .filter((article) => {
         if (tagFilter !== 'All' && effectiveArticleTag(article) !== tagFilter) {
           return false;
         }
-        // Sentiment Filter
         if (sentimentFilter !== 'All' && article.sentiment !== sentimentFilter) {
           return false;
         }
-        // Source Filter
         if (sourceFilter !== 'All' && article.source !== sourceFilter) {
           return false;
-        }
-        // Impact Filter
-        if (impactFilter !== 'All') {
-          const score = article.impactScore || 0;
-          if (impactFilter === 'High' && score < 70) return false;
-          if (impactFilter === 'Medium' && (score < 30 || score >= 70)) return false;
-          if (impactFilter === 'Low' && score >= 30) return false;
         }
         return true;
       })
       .sort((a, b) => {
-        if (sortBy === 'Impact') {
-          return (b.impactScore || 0) - (a.impactScore || 0);
+        if (sortBy === 'SentimentScore') {
+          return (b.sentimentScore || 0) - (a.sentimentScore || 0);
         }
-        // Latest: descending by ISO timestamp string (API sends newest-first; keep stable after filter)
         if (sortBy === 'Latest') {
           return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
         }
         return 0;
       });
-  }, [articles, sentimentFilter, impactFilter, sourceFilter, tagFilter, sortBy]);
+  }, [articles, canUseServerPaging, sentimentFilter, sourceFilter, tagFilter, sortBy]);
 
-  // Pagination Logic
-  const totalPages = Math.ceil(filteredArticles.length / ITEMS_PER_PAGE);
+  const totalPages = useMemo(() => {
+    if (canUseServerPaging) {
+      return Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
+    }
+    return Math.max(1, Math.ceil(filteredArticles.length / ITEMS_PER_PAGE));
+  }, [canUseServerPaging, totalCount, filteredArticles.length]);
+
   const currentArticles = useMemo(() => {
+    if (canUseServerPaging) {
+      return filteredArticles;
+    }
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredArticles.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredArticles, currentPage]);
+  }, [canUseServerPaging, filteredArticles, currentPage]);
+
+  const rangeStart = useMemo(() => {
+    if (currentArticles.length === 0) return 0;
+    return (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  }, [currentArticles.length, currentPage]);
+
+  const rangeEnd = useMemo(() => {
+    if (currentArticles.length === 0) return 0;
+    if (canUseServerPaging) {
+      return Math.min(currentPage * ITEMS_PER_PAGE, totalCount);
+    }
+    return Math.min(currentPage * ITEMS_PER_PAGE, filteredArticles.length);
+  }, [canUseServerPaging, currentArticles.length, currentPage, totalCount, filteredArticles.length]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -116,26 +185,32 @@ const NewsAnalysis: React.FC = () => {
     setSelectedArticle(article);
   };
 
+  const handleModalClose = () => {
+    setSelectedArticle(null);
+    if (articleIdParam) {
+      navigate('/news', { replace: true });
+    }
+  };
+
+  const countLabel = canUseServerPaging ? totalCount : filteredArticles.length;
+
   return (
     <div className="relative space-y-6 p-6 pb-14">
       <div ref={pageTopRef} className="pointer-events-none h-0 scroll-mt-[4.25rem]" aria-hidden />
       <header className="flex flex-col gap-4">
         <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">News Intelligence</h2>
-            <p className="text-slate-500">AI-aggregated news with sentiment scoring.</p>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">News Intelligence</h2>
+            <p className="text-slate-500 dark:text-slate-400">AI-aggregated news with sentiment scoring.</p>
           </div>
 
-          {/* Filter Controls */}
-          <div className="flex flex-wrap gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-
-            {/* Tag Filter */}
+          <div className="flex flex-wrap gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tag:</span>
+              <span className="text-xs font-semibold text-slate-400 dark:text-slate-300 uppercase tracking-wider">Tag:</span>
               <select
                 value={tagFilter}
                 onChange={(e) => setTagFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
               >
                 <option value="All">All Coins</option>
                 <option value="BTC">BTC</option>
@@ -146,13 +221,12 @@ const NewsAnalysis: React.FC = () => {
 
             <div className="w-px h-8 bg-slate-200 mx-1 hidden md:block"></div>
 
-            {/* Sentiment Filter */}
             <div className="flex items-center gap-2">
-              <Filter size={14} className="text-slate-400" />
+              <Filter size={14} className="text-slate-400 dark:text-slate-300" />
               <select
                 value={sentimentFilter}
                 onChange={(e) => setSentimentFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
               >
                 <option value="All">All Sentiments</option>
                 <option value="Positive">Positive</option>
@@ -161,49 +235,38 @@ const NewsAnalysis: React.FC = () => {
               </select>
             </div>
 
-            {/* Source Filter */}
             <div className="flex items-center gap-2">
               <select
                 value={sourceFilter}
                 onChange={(e) => setSourceFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
+                disabled={canUseServerPaging}
+                title={
+                  canUseServerPaging ? 'Switch to client filters by changing sentiment/sort to load full batch' : undefined
+                }
               >
                 <option value="All">All Sources</option>
-                {uniqueSources.map(source => (
-                  <option key={source} value={source}>{formatSource(source)}</option>
+                {uniqueSources.map((source) => (
+                  <option key={source} value={source}>
+                    {formatSource(source)}
+                  </option>
                 ))}
               </select>
             </div>
 
-            {/* Impact Filter */}
-            <div className="flex items-center gap-2">
-              <select
-                value={impactFilter}
-                onChange={(e) => setImpactFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
-              >
-                <option value="All">All Impacts</option>
-                <option value="High">High Impact (&gt;70)</option>
-                <option value="Medium">Medium Impact</option>
-                <option value="Low">Low Impact (&lt;30)</option>
-              </select>
-            </div>
+            <div className="w-px h-8 bg-slate-200 mx-1 hidden md:block dark:bg-slate-700"></div>
 
-            <div className="w-px h-8 bg-slate-200 mx-1 hidden md:block"></div>
-
-            {/* Sort Control */}
             <div className="flex items-center gap-2">
-              <ArrowUpDown size={14} className="text-slate-400" />
+              <ArrowUpDown size={14} className="text-slate-400 dark:text-slate-300" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
               >
                 <option value="Latest">Sort: Latest</option>
-                <option value="Impact">Sort: Impact</option>
+                <option value="SentimentScore">Sort: Sentiment Score</option>
               </select>
             </div>
-
           </div>
         </div>
       </header>
@@ -215,10 +278,14 @@ const NewsAnalysis: React.FC = () => {
       ) : (
         <>
           {filteredArticles.length === 0 ? (
-            <div className="text-center py-20 bg-slate-50 rounded-2xl border border-slate-200 border-dashed">
-              <p className="text-slate-500">No articles match your filters.</p>
+            <div className="text-center py-20 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 border-dashed">
+              <p className="text-slate-500 dark:text-slate-300">No articles match your filters.</p>
               <button
-                onClick={() => { setSentimentFilter('All'); setImpactFilter('All'); setSourceFilter('All'); setTagFilter('All'); }}
+                onClick={() => {
+                  setSentimentFilter('All');
+                  setSourceFilter('All');
+                  setTagFilter('All');
+                }}
                 className="mt-2 text-indigo-600 hover:text-indigo-500 text-sm font-medium"
               >
                 Clear Filters
@@ -232,45 +299,39 @@ const NewsAnalysis: React.FC = () => {
                 ))}
               </div>
 
-              {/* Pagination */}
-              <div className="flex justify-center items-center gap-4 mt-8 pt-4 border-t border-slate-200">
-                <span className="text-xs text-slate-500 mr-2 tabular-nums">
-                  {(currentPage - 1) * ITEMS_PER_PAGE + 1}
+              <div className="flex justify-center items-center gap-4 mt-8 pt-4 border-t border-slate-200 dark:border-slate-800">
+                <span className="text-xs text-slate-500 dark:text-slate-400 mr-2 tabular-nums">
+                  {rangeStart}
                   –
-                  {Math.min(currentPage * ITEMS_PER_PAGE, filteredArticles.length)} of{' '}
-                  {filteredArticles.length}
+                  {rangeEnd} of {countLabel}
                 </span>
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                    <ChevronLeft size={20} />
-                  </button>
+                  <ChevronLeft size={20} />
+                </button>
 
-                  <span className="text-sm font-medium text-slate-600">
-                    Page <span className="text-indigo-600 font-bold">{currentPage}</span> of {totalPages}
-                  </span>
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                  Page <span className="text-indigo-600 font-bold">{currentPage}</span> of {totalPages}
+                </span>
 
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronRight size={20} />
-                  </button>
-                </div>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
             </>
           )}
         </>
       )}
 
-      {/* Detailed Analysis Modal */}
       {selectedArticle && (
-        <ArticleDetailModal
-          article={selectedArticle}
-          onClose={() => setSelectedArticle(null)}
-        />
+        <ArticleDetailModal article={selectedArticle} onClose={handleModalClose} />
       )}
     </div>
   );

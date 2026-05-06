@@ -15,7 +15,37 @@ from shared.supabase_service import SupabaseReadService
 logger = logging.getLogger(__name__)
 
 # List views: omit ``content`` → much smaller payloads than ``select=*`` (major latency win).
-_NEWS_LITE_COLUMNS = "id,header,source_url,publish_at,crawled_at"
+# ``news_articles`` in Supabase stores only ``sentiment_score`` (numeric); label is derived in code.
+_NEWS_LITE_COLUMNS = "id,header,source_url,publish_at,crawled_at,sentiment_score"
+
+
+def _coerce_sentiment_float(value: object) -> float:
+    """Interpret Supabase sentiment: prefers ``-1..1`` (model scale); accepts ``0..100`` UI scale."""
+
+    if value is None:
+        return 0.0
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    if -1.001 <= f <= 1.001:
+        return max(-1.0, min(1.0, f))
+    if 0.0 <= f <= 100.0:
+        return max(-1.0, min(1.0, f / 50.0 - 1.0))
+    return max(-1.0, min(1.0, f))
+
+
+def _label_from_sentiment_float(score: float) -> str:
+    if score > 0.15:
+        return "bullish"
+    if score < -0.15:
+        return "bearish"
+    return "neutral"
+
+
+# When a ``symbol`` text filter applies, pagination is bounded by scanning newest rows server-side,
+# since PostgREST cannot express the whitelist token rules in ``_row_text_matches_symbol``.
+_SYM_FILTER_SCAN_CAP = 2500
 
 
 def _news_service(
@@ -64,6 +94,11 @@ def supabase_row_to_ingestion(row: dict[str, Any]) -> IngestionRecord:
     pub = _parse_dt(row.get("publish_at") or datetime.now(timezone.utc).isoformat())
     crawled_raw = row.get("crawled_at")
     crawled = _parse_dt(crawled_raw) if crawled_raw is not None else pub
+    raw_sent = row.get("sentiment_score")
+    if raw_sent is None and "sentiment" in row:
+        raw_sent = row.get("sentiment")
+    sentiment_score = _coerce_sentiment_float(raw_sent)
+    sentiment_label = _label_from_sentiment_float(sentiment_score)
     return IngestionRecord(
         id=rid,
         article_name=header[:500],
@@ -72,8 +107,8 @@ def supabase_row_to_ingestion(row: dict[str, Any]) -> IngestionRecord:
         date_published=pub,
         date_crawled=crawled,
         summary=(content[:2000] if content else None),
-        sentiment_score=0.0,
-        sentiment_label="neutral",
+        sentiment_score=sentiment_score,
+        sentiment_label=sentiment_label,
         factors=[],
         raw_text=content or None,
         metadata={},
@@ -117,9 +152,22 @@ async def check_supabase_rest_reachable(timeout: float = 10.0) -> bool:
     return await svc.ping()
 
 
+def _publish_dup_filters(
+    publish_gte: datetime | None,
+    publish_lte: datetime | None,
+) -> list[tuple[str, str]]:
+    dup_filters: list[tuple[str, str]] = []
+    if publish_gte is not None:
+        dup_filters.append(("publish_at", f"gte.{_fmt_postgrest_dt(publish_gte)}"))
+    if publish_lte is not None:
+        dup_filters.append(("publish_at", f"lte.{_fmt_postgrest_dt(publish_lte)}"))
+    return dup_filters
+
+
 async def fetch_news_articles_from_supabase(
     *,
     limit: int = 50,
+    offset: int = 0,
     symbol: str = "",
     supabase_url: str | None = None,
     supabase_key: str | None = None,
@@ -129,52 +177,131 @@ async def fetch_news_articles_from_supabase(
     publish_gte: datetime | None = None,
     publish_lte: datetime | None = None,
 ) -> list[IngestionRecord]:
-    """Fetch recent rows from the Supabase news table, newest first.
+    """Fetch rows from Supabase newest first via PostgREST.
 
-    Uses ``SUPABASE_URL`` and ``SUPABASE_SERVICE_ROLE_KEY`` (or ``SUPABASE_ANON_KEY``)
-    when arguments are omitted.
+    Uses ``SUPABASE_URL`` / ``SUPABASE_SERVICE_ROLE_KEY`` (or anon key).
 
-    When ``publish_gte`` / ``publish_lte`` are set, the query is narrowed in PostgREST
-    (not only in Python), so ranges in the past still return matching rows.
+    Without ``symbol``, ``limit`` + ``offset`` map to SQL ``LIMIT`` / ``OFFSET`` — full-table pagination.
+
+    With ``symbol``, the token filter runs in Python: up to ``_SYM_FILTER_SCAN_CAP`` newest matching
+    dates are scanned, filtered, then windowed ``[offset:offset + limit]`` (cheap for dashboards;
+    totals may reflect that cap alone).
     """
     svc = _news_service(supabase_url, supabase_key, table, timeout=timeout)
     if svc is None:
         logger.warning("Supabase fetch skipped: missing URL or API key in environment")
         return []
 
-    dup_filters: list[tuple[str, str]] = []
-    if publish_gte is not None:
-        dup_filters.append(("publish_at", f"gte.{_fmt_postgrest_dt(publish_gte)}"))
-    if publish_lte is not None:
-        dup_filters.append(("publish_at", f"lte.{_fmt_postgrest_dt(publish_lte)}"))
+    dup_filters = _publish_dup_filters(publish_gte, publish_lte)
 
-    # Broader slice when narrowing by calendar window so symbol text-filter still fills ``limit``.
-    db_limit = limit
-    if publish_gte is not None or publish_lte is not None:
-        db_limit = min(1000, max(limit, 500))
+    if symbol:
+        # Need enough scanned rows before Python symbol filter — worst case (all scanned rows match pair).
+        scan_floor = offset + limit + 50
+        scan_target = min(_SYM_FILTER_SCAN_CAP, max(500, scan_floor))
+        if publish_gte is not None or publish_lte is not None:
+            scan_target = min(_SYM_FILTER_SCAN_CAP, max(scan_target, 900))
 
+        rows = await svc.select_rows(
+            order="publish_at.desc",
+            limit=scan_target,
+            offset=0,
+            columns=_NEWS_LITE_COLUMNS if lite else "*",
+            extra_duplicate_params=dup_filters or None,
+        )
+        filtered: list[IngestionRecord] = []
+        for raw in rows:
+            if not isinstance(raw, dict):
+                continue
+            try:
+                rec = supabase_row_to_ingestion(raw)
+            except Exception as exc:
+                logger.warning("Skipping malformed Supabase row: %s", str(exc)[:120])
+                continue
+            if not _row_text_matches_symbol(rec.article_name, rec.raw_text or "", symbol):
+                continue
+            filtered.append(rec)
+        chunk = filtered[offset : offset + limit]
+        return chunk
+
+    # No symbol → server-side paging.
     rows = await svc.select_rows(
         order="publish_at.desc",
-        limit=db_limit,
+        limit=max(1, limit),
+        offset=max(0, offset),
         columns=_NEWS_LITE_COLUMNS if lite else "*",
         extra_duplicate_params=dup_filters or None,
     )
 
-    records: list[IngestionRecord] = []
+    out: list[IngestionRecord] = []
+    for raw in rows:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            out.append(supabase_row_to_ingestion(raw))
+        except Exception as exc:
+            logger.warning("Skipping malformed Supabase row: %s", str(exc)[:120])
+            continue
+
+    return out
+
+
+async def count_news_articles_from_supabase(
+    *,
+    publish_gte: datetime | None = None,
+    publish_lte: datetime | None = None,
+    supabase_url: str | None = None,
+    supabase_key: str | None = None,
+    table: str | None = None,
+    timeout: float = 20.0,
+) -> int | None:
+    """Total rows matching publish window (exact via PostgREST count). Missing symbol filter."""
+
+    svc = _news_service(supabase_url, supabase_key, table, timeout=timeout)
+    if svc is None:
+        return None
+
+    dup_filters = _publish_dup_filters(publish_gte, publish_lte)
+    return await svc.count_rows(
+        columns="id",
+        order="publish_at.desc",
+        extra_duplicate_params=dup_filters or None,
+    )
+
+
+async def count_news_articles_matching_symbol_from_supabase(
+    *,
+    symbol: str,
+    publish_gte: datetime | None = None,
+    publish_lte: datetime | None = None,
+    supabase_url: str | None = None,
+    supabase_key: str | None = None,
+    table: str | None = None,
+    timeout: float = 20.0,
+    lite: bool = True,
+) -> int:
+    """Count articles matching Python symbol filter among up to ``_SYM_FILTER_SCAN_CAP`` newest rows."""
+
+    svc = _news_service(supabase_url, supabase_key, table, timeout=timeout)
+    if svc is None or not symbol.strip():
+        return 0
+
+    dup_filters = _publish_dup_filters(publish_gte, publish_lte)
+    rows = await svc.select_rows(
+        order="publish_at.desc",
+        limit=_SYM_FILTER_SCAN_CAP,
+        offset=0,
+        columns=_NEWS_LITE_COLUMNS if lite else "*",
+        extra_duplicate_params=dup_filters or None,
+    )
+    matched = 0
     for raw in rows:
         if not isinstance(raw, dict):
             continue
         try:
             rec = supabase_row_to_ingestion(raw)
-        except Exception as exc:
-            logger.warning("Skipping malformed Supabase row: %s", str(exc)[:120])
+        except Exception:
             continue
-        if symbol and not _row_text_matches_symbol(
-            rec.article_name, rec.raw_text or "", symbol
-        ):
-            continue
-        records.append(rec)
-        if len(records) >= limit:
-            break
+        if _row_text_matches_symbol(rec.article_name, rec.raw_text or "", symbol):
+            matched += 1
 
-    return records
+    return matched
