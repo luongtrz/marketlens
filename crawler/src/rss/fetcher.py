@@ -12,6 +12,7 @@ import httpx
 from pydantic import BaseModel
 
 from crawler.src.rss.parser import FeedParser
+from crawler.src.rss.title_hints import normalize_article_title
 from shared.models.article import RawArticle
 
 
@@ -154,7 +155,7 @@ class RSSFetcher:
                     continue
                 discovered.append(
                     RawArticle(
-                        title=loc,
+                        title=normalize_article_title(None, loc),
                         url=loc,
                         source=source_name,
                         category=category,
