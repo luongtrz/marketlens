@@ -4,11 +4,43 @@ import { NewsArticle, AnalysisStatus } from '../types';
 import { analyzeArticle, askNewsContext } from '../services/apiService';
 import { Loader2, X, BrainCircuit, Sparkles, Send, Globe, ExternalLink } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { formatDateToLocalWithOffset } from '../utils/formatters';
+import { formatDateToLocalWithOffset, formatUnitSentiment, polarityFromUnitScore } from '../utils/formatters';
 
 interface ArticleDetailModalProps {
     article: NewsArticle;
     onClose: () => void;
+}
+
+/** Keep Supabase/list sentiment; merge only summary fields from ``/ai/analyze-article``. */
+function mergeArticleAnalysis(prev: NewsArticle, listArticle: NewsArticle, analysis: Partial<NewsArticle>): NewsArticle {
+    const listScore = listArticle.sentimentScore;
+    const analyzedScore = analysis.sentimentScore;
+    const sentimentScore =
+        typeof listScore === 'number' && Number.isFinite(listScore)
+            ? listScore
+            : typeof analyzedScore === 'number' && Number.isFinite(analyzedScore)
+              ? analyzedScore
+              : prev.sentimentScore;
+
+    const sentiment =
+        listArticle.sentiment ??
+        analysis.sentiment ??
+        polarityFromUnitScore(
+            typeof sentimentScore === 'number' && Number.isFinite(sentimentScore) ? sentimentScore : undefined,
+        );
+
+    return {
+        ...prev,
+        detailedSummary:
+            analysis.detailedSummary ??
+            prev.detailedSummary ??
+            listArticle.detailedSummary ??
+            undefined,
+        summary: analysis.summary ?? prev.summary ?? listArticle.summary,
+        keyTakeaways: analysis.keyTakeaways ?? prev.keyTakeaways ?? listArticle.keyTakeaways,
+        sentimentScore,
+        sentiment,
+    };
 }
 
 const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article, onClose }) => {
@@ -23,26 +55,49 @@ const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article, onClos
     const [isThinking, setIsThinking] = useState(false);
 
     useEffect(() => {
+        let cancelled = false;
+        setEnrichedArticle(article);
+        setAnswer(null);
+
+        const wantsAi =
+            !article.detailedSummary?.trim() ||
+            !article.keyTakeaways ||
+            article.keyTakeaways.length === 0;
+
         const loadAnalysis = async () => {
             if (!isAuthenticated) {
                 setAnalysisStatus(AnalysisStatus.IDLE);
                 return;
             }
-            if (!article.detailedSummary || !article.keyTakeaways) {
-                setAnalysisStatus(AnalysisStatus.LOADING);
-                try {
-                    const analysis = await analyzeArticle(article);
-                    setEnrichedArticle(prev => ({ ...prev, ...analysis }));
-                    setAnalysisStatus(AnalysisStatus.SUCCESS);
-                } catch (e) {
+            if (!wantsAi) {
+                setAnalysisStatus(AnalysisStatus.SUCCESS);
+                return;
+            }
+            setAnalysisStatus(AnalysisStatus.LOADING);
+            try {
+                const analysis = await analyzeArticle(article);
+                if (cancelled) {
+                    return;
+                }
+                setEnrichedArticle((prev) => mergeArticleAnalysis(prev, article, analysis));
+                setAnalysisStatus(AnalysisStatus.SUCCESS);
+            } catch {
+                if (!cancelled) {
                     setAnalysisStatus(AnalysisStatus.ERROR);
                 }
-            } else {
-                setAnalysisStatus(AnalysisStatus.SUCCESS);
             }
         };
-        loadAnalysis();
-    }, [article]);
+        void loadAnalysis();
+        return () => {
+            cancelled = true;
+        };
+    }, [article, isAuthenticated]);
+
+    const effectiveSentiment =
+        enrichedArticle.sentiment ??
+        polarityFromUnitScore(
+            typeof enrichedArticle.sentimentScore === 'number' ? enrichedArticle.sentimentScore : undefined,
+        );
 
     const handleQuery = async () => {
         if (!isAuthenticated) return;
@@ -59,8 +114,8 @@ const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article, onClos
         `;
             const result = await askNewsContext(context, question);
             setAnswer(result);
-        } catch (e) {
-            setAnswer("Unable to answer questions about this article.");
+        } catch {
+            setAnswer('Unable to answer questions about this article.');
         } finally {
             setIsThinking(false);
         }
@@ -127,12 +182,12 @@ const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article, onClos
                                 <div>
                                     <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Executive Summary</h4>
                                     <p className="text-slate-700 leading-relaxed text-sm">
-                                        {enrichedArticle.detailedSummary || enrichedArticle.summary || "Summary unavailable."}
+                                        {enrichedArticle.detailedSummary || enrichedArticle.summary || 'Summary unavailable.'}
                                     </p>
                                 </div>
 
                                 {/* Key Takeaways */}
-                                {enrichedArticle.keyTakeaways && (
+                                {enrichedArticle.keyTakeaways && enrichedArticle.keyTakeaways.length > 0 ? (
                                     <div>
                                         <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Key Takeaways</h4>
                                         <ul className="space-y-2">
@@ -144,25 +199,54 @@ const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article, onClos
                                             ))}
                                         </ul>
                                     </div>
-                                )}
+                                ) : null}
 
-                                {/* Stats Row */}
+                                {/* Stats Row — list/Supabase score takes priority over ephemeral analyze sentiment */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                        <span className="text-xs text-slate-500 uppercase">Sentiment Score</span>
+                                        <span className="text-xs text-slate-500 uppercase">Sentiment score</span>
                                         <div className="flex items-center gap-2 mt-1">
                                             <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
-                                                <div className="h-full bg-emerald-500" style={{ width: `${enrichedArticle.sentimentScore || 0}%` }}></div>
+                                                <div
+                                                    className={
+                                                        effectiveSentiment === 'Positive'
+                                                            ? 'h-full bg-emerald-500'
+                                                            : effectiveSentiment === 'Negative'
+                                                              ? 'h-full bg-red-500'
+                                                              : 'h-full bg-amber-400'
+                                                    }
+                                                    style={{
+                                                        width: `${Math.max(
+                                                            0,
+                                                            Math.min(
+                                                                100,
+                                                                ((Math.max(-1, Math.min(1, enrichedArticle.sentimentScore ?? 0)) +
+                                                                    1) /
+                                                                    2) *
+                                                                    100,
+                                                            ),
+                                                        )}%`,
+                                                    }}
+                                                />
                                             </div>
-                                            <span className="font-bold text-slate-900">{enrichedArticle.sentimentScore}/100</span>
+                                            <span className="font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                                                {formatUnitSentiment(enrichedArticle.sentimentScore)}
+                                            </span>
                                         </div>
+                                        <p className="text-[10px] text-slate-400 mt-1">Scale −1 bearish … +1 bullish</p>
                                     </div>
                                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                                         <span className="text-xs text-slate-500 uppercase">Sentiment</span>
-                                        <div className={`font-bold mt-1 ${enrichedArticle.sentiment === 'Positive' ? 'text-green-600' :
-                                                enrichedArticle.sentiment === 'Negative' ? 'text-red-600' : 'text-slate-500'
-                                            }`}>
-                                            {enrichedArticle.sentiment || 'Neutral'}
+                                        <div
+                                            className={`font-bold mt-1 ${
+                                                effectiveSentiment === 'Positive'
+                                                    ? 'text-green-600'
+                                                    : effectiveSentiment === 'Negative'
+                                                      ? 'text-red-600'
+                                                      : 'text-slate-500'
+                                            }`}
+                                        >
+                                            {effectiveSentiment}
                                         </div>
                                     </div>
                                 </div>

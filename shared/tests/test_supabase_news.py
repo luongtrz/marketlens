@@ -19,7 +19,35 @@ def test_supabase_row_to_ingestion_maps_fields() -> None:
     assert rec.source == "example.com"
     assert rec.raw_text == "Full body"
     assert rec.sentiment_label == "neutral"
+    assert rec.sentiment_score == 0.0
     assert rec.date_published == datetime(2026, 4, 1, 12, 0, tzinfo=timezone.utc)
+
+
+def test_supabase_row_derives_sentiment_label_from_score() -> None:
+    row = {
+        "id": "a",
+        "header": "H",
+        "content": "",
+        "source_url": "https://x.test/a",
+        "publish_at": "2026-01-01T00:00:00Z",
+        "sentiment_score": 0.6,
+    }
+    rec = supabase_row_to_ingestion(row)
+    assert rec.sentiment_score == 0.6
+    assert rec.sentiment_label == "bullish"
+
+
+def test_supabase_row_ui_scale_sentiment() -> None:
+    row = {
+        "id": "b",
+        "header": "H",
+        "source_url": "https://x.test/b",
+        "publish_at": "2026-01-01T00:00:00Z",
+        "sentiment_score": 80.0,
+    }
+    rec = supabase_row_to_ingestion(row)
+    assert abs(rec.sentiment_score - 0.6) < 1e-6
+    assert rec.sentiment_label == "bullish"
     assert rec.date_crawled == datetime(2026, 4, 1, 12, 5, tzinfo=timezone.utc)
 
 

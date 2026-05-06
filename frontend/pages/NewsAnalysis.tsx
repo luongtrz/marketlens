@@ -29,7 +29,6 @@ const NewsAnalysis: React.FC = () => {
   const [sentimentFilter, setSentimentFilter] = useState<string>('All');
   const [sourceFilter, setSourceFilter] = useState<string>('All');
   const [tagFilter, setTagFilter] = useState<string>('All');
-  const [impactFilter, setImpactFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<string>('Latest');
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -50,16 +49,15 @@ const NewsAnalysis: React.FC = () => {
   const canUseServerPaging = useMemo(
     () =>
       sentimentFilter === 'All' &&
-      impactFilter === 'All' &&
       sourceFilter === 'All' &&
       sortBy === 'Latest' &&
       (tagFilter === 'All' || tagFilter === 'BTC' || tagFilter === 'ETH'),
-    [sentimentFilter, impactFilter, sourceFilter, sortBy, tagFilter],
+    [sentimentFilter, sourceFilter, sortBy, tagFilter],
   );
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [sentimentFilter, impactFilter, sourceFilter, tagFilter, sortBy, canUseServerPaging]);
+  }, [sentimentFilter, sourceFilter, tagFilter, sortBy, canUseServerPaging]);
 
   useEffect(() => {
     if (canUseServerPaging) return;
@@ -80,7 +78,7 @@ const NewsAnalysis: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [canUseServerPaging, sentimentFilter, impactFilter, sourceFilter, tagFilter, sortBy]);
+  }, [canUseServerPaging, sentimentFilter, sourceFilter, tagFilter, sortBy]);
 
   useEffect(() => {
     if (!canUseServerPaging) return;
@@ -135,12 +133,6 @@ const NewsAnalysis: React.FC = () => {
         if (sourceFilter !== 'All' && article.source !== sourceFilter) {
           return false;
         }
-        if (impactFilter !== 'All') {
-          const score = article.sentimentScore || 0;
-          if (impactFilter === 'High' && score < 70) return false;
-          if (impactFilter === 'Medium' && (score < 30 || score >= 70)) return false;
-          if (impactFilter === 'Low' && score >= 30) return false;
-        }
         return true;
       })
       .sort((a, b) => {
@@ -152,15 +144,7 @@ const NewsAnalysis: React.FC = () => {
         }
         return 0;
       });
-  }, [
-    articles,
-    canUseServerPaging,
-    sentimentFilter,
-    impactFilter,
-    sourceFilter,
-    tagFilter,
-    sortBy,
-  ]);
+  }, [articles, canUseServerPaging, sentimentFilter, sourceFilter, tagFilter, sortBy]);
 
   const totalPages = useMemo(() => {
     if (canUseServerPaging) {
@@ -258,7 +242,7 @@ const NewsAnalysis: React.FC = () => {
                 className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
                 disabled={canUseServerPaging}
                 title={
-                  canUseServerPaging ? 'Switch to client filters by changing sentiment/impact/sort to load full batch' : undefined
+                  canUseServerPaging ? 'Switch to client filters by changing sentiment/sort to load full batch' : undefined
                 }
               >
                 <option value="All">All Sources</option>
@@ -267,19 +251,6 @@ const NewsAnalysis: React.FC = () => {
                     {formatSource(source)}
                   </option>
                 ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <select
-                value={impactFilter}
-                onChange={(e) => setImpactFilter(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
-              >
-                <option value="All">All Impacts</option>
-                <option value="High">High Impact (&gt;70)</option>
-                <option value="Medium">Medium Impact</option>
-                <option value="Low">Low Impact (&lt;30)</option>
               </select>
             </div>
 
@@ -312,7 +283,6 @@ const NewsAnalysis: React.FC = () => {
               <button
                 onClick={() => {
                   setSentimentFilter('All');
-                  setImpactFilter('All');
                   setSourceFilter('All');
                   setTagFilter('All');
                 }}

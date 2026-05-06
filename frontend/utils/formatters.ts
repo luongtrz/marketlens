@@ -94,3 +94,30 @@ export const formatDateToLocalWithOffset = (dateStr: string): string => {
         return dateStr;
     }
 };
+
+/** Format model sentiment in ``-1 … +1`` (CryptoBert / pipeline scale). */
+export const formatUnitSentiment = (value: number | undefined): string => {
+    if (value === undefined || !Number.isFinite(value)) {
+        return '—';
+    }
+    const clamped = Math.max(-1, Math.min(1, value));
+    const s = clamped.toFixed(2);
+    return clamped > 0 ? `+${s}` : s;
+};
+
+/** Matches MainController thresholds: Neutral within ±0.15 on −1…+1 scale. */
+export type SentimentPolarity = 'Positive' | 'Negative' | 'Neutral';
+
+export const polarityFromUnitScore = (value: number | undefined): SentimentPolarity => {
+    if (value === undefined || !Number.isFinite(value)) {
+        return 'Neutral';
+    }
+    const s = Math.max(-1, Math.min(1, value));
+    if (s > 0.15) {
+        return 'Positive';
+    }
+    if (s < -0.15) {
+        return 'Negative';
+    }
+    return 'Neutral';
+};

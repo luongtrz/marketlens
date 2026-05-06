@@ -2,7 +2,7 @@ import React from 'react';
 import { NewsArticle } from '../types';
 import { BrainCircuit, TrendingUp, TrendingDown, Minus, ExternalLink } from 'lucide-react';
 
-import { formatSource, formatDateToLocalWithOffset } from '../utils/formatters';
+import { formatSource, formatDateToLocalWithOffset, formatUnitSentiment } from '../utils/formatters';
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -79,7 +79,8 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, onClick }) => {
         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
           {article.sentimentScore !== undefined && (
             <span className={getScoreColor(article.sentiment)}>
-              Sentiment Score: {article.sentimentScore}
+              Sentiment: {formatUnitSentiment(article.sentimentScore)}{' '}
+              <span className="text-slate-400 dark:text-slate-500 font-normal">(-1…+1)</span>
             </span>
           )}
         </div>

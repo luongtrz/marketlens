@@ -15,7 +15,33 @@ from shared.supabase_service import SupabaseReadService
 logger = logging.getLogger(__name__)
 
 # List views: omit ``content`` → much smaller payloads than ``select=*`` (major latency win).
-_NEWS_LITE_COLUMNS = "id,header,source_url,publish_at,crawled_at"
+# ``news_articles`` in Supabase stores only ``sentiment_score`` (numeric); label is derived in code.
+_NEWS_LITE_COLUMNS = "id,header,source_url,publish_at,crawled_at,sentiment_score"
+
+
+def _coerce_sentiment_float(value: object) -> float:
+    """Interpret Supabase sentiment: prefers ``-1..1`` (model scale); accepts ``0..100`` UI scale."""
+
+    if value is None:
+        return 0.0
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    if -1.001 <= f <= 1.001:
+        return max(-1.0, min(1.0, f))
+    if 0.0 <= f <= 100.0:
+        return max(-1.0, min(1.0, f / 50.0 - 1.0))
+    return max(-1.0, min(1.0, f))
+
+
+def _label_from_sentiment_float(score: float) -> str:
+    if score > 0.15:
+        return "bullish"
+    if score < -0.15:
+        return "bearish"
+    return "neutral"
+
 
 # When a ``symbol`` text filter applies, pagination is bounded by scanning newest rows server-side,
 # since PostgREST cannot express the whitelist token rules in ``_row_text_matches_symbol``.
@@ -68,6 +94,11 @@ def supabase_row_to_ingestion(row: dict[str, Any]) -> IngestionRecord:
     pub = _parse_dt(row.get("publish_at") or datetime.now(timezone.utc).isoformat())
     crawled_raw = row.get("crawled_at")
     crawled = _parse_dt(crawled_raw) if crawled_raw is not None else pub
+    raw_sent = row.get("sentiment_score")
+    if raw_sent is None and "sentiment" in row:
+        raw_sent = row.get("sentiment")
+    sentiment_score = _coerce_sentiment_float(raw_sent)
+    sentiment_label = _label_from_sentiment_float(sentiment_score)
     return IngestionRecord(
         id=rid,
         article_name=header[:500],
@@ -76,8 +107,8 @@ def supabase_row_to_ingestion(row: dict[str, Any]) -> IngestionRecord:
         date_published=pub,
         date_crawled=crawled,
         summary=(content[:2000] if content else None),
-        sentiment_score=0.0,
-        sentiment_label="neutral",
+        sentiment_score=sentiment_score,
+        sentiment_label=sentiment_label,
         factors=[],
         raw_text=content or None,
         metadata={},

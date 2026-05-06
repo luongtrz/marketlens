@@ -70,15 +70,24 @@ def _infer_ui_tag(title: str, snippet: str) -> str:
     return "General"
 
 
-def _ingestion_to_news_article(record: IngestionRecord, sentiment_score: int = 0) -> dict[str, Any]:
-    label_raw = (record.sentiment_label or "").lower()
-    sentiment: str
-    if "bull" in label_raw:
-        sentiment = "Positive"
-    elif "bear" in label_raw:
-        sentiment = "Negative"
-    else:
-        sentiment = "Neutral"
+def _clamp_unit_sentiment(value: float) -> float:
+    return max(-1.0, min(1.0, float(value)))
+
+
+def _sentiment_from_model_score(score: float) -> str:
+    """Map ``-1..1`` model score to UI polarity (same ±0.15 band as pipeline)."""
+
+    s = _clamp_unit_sentiment(score)
+    if s > 0.15:
+        return "Positive"
+    if s < -0.15:
+        return "Negative"
+    return "Neutral"
+
+
+def _ingestion_to_news_article(record: IngestionRecord, sentiment_score: float = 0.0) -> dict[str, Any]:
+    s = _clamp_unit_sentiment(sentiment_score)
+    sentiment = _sentiment_from_model_score(s)
     snippet = (
         record.summary
         if record.summary
@@ -95,7 +104,7 @@ def _ingestion_to_news_article(record: IngestionRecord, sentiment_score: int = 0
         "url": record.url,
         "sentiment": sentiment,
         "summary": record.summary,
-        "sentimentScore": sentiment_score,
+        "sentimentScore": s,
         "tag": ui_tag,
     }
 
@@ -113,9 +122,8 @@ def _records_to_news_payload(
             continue
         if end_dt and ts > end_dt:
             continue
-        score = int(round((rec.sentiment_score + 1) * 50)) if hasattr(rec, "sentiment_score") else 50
-        score = max(0, min(100, score))
-        out.append(_ingestion_to_news_article(rec, sentiment_score=score))
+        s = _clamp_unit_sentiment(float(getattr(rec, "sentiment_score", 0.0)))
+        out.append(_ingestion_to_news_article(rec, sentiment_score=s))
     out.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
     return out
 
@@ -311,18 +319,17 @@ async def api_analyze_article(request: Request, body: AnalyzeArticlePayload) -> 
         return {
             "sentiment": "Neutral",
             "summary": "No text supplied.",
-            "sentimentScore": 0,
+            "sentimentScore": 0.0,
         }
     try:
         res = await clients.aihub.sentiment(blob)
         score = float(res.get("score", 0.0))
-        label_raw = str(res.get("label", "neutral")).lower()
     except Exception as exc:
         logger.warning("analyze-article sentiment failed: %s", exc)
         return {
             "sentiment": "Neutral",
             "summary": f"Sentiment unavailable: {exc}"[:280],
-            "sentimentScore": 0,
+            "sentimentScore": 0.0,
         }
 
     if score > 0.15:
@@ -332,9 +339,8 @@ async def api_analyze_article(request: Request, body: AnalyzeArticlePayload) -> 
     else:
         sent = "Neutral"
     summary = blob[:280] + ("…" if len(blob) > 280 else "")
-    sentiment_score = int(round((score + 1) * 50))
-    sentiment_score = max(0, min(100, sentiment_score))
-    return {"sentiment": sent, "summary": summary, "sentimentScore": sentiment_score}
+    s = _clamp_unit_sentiment(score)
+    return {"sentiment": sent, "summary": summary, "sentimentScore": s}
 
 
 @router.post("/ai/forecast")

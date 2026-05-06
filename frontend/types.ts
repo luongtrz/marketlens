@@ -10,7 +10,7 @@ export interface NewsArticle {
   summary?: string;
   detailedSummary?: string;
   keyTakeaways?: string[];
-  sentimentScore?: number; // 0-100
+  sentimentScore?: number; // model scale -1 (bearish) … +1 (bullish)
   tag?: string;
 }
 
@@ -31,7 +31,7 @@ export interface HistoryPoint {
   low?: number;
   volume?: number; // Volume traded
   forecast?: number;
-  sentimentScore?: number; // 0-100
+  sentimentScore?: number; // optional chart overlay (not normalized to news API)
   newsSummary?: string;
 }
 

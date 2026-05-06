@@ -8,7 +8,7 @@ const API_BASE_URL =
 
 const MOCK_MODE = String(import.meta.env.VITE_MOCK_MODE || '').toLowerCase() === 'true';
 
-const mockNowIso = () => new Date().toISOString();
+const mockUnitSentiment = () => Math.round((Math.random() * 2 - 1) * 100) / 100;
 const AUTH_BASE = `${API_BASE_URL.replace(/\/$/, '')}/auth`;
 
 type AuthResponse = {
@@ -45,7 +45,7 @@ const mockNews = (tag?: string): NewsArticle[] => {
     return base.map((item, index) => ({
         ...item,
         sentiment: sentiments[Math.floor(Math.random() * sentiments.length)],
-        sentimentScore: Math.floor(30 + Math.random() * 60),
+        sentimentScore: mockUnitSentiment(),
         timestamp: new Date(Date.now() - index * 3600_000).toISOString(),
         url: 'https://example.com/mock-article',
         tag: tagValue,
@@ -119,9 +119,7 @@ export const getHistoricalData = async (
 export const analyzeArticle = async (article: { title: string; snippet: string; source: string }): Promise<Partial<NewsArticle>> => {
     if (MOCK_MODE) {
         return {
-            sentiment: 'Neutral',
             summary: `Mock summary for ${article.title || 'article'}.`,
-            sentimentScore: 55,
             detailedSummary: 'This is a mock AI summary used for UI testing.',
             keyTakeaways: ['Mock takeaway 1', 'Mock takeaway 2', 'Mock takeaway 3'],
         };
@@ -136,7 +134,7 @@ export const analyzeArticle = async (article: { title: string; snippet: string; 
         return await res.json();
     } catch (e) {
         console.error('analyzeArticle failed', e);
-        return { sentiment: 'Neutral', summary: 'Analysis unavailable.', sentimentScore: 0 };
+        return { summary: 'Analysis unavailable.', detailedSummary: undefined, keyTakeaways: undefined };
     }
 };
 
