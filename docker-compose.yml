@@ -79,6 +79,8 @@ services:
       MAIN_CONTROLLER_MARKET_DATA_URL: http://market_data:8002
       MAIN_CONTROLLER_STOCKMEM_URL: http://stockmem:8003
       MAIN_CONTROLLER_FACTORLEDGE_URL: http://factor_ledge:8004
+      MAIN_CONTROLLER_DB_URL: postgresql+asyncpg://postgres:pass@db:5432/postgres
+      MAIN_CONTROLLER_JWT_SECRET: ${MAIN_CONTROLLER_JWT_SECRET:-change-me}
       SUPABASE_URL: ${SUPABASE_URL:-}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}

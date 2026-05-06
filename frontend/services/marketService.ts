@@ -15,6 +15,32 @@ import { CoinData, HistoryPoint } from '../types';
 const MARKET_BASE_URL =
     import.meta.env.VITE_MARKET_DATA_URL || 'http://localhost:8002';
 
+const MOCK_MODE = String(import.meta.env.VITE_MOCK_MODE || '').toLowerCase() === 'true';
+const MOCK_SYMBOLS = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP'];
+
+const buildMockHistory = (symbol: string, limit: number): HistoryPoint[] => {
+    const now = Date.now();
+    const base = symbol === 'BTC' ? 62000 : symbol === 'ETH' ? 3200 : 180;
+    const direction = Math.random() > 0.5 ? 1 : -1;
+    const points: HistoryPoint[] = [];
+    for (let i = limit - 1; i >= 0; i--) {
+        const ts = now - i * 60 * 60 * 1000;
+        const drift = Math.sin((limit - i) / 6) * 0.015 * direction;
+        const price = base * (1 + drift);
+        points.push({
+            ts,
+            time: new Date(ts).toISOString(),
+            price: Number(price.toFixed(2)),
+            open: Number((price * 0.995).toFixed(2)),
+            high: Number((price * 1.01).toFixed(2)),
+            low: Number((price * 0.99).toFixed(2)),
+            close: Number(price.toFixed(2)),
+            volume: Number((Math.random() * 1000 + 500).toFixed(2)),
+        });
+    }
+    return points;
+};
+
 // WebSocket URL: replace http(s) with ws(s)
 function getWsUrl(): string {
     return MARKET_BASE_URL.replace(/^http/, 'ws') + '/ws';
@@ -27,6 +53,9 @@ function getWsUrl(): string {
  * Returns e.g. ["BTC", "ETH", "SOL", "BNB", "XRP"]
  */
 export const fetchSymbols = async (): Promise<string[]> => {
+    if (MOCK_MODE) {
+        return [...MOCK_SYMBOLS];
+    }
     try {
         const res = await fetch(`${MARKET_BASE_URL}/symbols`);
         if (!res.ok) throw new Error('Failed to fetch symbols');
@@ -49,6 +78,9 @@ export const fetchHistoricalData = async (
     limit: number = 200,
     endTime?: number,
 ): Promise<HistoryPoint[]> => {
+    if (MOCK_MODE) {
+        return buildMockHistory(symbol.toUpperCase(), Math.min(limit, 200));
+    }
     try {
         let url = `${MARKET_BASE_URL}/history?symbol=${symbol}&interval=${interval}&limit=${limit}`;
         if (endTime) {
@@ -85,6 +117,12 @@ export const fetchSnapshot = async (
     change24h: number;
     indicators: Record<string, any>;
 } | null> => {
+    if (MOCK_MODE) {
+        const base = symbol === 'BTC' ? 62000 : symbol === 'ETH' ? 3200 : 180;
+        const price = base * (1 + Math.sin(Date.now() / 1_000_000) * 0.01);
+        const changeSign = Math.random() > 0.5 ? 1 : -1;
+        return { price: Number(price.toFixed(2)), change24h: Number((price * 0.02 * changeSign).toFixed(2)), indicators: {} };
+    }
     try {
         const res = await fetch(
             `${MARKET_BASE_URL}/snapshot?symbol=${symbol}&interval=${interval}`,
@@ -109,6 +147,23 @@ export const fetchSnapshot = async (
  * For now, this fetches symbols and their latest price.
  */
 export const fetchTopCoins = async (): Promise<CoinData[]> => {
+    if (MOCK_MODE) {
+        return MOCK_SYMBOLS.map((symbol) => {
+            const history = buildMockHistory(symbol, 24);
+            const currentPrice = history[history.length - 1].price || 0;
+            const firstClose = history[0]?.price || currentPrice;
+            const change24h = currentPrice - firstClose;
+            return {
+                symbol,
+                name: symbol,
+                price: currentPrice,
+                change24h,
+                volume: '-',
+                marketCap: '-',
+                history,
+            };
+        });
+    }
     const symbols = await fetchSymbols();
     const coins: CoinData[] = [];
 
@@ -156,6 +211,8 @@ export interface MarketWebSocketOptions {
 export class MarketWebSocket {
     private ws: WebSocket | null = null;
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private mockTimer: ReturnType<typeof setInterval> | null = null;
+    private mockPrices = new Map<string, number>();
     private reconnectAttempts = 0;
     private maxReconnectAttempts = 10;
     private reconnectDelay = 3000; // ms
@@ -169,6 +226,11 @@ export class MarketWebSocket {
 
     connect(): void {
         this.isClosing = false;
+        if (MOCK_MODE) {
+            this.options.onStatusChange?.('connected');
+            this._startMockFeed();
+            return;
+        }
         try {
             this.ws = new WebSocket(getWsUrl());
 
@@ -234,6 +296,10 @@ export class MarketWebSocket {
             clearTimeout(this.reconnectTimer);
             this.reconnectTimer = null;
         }
+        if (this.mockTimer) {
+            clearInterval(this.mockTimer);
+            this.mockTimer = null;
+        }
         if (this.ws) {
             this.ws.close();
             this.ws = null;
@@ -294,5 +360,33 @@ export class MarketWebSocket {
         const delay = this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts - 1);
         console.log(`[MarketWS] Reconnecting in ${Math.round(delay)}ms (attempt ${this.reconnectAttempts})`);
         this.reconnectTimer = setTimeout(() => this.connect(), delay);
+    }
+
+    private _startMockFeed(): void {
+        if (this.mockTimer) return;
+        this.mockTimer = setInterval(() => {
+            const now = Date.now();
+            for (const sub of this.subscriptions) {
+                const [type, symbol] = sub.split(':');
+                const key = symbol.toUpperCase();
+                const prev = this.mockPrices.get(key) || (key === 'BTC' ? 62000 : key === 'ETH' ? 3200 : 180);
+                const next = prev * (1 + (Math.random() - 0.5) * 0.002);
+                this.mockPrices.set(key, next);
+
+                if (type === 'trade') {
+                    this.options.onTrade?.(key, Number(next.toFixed(2)), { p: next, s: `${key}USDT` });
+                } else if (type === 'kline') {
+                    this.options.onKline?.(key, {
+                        time: now,
+                        open: prev,
+                        high: Math.max(prev, next),
+                        low: Math.min(prev, next),
+                        close: next,
+                        volume: Math.random() * 1000,
+                        isFinal: true,
+                    });
+                }
+            }
+        }, 1000);
     }
 }

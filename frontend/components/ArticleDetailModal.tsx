@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { NewsArticle, AnalysisStatus } from '../types';
 import { analyzeArticle, askNewsContext } from '../services/apiService';
 import { Loader2, X, BrainCircuit, Sparkles, Send, Globe, ExternalLink } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { formatDateToLocalWithOffset } from '../utils/formatters';
 
 interface ArticleDetailModalProps {
     article: NewsArticle;
@@ -9,6 +12,8 @@ interface ArticleDetailModalProps {
 }
 
 const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article, onClose }) => {
+    const { isAuthenticated } = useAuth();
+    const location = useLocation();
     const [enrichedArticle, setEnrichedArticle] = useState<NewsArticle>(article);
     const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>(AnalysisStatus.IDLE);
 
@@ -19,6 +24,10 @@ const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article, onClos
 
     useEffect(() => {
         const loadAnalysis = async () => {
+            if (!isAuthenticated) {
+                setAnalysisStatus(AnalysisStatus.IDLE);
+                return;
+            }
             if (!article.detailedSummary || !article.keyTakeaways) {
                 setAnalysisStatus(AnalysisStatus.LOADING);
                 try {
@@ -36,6 +45,7 @@ const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article, onClos
     }, [article]);
 
     const handleQuery = async () => {
+        if (!isAuthenticated) return;
         if (!question.trim()) return;
         setIsThinking(true);
         setAnswer(null);
@@ -78,7 +88,7 @@ const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article, onClos
                 <div className="p-6 pt-8 overflow-y-auto custom-scrollbar flex-1">
                     <div className="flex items-center gap-2 mb-2">
                         <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">{enrichedArticle.source}</span>
-                        <span className="text-xs text-slate-500">{enrichedArticle.timestamp}</span>
+                        <span className="text-xs text-slate-500">{formatDateToLocalWithOffset(enrichedArticle.timestamp)}</span>
                     </div>
 
                     <h2 className="text-xl font-bold text-slate-900 mb-4 leading-snug">{enrichedArticle.title}</h2>
@@ -94,7 +104,19 @@ const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article, onClos
                             <h3 className="text-lg font-bold text-slate-900">Sibyl Analysis</h3>
                         </div>
 
-                        {analysisStatus === AnalysisStatus.LOADING ? (
+                        {!isAuthenticated ? (
+                            <div className="flex flex-col items-center justify-center py-10 text-center text-slate-500">
+                                <p className="text-sm font-semibold text-slate-700">Login to unlock AI summary</p>
+                                <p className="text-xs mt-1">AI insights are available after signing in.</p>
+                                <NavLink
+                                    to="/login"
+                                    state={{ from: `/news?articleId=${article.id}` || location.pathname }}
+                                    className="mt-4 px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700"
+                                >
+                                    Login to Continue
+                                </NavLink>
+                            </div>
+                        ) : analysisStatus === AnalysisStatus.LOADING ? (
                             <div className="flex flex-col items-center justify-center py-12 text-slate-500">
                                 <Loader2 className="animate-spin mb-2 text-indigo-600" size={32} />
                                 <p>Generating detailed report...</p>
@@ -164,11 +186,12 @@ const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({ article, onClos
                                             onChange={(e) => setQuestion(e.target.value)}
                                             onKeyDown={(e) => e.key === 'Enter' && handleQuery()}
                                             placeholder="e.g. Why is this important?"
+                                            disabled={!isAuthenticated}
                                             className="w-full bg-white border border-slate-200 rounded-lg py-2.5 pl-3 pr-10 text-sm text-slate-900 focus:outline-none focus:border-indigo-500"
                                         />
                                         <button
                                             onClick={handleQuery}
-                                            disabled={isThinking || !question.trim()}
+                                            disabled={!isAuthenticated || isThinking || !question.trim()}
                                             className="absolute right-1.5 top-1.5 p-1.5 bg-indigo-600 rounded-md text-white disabled:opacity-50 hover:bg-indigo-700"
                                         >
                                             {isThinking ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}

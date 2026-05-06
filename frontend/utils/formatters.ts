@@ -61,3 +61,36 @@ export const formatDateToUTC7 = (dateStr: string): string => {
         return dateStr;
     }
 };
+
+export const formatDateToLocalWithOffset = (dateStr: string): string => {
+    if (!dateStr) return '';
+    try {
+        const date = new Date(dateStr);
+
+        if (isNaN(date.getTime())) return dateStr;
+
+        const offsetMinutes = -date.getTimezoneOffset();
+        const sign = offsetMinutes >= 0 ? '+' : '-';
+        const absMinutes = Math.abs(offsetMinutes);
+        const hours = Math.floor(absMinutes / 60)
+            .toString()
+            .padStart(2, '0');
+        const minutes = (absMinutes % 60)
+            .toString()
+            .padStart(2, '0');
+        const offsetLabel = `UTC${sign}${hours}:${minutes}`;
+
+        const formatted = new Intl.DateTimeFormat(undefined, {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        }).format(date);
+
+        return `${formatted} (${offsetLabel})`;
+    } catch (e) {
+        return dateStr;
+    }
+};
