@@ -5,6 +5,8 @@ from typing import Any
 
 from shared.models.article import RawArticle
 
+from crawler.src.rss.title_hints import normalize_article_title
+
 
 class FeedParser:
     """Parses raw RSS/Atom feed entries into structured RawArticle objects."""
@@ -48,8 +50,10 @@ class FeedParser:
 
         summary = str(entry.get("summary") or entry.get("description") or "").strip() or None
 
+        resolved = normalize_article_title(title if title else None, url)
+
         return RawArticle(
-            title=title or url or "Untitled",
+            title=resolved,
             url=url,
             source=source_name,
             category=category,

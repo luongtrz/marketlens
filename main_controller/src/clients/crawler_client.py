@@ -34,19 +34,24 @@ class CrawlerClient:
         symbol: str,
         *,
         limit: int = 50,
+        offset: int = 0,
         lite: bool = False,
         publish_gte: datetime | None = None,
         publish_lte: datetime | None = None,
     ) -> list[IngestionRecord]:
-        """Get the latest news rows, optionally filtered by ``symbol`` (e.g. BTCUSDT).
+        """Get recent news rows, optionally filtered by ``symbol`` (e.g. BTCUSDT).
 
         ``lite=True`` skips full article body in PostgREST — faster for UI lists; pipeline
         keeps ``lite=False`` for richer text when needed.
 
         ``publish_gte`` / ``publish_lte`` narrow by ``publish_at`` (inclusive) in Supabase.
+
+        ``offset`` is paired with ``limit`` when reading without symbol (PostgREST OFFSET).
+        With symbol filters, paging is bounded by scanning in ``shared.supabase_news``.
         """
         return await fetch_news_articles_from_supabase(
             limit=limit,
+            offset=max(0, offset),
             symbol=symbol,
             lite=lite,
             publish_gte=publish_gte,

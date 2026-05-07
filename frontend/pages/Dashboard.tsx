@@ -1,10 +1,13 @@
 
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import { NavLink } from 'react-router-dom';
 import { CoinData, ForecastResult, HistoryPoint, NewsArticle } from '../types';
 import LightweightChart from '../components/LightweightChart';
 
 import { Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, GripHorizontal, Globe, BrainCircuit, Sparkles, RefreshCw, Zap, Target, ShieldAlert, Check, Loader2, X, SlidersHorizontal, Activity, BarChart2, Star, ChevronDown, List, Hand, Calendar } from 'lucide-react';
 import { getTopCoins, getHistoricalData, generateMarketForecast, fetchLatestNews, createChatSession, MarketWebSocket } from '../services/apiService';
+import { useAuth } from '../context/AuthContext';
+import { formatDateToLocalWithOffset } from '../utils/formatters';
 
 // Range Configuration for CryptoCompare
 // Limit: Number of points. Aggregate: steps to combine. Type: minute/hour/day.
@@ -46,6 +49,18 @@ type SortDirection = 'asc' | 'desc';
 const CONTEXT_NEWS_PAGE_SIZE = 8;
 
 const Dashboard: React.FC = () => {
+    const { isAuthenticated } = useAuth();
+    const getNewsCardAccent = (sentiment?: string) => {
+        if (sentiment === 'Positive') return 'border-emerald-200 ring-emerald-100';
+        if (sentiment === 'Negative') return 'border-red-200 ring-red-100';
+        return 'border-amber-200 ring-amber-100';
+    };
+
+    const getNewsCardHover = (sentiment?: string) => {
+        if (sentiment === 'Positive') return 'hover:border-emerald-300 hover:ring-emerald-200/70 hover:shadow-emerald-200/30';
+        if (sentiment === 'Negative') return 'hover:border-red-300 hover:ring-red-200/70 hover:shadow-red-200/30';
+        return 'hover:border-amber-300 hover:ring-amber-200/70 hover:shadow-amber-200/30';
+    };
     const [coins, setCoins] = useState<CoinData[]>([]);
     const [selectedCoinSymbol, setSelectedCoinSymbol] = useState<string>(() => {
         return localStorage.getItem('marketlens_selected_coin') || 'BTC';
@@ -423,6 +438,9 @@ const Dashboard: React.FC = () => {
 
 
     const handleForecast = async () => {
+        if (!isAuthenticated) {
+            return;
+        }
         setLoadingForecast(true);
         // Note: We do NOT clear the previous forecastResult here to ensure smooth transitions/polling
         if (!selectedCoin) {
@@ -1085,16 +1103,7 @@ const Dashboard: React.FC = () => {
                         ref={sidebarRef}
                         className="w-full md:w-80 lg:w-96 flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 h-[calc(100vh-3.5rem)] overflow-hidden transition-all duration-300"
                     >
-                        {/* Header */}
-                        <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-none z-10">
-                            <h3 className="text-sm font-bold text-slate-800 dark:text-white uppercase flex items-center gap-2">
-                                <Zap size={16} className="text-indigo-500" />
-                                Market Intelligence
-                            </h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                AI-powered analysis & news for {selectedCoin.name}
-                            </p>
-                        </div>
+                        
 
                         {/* Sidebar Content: Split View */}
                         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
@@ -1116,13 +1125,16 @@ const Dashboard: React.FC = () => {
                                         </div>
                                     ) : contextNews.length > 0 ? (
                                         contextNewsPageArticles.map((article) => (
-                                            <div key={article.id} className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-800 transition-all group shadow-sm">
+                                            <div
+                                                key={article.id}
+                                                className={`p-3 bg-white dark:bg-slate-800 rounded-lg border transition-all group shadow-sm ring-1 ${getNewsCardAccent(article.sentiment)} ${getNewsCardHover(article.sentiment)} hover:ring-2`}
+                                            >
                                                 <div className="flex justify-between items-start mb-1.5">
                                                     <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-full">
                                                         {article.source}
                                                     </span>
                                                     <span className="text-[10px] text-slate-400">
-                                                        {new Date(article.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                        {formatDateToLocalWithOffset(article.timestamp)}
                                                     </span>
                                                 </div>
                                                 <a href={article.url} target="_blank" rel="noopener noreferrer" className="block">
@@ -1199,7 +1211,19 @@ const Dashboard: React.FC = () => {
                                 </button>
                                 {showForecast && (
                                     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                                        {forecastResult ? (
+                                        {!isAuthenticated ? (
+                                            <div className="flex flex-col items-center justify-center h-full py-10 px-4 text-center text-slate-400">
+                                                <ShieldAlert size={32} className="mb-3 opacity-20" />
+                                                <h4 className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-1">AI Summary Locked</h4>
+                                                <p className="text-xs mb-4">Log in to unlock AI forecasts and summaries.</p>
+                                                <NavLink
+                                                    to="/login"
+                                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-indigo-500/20"
+                                                >
+                                                    Login to Continue
+                                                </NavLink>
+                                            </div>
+                                        ) : forecastResult ? (
                                             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
                                                 {/* Recommendation Card */}
                                                 {forecastResult.recommendation && (

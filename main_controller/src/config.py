@@ -14,6 +14,11 @@ class MainControllerConfig(BaseAppConfig):
     stockmem_url: str = "http://localhost:8003"
     factorledge_url: str = "http://localhost:8004"
     k_similar: int = 5
+    jwt_secret: str = "change-me"
+    jwt_algorithm: str = "HS256"
+    jwt_access_ttl_minutes: int = 30
+    jwt_refresh_ttl_days: int = 14
+    jwt_issuer: str = "marketlens"
 
     # Cron: comma-separated symbols to run daily, e.g. "BTC,ETH"
     cron_symbols: str = "BTC"

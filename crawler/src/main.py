@@ -241,6 +241,7 @@ def _build_supabase_row(record: IngestionRecord) -> dict[str, object]:
         "publish_at": record.date_published.isoformat(),
         "crawled_at": record.date_crawled.isoformat(),
         "source_url": record.url,
+        "sentiment_score": record.sentiment_score,
     }
 
 

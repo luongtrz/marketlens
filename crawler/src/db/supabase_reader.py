@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from urllib.parse import urlparse
-
 from shared.http_client import get_client
-from shared.models.article import IngestionRecord
+from shared.supabase_news import supabase_row_to_ingestion
+
 
 _TABLE = "news_articles"
 
@@ -52,31 +50,4 @@ class SupabaseReader:
             resp = await client.get(url, headers=self._headers, params=params)
             resp.raise_for_status()
             rows = resp.json()
-        return [_to_record(r) for r in rows]
-
-
-def _to_record(row: dict) -> IngestionRecord:
-    source_url = row.get("source_url") or ""
-    source = urlparse(source_url).hostname or "unknown"
-    now = datetime.now(timezone.utc)
-    score = float(row.get("sentiment_score") or 0.0)
-    if score > 0.15:
-        label = "bullish"
-    elif score < -0.15:
-        label = "bearish"
-    else:
-        label = "neutral"
-    return IngestionRecord(
-        id=str(row["id"]),
-        article_name=row.get("header") or "",
-        source=source,
-        url=source_url,
-        date_published=row.get("publish_at") or now,
-        date_crawled=row.get("crawled_at") or now,
-        summary=row.get("summary"),
-        sentiment_score=score,
-        sentiment_label=label,
-        factors=[],
-        raw_text=row.get("content"),
-        metadata={},
-    )
+        return [supabase_row_to_ingestion(r) for r in rows if isinstance(r, dict)]

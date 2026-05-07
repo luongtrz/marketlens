@@ -18,6 +18,19 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
+def _parse_content_range_total(header_val: str) -> int | None:
+    """Extract total row count from PostgREST ``Content-Range`` (e.g. ``0-0/357``)."""
+    if not header_val or "/" not in header_val:
+        return None
+    total_part = header_val.split("/", 1)[1].strip()
+    if total_part == "*":
+        return None
+    try:
+        return int(total_part)
+    except ValueError:
+        return None
+
+
 class SupabaseReadService:
     """Async client for ``GET`` queries against ``/rest/v1/{table}``."""
 
@@ -106,6 +119,7 @@ class SupabaseReadService:
         columns: str = "*",
         order: str | None = None,
         limit: int = 100,
+        offset: int = 0,
         extra_params: dict[str, str] | None = None,
         extra_duplicate_params: list[tuple[str, str]] | None = None,
     ) -> list[dict[str, Any]]:
@@ -114,6 +128,7 @@ class SupabaseReadService:
         ``extra_params`` are merged into the query string (PostgREST filters, etc.).
         ``extra_duplicate_params`` appends extra ``(key, value)`` pairs so the same key
         can appear twice (e.g. two ``publish_at`` filters).
+        ``offset`` is PostgREST row offset (paired with ``limit`` for paging).
         """
         tbl = self._resolve_table(table)
         endpoint = f"{self._base}/rest/v1/{tbl}"
@@ -127,6 +142,8 @@ class SupabaseReadService:
             params_kv.extend((k, str(v)) for k, v in extra_params.items())
         if extra_duplicate_params:
             params_kv.extend(extra_duplicate_params)
+        if offset > 0:
+            params_kv.append(("offset", str(int(offset))))
 
         try:
             client = self._ensure_http()
@@ -152,3 +169,45 @@ class SupabaseReadService:
             if isinstance(item, dict):
                 out.append(item)
         return out
+
+    async def count_rows(
+        self,
+        table: str | None = None,
+        *,
+        columns: str = "id",
+        order: str | None = None,
+        extra_params: dict[str, str] | None = None,
+        extra_duplicate_params: list[tuple[str, str]] | None = None,
+    ) -> int | None:
+        """Return total matching rows (``Prefer: count=exact``); None if unavailable."""
+        tbl = self._resolve_table(table)
+        endpoint = f"{self._base}/rest/v1/{tbl}"
+        params_kv: list[tuple[str, str]] = [
+            ("select", columns),
+            ("limit", "1"),
+        ]
+        if order:
+            params_kv.append(("order", order))
+        if extra_params:
+            params_kv.extend((k, str(v)) for k, v in extra_params.items())
+        if extra_duplicate_params:
+            params_kv.extend(extra_duplicate_params)
+        headers = {
+            **self._headers(),
+            "Prefer": "count=exact",
+        }
+        try:
+            client = self._ensure_http()
+            resp = await client.get(endpoint, headers=headers, params=params_kv)
+        except httpx.HTTPError as exc:
+            logger.warning("Supabase count HTTP error: %s", str(exc)[:200])
+            return None
+
+        if not (200 <= resp.status_code < 300):
+            logger.warning(
+                "Supabase count failed status=%s body=%s",
+                resp.status_code,
+                (resp.text or "")[:200],
+            )
+            return None
+        return _parse_content_range_total(resp.headers.get("content-range") or "")
