@@ -21,6 +21,7 @@ from .taxonomy import (
     NUM_GROUPS,
     NUM_TYPES,
     build_group_vector,
+    build_group_vector_from_types,
     build_type_vector,
 )
 
@@ -171,6 +172,17 @@ class RecordEmbedder:
     def embed_split(self, record: StockMemRecord) -> SplitEmbedding:
         type_vec = np.array(build_type_vector(record.factors), dtype=np.float32)
         group_vec = np.array(build_group_vector(record.factors), dtype=np.float32)
+
+        # When factor names don't match the taxonomy (free-form AIHub output),
+        # fall back to using FactorType from normalized_factors to populate group bits.
+        if not any(group_vec) and record.normalized_factors:
+            factor_types = [
+                nf.get("type") if isinstance(nf, dict) else getattr(nf, "type", None)
+                for nf in record.normalized_factors
+            ]
+            fallback = np.array(build_group_vector_from_types(factor_types), dtype=np.float32)
+            group_vec = np.maximum(group_vec, fallback)
+
         factor_vec = _l2_normalize(np.concatenate([type_vec, group_vec]))
 
         raw = _extract_raw_numerical(record)

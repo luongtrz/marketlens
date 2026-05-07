@@ -253,13 +253,35 @@ for _f in BEARISH_FACTORS:
 for _f in NEUTRAL_FACTORS:
     _FACTOR_SENTIMENT[_f] = "neutral"
 
+# Case-insensitive lookup (built once at import time for O(1) access)
+_FACTOR_TYPE_MAP_LOWER: dict[str, str] = {k.lower(): v for k, v in FACTOR_TYPE_MAP.items()}
+
+# Maps FactorType enum values (from AIHub) to taxonomy group names.
+# Used when a factor name doesn't match the taxonomy but its type is known.
+FACTOR_TYPE_TO_GROUPS: dict[str, list[str]] = {
+    "macro":      ["Macroeconomic", "TradFi Crossover"],
+    "regulatory": ["Regulation & Legal"],
+    "technical":  ["Technology & Development", "Protocol & Product"],
+    "sentiment":  ["Industry Standards & Opinions", "Market Performance"],
+    "on_chain":   ["Whale & On-chain", "DeFi & Ecosystem"],
+    "exchange":   ["Exchange & Trading"],
+}
+
+
+def _resolve_event_type(factor: str) -> str | None:
+    """Try exact match then case-insensitive match against FACTOR_TYPE_MAP."""
+    result = FACTOR_TYPE_MAP.get(factor)
+    if result is not None:
+        return result
+    return _FACTOR_TYPE_MAP_LOWER.get(factor.lower())
+
 
 def get_factor_type(factor: str) -> str | None:
-    return FACTOR_TYPE_MAP.get(factor)
+    return _resolve_event_type(factor)
 
 
 def get_factor_group(factor: str) -> str | None:
-    event_type = FACTOR_TYPE_MAP.get(factor)
+    event_type = _resolve_event_type(factor)
     if event_type is None:
         return None
     return TYPE_TO_GROUP.get(event_type)
@@ -273,7 +295,7 @@ def build_type_vector(factors: list[str]) -> list[int]:
     """StockMem formula (3): V_t[m] = 1 if event type m occurs."""
     vec = [0] * NUM_TYPES
     for f in factors:
-        event_type = FACTOR_TYPE_MAP.get(f)
+        event_type = _resolve_event_type(f)
         if event_type is None:
             continue
         idx = TYPE_INDEX.get(event_type)
@@ -292,4 +314,22 @@ def build_group_vector(factors: list[str]) -> list[int]:
         idx = GROUP_INDEX.get(group)
         if idx is not None:
             vec[idx] = 1
+    return vec
+
+
+def build_group_vector_from_types(factor_types: list[str | None]) -> list[int]:
+    """Build group vector from FactorType enum values (e.g. 'macro', 'regulatory').
+
+    Used as fallback when factor names don't match the taxonomy — AIHub always
+    provides a FactorType even for free-form factor names.
+    """
+    vec = [0] * NUM_GROUPS
+    for ft in factor_types:
+        if ft is None:
+            continue
+        groups = FACTOR_TYPE_TO_GROUPS.get(str(ft).lower(), [])
+        for g in groups:
+            idx = GROUP_INDEX.get(g)
+            if idx is not None:
+                vec[idx] = 1
     return vec
