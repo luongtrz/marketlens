@@ -61,7 +61,7 @@ async def get_record(record_id: str) -> StockMemRecord:
 @app.post("/search", response_model=SearchResponse)
 async def search(payload: SearchRequest) -> SearchResponse:
     k = max(1, payload.k)
-    results = await service.search(payload.query, k=k)
+    results = await service.search(payload.query, k=k, before_date=payload.before_date)
     return SearchResponse(results=results)
 
 

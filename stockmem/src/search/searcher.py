@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 import numpy as np
 
 from ..config import SearchWeights
@@ -51,11 +52,18 @@ class RecordSearcher:
             + self._weights.w3_price * sim_price
         )
 
-    def search(self, query: StockMemRecord, k: int = 5) -> list[SimilarRecord]:
+    def search(
+        self,
+        query: StockMemRecord,
+        k: int = 5,
+        before_date: date | None = None,
+    ) -> list[SimilarRecord]:
         _ = self._index  # kept for future FAISS-based prefilter; full scan for now
         scored: list[tuple[float, StockMemRecord]] = []
         query_split = self._embedder.embed_split(query)
         for rec in self._record_cache.values():
+            if before_date is not None and rec.date >= before_date:
+                continue
             cand_split = self._embedder.embed_split(rec)
             score = self._weighted_score(query_split, cand_split)
             scored.append((score, rec))

@@ -1,5 +1,7 @@
 """StockMem module HTTP client."""
 
+from datetime import date
+
 from shared.models.memory import SimilarRecord, StockMemRecord
 
 from main_controller.src.clients.base import BaseHTTPClient
@@ -20,11 +22,16 @@ class StockMemClient(BaseHTTPClient):
         body = await self._post("/record", {"record": record.model_dump(mode="json")})
         return body["id"]  # type: ignore[index]
 
-    async def search(self, query: StockMemRecord, k: int = 5) -> list[SimilarRecord]:
-        body = await self._post(
-            "/search",
-            {"query": query.model_dump(mode="json"), "k": k},
-        )
+    async def search(
+        self,
+        query: StockMemRecord,
+        k: int = 5,
+        before_date: date | None = None,
+    ) -> list[SimilarRecord]:
+        payload: dict = {"query": query.model_dump(mode="json"), "k": k}
+        if before_date is not None:
+            payload["before_date"] = before_date.isoformat()
+        body = await self._post("/search", payload)
         return [SimilarRecord.model_validate(r) for r in body["results"]]  # type: ignore[index]
 
     async def list_missing_returns(self, symbol: str | None = None) -> list[StockMemRecord]:

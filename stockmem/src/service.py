@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from .config import SearchWeights
 from .models import SimilarRecord, StockMemRecord
 from .search.embedder import RecordEmbedder
@@ -77,8 +79,13 @@ class StockMemService:
             self.records_by_id[record.id] = record
         return record
 
-    async def search(self, query: StockMemRecord, k: int = 5) -> list[SimilarRecord]:
-        return self.searcher.search(query, k)
+    async def search(
+        self,
+        query: StockMemRecord,
+        k: int = 5,
+        before_date: date | None = None,
+    ) -> list[SimilarRecord]:
+        return self.searcher.search(query, k, before_date=before_date)
 
     async def list_missing_returns(self, symbol: str | None = None) -> list[StockMemRecord]:
         return await self.repository.list_missing_returns(symbol)

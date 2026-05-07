@@ -198,7 +198,11 @@ async def step_stockmem(
 
     try:
         ctx.current_record_id = await clients.stockmem.save(current_record)
-        results = await clients.stockmem.search(query=current_record, k=k_similar + 1)
+        results = await clients.stockmem.search(
+            query=current_record,
+            k=k_similar + 1,
+            before_date=ctx.as_of_date,  # Exclude records on/after backtest date
+        )
         # Exclude the record we just saved so it doesn't appear as its own similar case
         ctx.similar_records = [
             r for r in results if r.record.id != ctx.current_record_id

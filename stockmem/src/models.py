@@ -96,6 +96,7 @@ class RecordCreateResponse(BaseModel):
 class SearchRequest(BaseModel):
     query: StockMemRecord
     k: int = 5
+    before_date: date | None = None  # Exclude records on/after this date (backtest look-ahead guard)
 
 
 class SearchResponse(BaseModel):
