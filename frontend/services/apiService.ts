@@ -274,7 +274,7 @@ export const getHistoricalNews = async (coinName: string, dateStr: string): Prom
     }
 };
 
-export const fetchLatestNews = async (start?: string, end?: string, tag?: string): Promise<NewsArticle[]> => {
+export const fetchLatestNews = async (start?: string, end?: string, tag?: string, source?: string): Promise<NewsArticle[]> => {
     if (MOCK_MODE) {
         return mockNews(tag).filter((item) => {
             const ts = new Date(item.timestamp).getTime();
@@ -289,6 +289,7 @@ export const fetchLatestNews = async (start?: string, end?: string, tag?: string
         if (start) params.append('start', start);
         if (end) params.append('end', end);
         if (tag) params.append('tag', tag);
+        if (source) params.append('source', source);
         const query = params.toString();
         const base = API_BASE_URL.replace(/\/$/, '');
         const url = `${base}/ai/latest-news${query ? `?${query}` : ''}`;
@@ -304,6 +305,22 @@ export const fetchLatestNews = async (start?: string, end?: string, tag?: string
     });
 };
 
+/** Hostnames for News filter (recent scan on server). */
+export const fetchNewsSourceHosts = async (): Promise<string[]> => {
+    if (MOCK_MODE) {
+        return ['mockwire', 'chainpulse', 'cryptodaily'];
+    }
+    try {
+        const base = API_BASE_URL.replace(/\/$/, '');
+        const res = await fetch(`${base}/ai/news-sources`);
+        if (!res.ok) return [];
+        const data = (await res.json()) as { hosts?: string[] };
+        return Array.isArray(data.hosts) ? data.hosts : [];
+    } catch {
+        return [];
+    }
+};
+
 /** Server-side Supabase pagination via MainController (News Intelligence). */
 export const fetchLatestNewsPaged = async (
     page: number,
@@ -311,6 +328,7 @@ export const fetchLatestNewsPaged = async (
     start?: string,
     end?: string,
     tag?: string,
+    source?: string,
 ): Promise<LatestNewsPage | null> => {
     const cacheKey = `news:paged:${page}:${pageSize}:${start || 'none'}:${end || 'none'}:${tag || 'all'}`;
     return getOrFetchCached(cacheKey, NEWS_TTL_MS, async () => {
@@ -320,6 +338,7 @@ export const fetchLatestNewsPaged = async (
         if (start) params.append('start', start);
         if (end) params.append('end', end);
         if (tag) params.append('tag', tag);
+        if (source) params.append('source', source);
         const base = API_BASE_URL.replace(/\/$/, '');
         const url = `${base}/ai/latest-news?${params.toString()}`;
         const res = await fetch(url);

@@ -235,7 +235,7 @@ def _append_article_jsonl(path: Path, record: IngestionRecord) -> None:
 
 def _build_supabase_row(record: IngestionRecord) -> dict[str, object]:
     content = (record.raw_text or record.summary or record.article_name or "").strip()
-    return {
+    payload: dict[str, object] = {
         "header": (record.article_name or "Untitled")[:200],
         "content": content[:5000],
         "publish_at": record.date_published.isoformat(),
@@ -243,6 +243,9 @@ def _build_supabase_row(record: IngestionRecord) -> dict[str, object]:
         "source_url": record.url,
         "sentiment_score": record.sentiment_score,
     }
+    if record.summary and str(record.summary).strip():
+        payload["summary"] = str(record.summary).strip()[:8000]
+    return payload
 
 
 async def _write_to_supabase(

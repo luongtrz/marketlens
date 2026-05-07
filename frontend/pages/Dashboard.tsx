@@ -3,6 +3,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 're
 import { NavLink } from 'react-router-dom';
 import { CoinData, ForecastResult, HistoryPoint, NewsArticle } from '../types';
 import LightweightChart from '../components/LightweightChart';
+import CoinLogo from '../components/CoinLogo';
 
 import { Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, GripHorizontal, Globe, BrainCircuit, Sparkles, RefreshCw, Zap, Target, ShieldAlert, Check, Loader2, X, SlidersHorizontal, Activity, BarChart2, Star, ChevronDown, List, Hand, Calendar } from 'lucide-react';
 import { getTopCoins, getHistoricalData, generateMarketForecast, fetchLatestNews, getCachedLatestNews, getCachedTopCoins, createChatSession, MarketWebSocket } from '../services/apiService';
@@ -845,7 +846,11 @@ const Dashboard: React.FC = () => {
                                     onClick={() => setIsCoinDropdownOpen(!isCoinDropdownOpen)}
                                     className="flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 p-1 -ml-1 rounded-lg transition-colors text-left group"
                                 >
-                                    <CoinIcon symbol={selectedCoin.symbol} />
+                                    <CoinLogo
+                                        symbol={selectedCoin.symbol}
+                                        className="w-6 h-6 shrink-0 shadow-sm"
+                                        title={selectedCoin.name}
+                                    />
 
                                     <div className="flex items-center gap-3">
                                         <div className="flex items-center gap-1.5">

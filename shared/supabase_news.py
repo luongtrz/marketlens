@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # List views: omit ``content`` → much smaller payloads than ``select=*`` (major latency win).
 # ``news_articles`` in Supabase stores only ``sentiment_score`` (numeric); label is derived in code.
-_NEWS_LITE_COLUMNS = "id,header,source_url,publish_at,crawled_at,sentiment_score"
+_NEWS_LITE_COLUMNS = "id,header,source_url,publish_at,crawled_at,sentiment_score,summary"
 
 
 def _coerce_sentiment_float(value: object) -> float:
@@ -99,6 +99,11 @@ def supabase_row_to_ingestion(row: dict[str, Any]) -> IngestionRecord:
         raw_sent = row.get("sentiment")
     sentiment_score = _coerce_sentiment_float(raw_sent)
     sentiment_label = _label_from_sentiment_float(sentiment_score)
+    db_summary = row.get("summary")
+    if isinstance(db_summary, str) and db_summary.strip():
+        summary_val = db_summary.strip()[:8000]
+    else:
+        summary_val = (content[:2000] if content else None)
     return IngestionRecord(
         id=rid,
         article_name=header[:500],
@@ -106,7 +111,7 @@ def supabase_row_to_ingestion(row: dict[str, Any]) -> IngestionRecord:
         url=source_url or "#",
         date_published=pub,
         date_crawled=crawled,
-        summary=(row.get("summary") or content[:2000] if content else None),
+        summary=summary_val,
         sentiment_score=sentiment_score,
         sentiment_label=sentiment_label,
         factors=[],
@@ -152,6 +157,61 @@ async def check_supabase_rest_reachable(timeout: float = 10.0) -> bool:
     return await svc.ping()
 
 
+def normalize_news_source_host(raw: str | None) -> str | None:
+    """Return a lowercase hostname safe for ``source_url`` filters, or None if invalid."""
+
+    if raw is None:
+        return None
+    s = raw.strip().lower()
+    if not s:
+        return None
+    # PostgREST ilike payload: host segment only (no protocol/path).
+    if not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?", s):
+        return None
+    return s
+
+
+def _source_url_filter_params(source_host: str | None) -> dict[str, str]:
+    hn = normalize_news_source_host(source_host or "")
+    if not hn:
+        return {}
+    return {"source_url": f"ilike.%{hn}%"}
+
+
+async def fetch_recent_news_source_hosts(
+    *,
+    scan_limit: int = 800,
+    supabase_url: str | None = None,
+    supabase_key: str | None = None,
+    table: str | None = None,
+    timeout: float = 20.0,
+) -> list[str]:
+    """Distinct crawler ``source`` hostnames derived from newest ``source_url`` rows.
+
+    Not a global DISTINCT (PostgREST has no cheap generic); sufficiently diverse for UI filters.
+    """
+
+    svc = _news_service(supabase_url, supabase_key, table, timeout=timeout)
+    if svc is None:
+        return []
+
+    rows = await svc.select_rows(
+        order="publish_at.desc",
+        limit=min(max(scan_limit, 1), _SYM_FILTER_SCAN_CAP),
+        offset=0,
+        columns="source_url",
+    )
+    hosts: set[str] = set()
+    for raw in rows:
+        if not isinstance(raw, dict):
+            continue
+        url = raw.get("source_url")
+        if isinstance(url, str) and url.strip():
+            hosts.add(_source_from_url(url.strip()))
+    hosts.discard("unknown")
+    return sorted(hosts)
+
+
 def _publish_dup_filters(
     publish_gte: datetime | None,
     publish_lte: datetime | None,
@@ -169,6 +229,7 @@ async def fetch_news_articles_from_supabase(
     limit: int = 50,
     offset: int = 0,
     symbol: str = "",
+    source_host: str | None = None,
     supabase_url: str | None = None,
     supabase_key: str | None = None,
     table: str | None = None,
@@ -193,6 +254,7 @@ async def fetch_news_articles_from_supabase(
         return []
 
     dup_filters = _publish_dup_filters(publish_gte, publish_lte)
+    url_host_extra = _source_url_filter_params(source_host)
 
     if symbol:
         # Need enough scanned rows before Python symbol filter — worst case (all scanned rows match pair).
@@ -206,6 +268,7 @@ async def fetch_news_articles_from_supabase(
             limit=scan_target,
             offset=0,
             columns=_NEWS_LITE_COLUMNS if lite else "*",
+            extra_params=url_host_extra or None,
             extra_duplicate_params=dup_filters or None,
         )
         filtered: list[IngestionRecord] = []
@@ -229,6 +292,7 @@ async def fetch_news_articles_from_supabase(
         limit=max(1, limit),
         offset=max(0, offset),
         columns=_NEWS_LITE_COLUMNS if lite else "*",
+        extra_params=url_host_extra or None,
         extra_duplicate_params=dup_filters or None,
     )
 
@@ -249,6 +313,7 @@ async def count_news_articles_from_supabase(
     *,
     publish_gte: datetime | None = None,
     publish_lte: datetime | None = None,
+    source_host: str | None = None,
     supabase_url: str | None = None,
     supabase_key: str | None = None,
     table: str | None = None,
@@ -261,9 +326,11 @@ async def count_news_articles_from_supabase(
         return None
 
     dup_filters = _publish_dup_filters(publish_gte, publish_lte)
+    url_host_extra = _source_url_filter_params(source_host)
     return await svc.count_rows(
         columns="id",
         order="publish_at.desc",
+        extra_params=url_host_extra or None,
         extra_duplicate_params=dup_filters or None,
     )
 
@@ -273,6 +340,7 @@ async def count_news_articles_matching_symbol_from_supabase(
     symbol: str,
     publish_gte: datetime | None = None,
     publish_lte: datetime | None = None,
+    source_host: str | None = None,
     supabase_url: str | None = None,
     supabase_key: str | None = None,
     table: str | None = None,
@@ -286,11 +354,13 @@ async def count_news_articles_matching_symbol_from_supabase(
         return 0
 
     dup_filters = _publish_dup_filters(publish_gte, publish_lte)
+    url_host_extra = _source_url_filter_params(source_host)
     rows = await svc.select_rows(
         order="publish_at.desc",
         limit=_SYM_FILTER_SCAN_CAP,
         offset=0,
         columns=_NEWS_LITE_COLUMNS if lite else "*",
+        extra_params=url_host_extra or None,
         extra_duplicate_params=dup_filters or None,
     )
     matched = 0

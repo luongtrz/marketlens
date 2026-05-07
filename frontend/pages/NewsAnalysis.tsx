@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { NewsArticle } from '../types';
-import { fetchLatestNews, fetchLatestNewsPaged } from '../services/apiService';
+import { fetchLatestNews, fetchLatestNewsPaged, fetchNewsSourceHosts } from '../services/apiService';
 import NewsCard from '../components/NewsCard';
 import ArticleDetailModal from '../components/ArticleDetailModal';
 import { Loader2, Filter, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -25,6 +25,7 @@ const NewsAnalysis: React.FC = () => {
   /** When using server paging, equals Supabase-visible total rows (see API). Legacy: capped batch size after fetch. */
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [sourceHostOptions, setSourceHostOptions] = useState<string[]>([]);
 
   const [sentimentFilter, setSentimentFilter] = useState<string>('All');
   const [sourceFilter, setSourceFilter] = useState<string>('All');
@@ -49,11 +50,22 @@ const NewsAnalysis: React.FC = () => {
   const canUseServerPaging = useMemo(
     () =>
       sentimentFilter === 'All' &&
-      sourceFilter === 'All' &&
       sortBy === 'Latest' &&
       (tagFilter === 'All' || tagFilter === 'BTC' || tagFilter === 'ETH'),
-    [sentimentFilter, sourceFilter, sortBy, tagFilter],
+    [sentimentFilter, sortBy, tagFilter],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadHosts = async () => {
+      const hosts = await fetchNewsSourceHosts();
+      if (!cancelled) setSourceHostOptions(hosts);
+    };
+    void loadHosts();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -65,7 +77,9 @@ const NewsAnalysis: React.FC = () => {
     const load = async () => {
       setLoading(true);
       try {
-        const data = await fetchLatestNews();
+        const tagParam = tagFilter === 'All' ? undefined : tagFilter;
+        const src = sourceFilter === 'All' ? undefined : sourceFilter;
+        const data = await fetchLatestNews(undefined, undefined, tagParam, src);
         if (!cancelled) {
           setArticles(data);
           setTotalCount(data.length);
@@ -87,7 +101,8 @@ const NewsAnalysis: React.FC = () => {
       setLoading(true);
       try {
         const tagParam = tagFilter === 'All' ? undefined : tagFilter;
-        const pg = await fetchLatestNewsPaged(currentPage, ITEMS_PER_PAGE, undefined, undefined, tagParam);
+        const src = sourceFilter === 'All' ? undefined : sourceFilter;
+        const pg = await fetchLatestNewsPaged(currentPage, ITEMS_PER_PAGE, undefined, undefined, tagParam, src);
         if (!cancelled && pg) {
           setArticles(pg.items);
           setTotalCount(pg.total);
@@ -100,7 +115,7 @@ const NewsAnalysis: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [canUseServerPaging, currentPage, tagFilter]);
+  }, [canUseServerPaging, currentPage, tagFilter, sourceFilter]);
 
   useEffect(() => {
     if (!articleIdParam || selectedArticle || articles.length === 0) return;
@@ -114,9 +129,9 @@ const NewsAnalysis: React.FC = () => {
   }, [articleIdParam, articles, selectedArticle, navigate]);
 
   const uniqueSources = useMemo(() => {
-    const sources = new Set(articles.map((a) => a.source));
-    return Array.from(sources);
-  }, [articles]);
+    const sources = new Set<string>([...sourceHostOptions, ...articles.map((a) => a.source)]);
+    return Array.from(sources).sort((a, b) => a.localeCompare(b));
+  }, [articles, sourceHostOptions]);
 
   const filteredArticles = useMemo(() => {
     if (canUseServerPaging) {
@@ -133,6 +148,7 @@ const NewsAnalysis: React.FC = () => {
         if (sourceFilter !== 'All' && article.source !== sourceFilter) {
           return false;
         }
+        // Server already filters by source when using paged fetch; keep for mixed/mock edge cases.
         return true;
       })
       .sort((a, b) => {
@@ -240,10 +256,6 @@ const NewsAnalysis: React.FC = () => {
                 value={sourceFilter}
                 onChange={(e) => setSourceFilter(e.target.value)}
                 className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
-                disabled={canUseServerPaging}
-                title={
-                  canUseServerPaging ? 'Switch to client filters by changing sentiment/sort to load full batch' : undefined
-                }
               >
                 <option value="All">All Sources</option>
                 {uniqueSources.map((source) => (

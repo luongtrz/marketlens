@@ -47,6 +47,7 @@ class CrawlerClient:
         lite: bool = False,
         publish_gte: datetime | None = None,
         publish_lte: datetime | None = None,
+        source_host: str | None = None,
     ) -> list[IngestionRecord]:
         """Get recent news rows, optionally filtered by ``symbol`` (e.g. BTCUSDT).
 
@@ -83,6 +84,7 @@ class CrawlerClient:
             lite=lite,
             publish_gte=publish_gte,
             publish_lte=publish_lte,
+            source_host=source_host,
         )
         if should_cache and key is not None:
             await self._cache.set_json(

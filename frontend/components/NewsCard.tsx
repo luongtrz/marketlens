@@ -1,8 +1,22 @@
 import React from 'react';
 import { NewsArticle } from '../types';
-import { BrainCircuit, TrendingUp, TrendingDown, Minus, ExternalLink } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
-import { formatSource, formatDateToLocalWithOffset, formatUnitSentiment } from '../utils/formatters';
+import { formatSource, formatDateToLocalWithOffset, formatUnitSentiment, polarityFromUnitScore } from '../utils/formatters';
+
+function resolveCardSentiment(article: NewsArticle): 'Positive' | 'Negative' | 'Neutral' | null {
+  const raw = article.sentiment;
+  if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
+    const t = String(raw).toLowerCase();
+    if (t === 'positive' || t === 'bullish') return 'Positive';
+    if (t === 'negative' || t === 'bearish') return 'Negative';
+    return 'Neutral';
+  }
+  if (article.sentimentScore !== undefined && Number.isFinite(article.sentimentScore)) {
+    return polarityFromUnitScore(article.sentimentScore);
+  }
+  return null;
+}
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -10,60 +24,88 @@ interface NewsCardProps {
 }
 
 const NewsCard: React.FC<NewsCardProps> = ({ article, onClick }) => {
+  const label = resolveCardSentiment(article);
 
-  const getSentimentIcon = (sentiment?: string) => {
+  const getSentimentIcon = (sentiment: 'Positive' | 'Negative' | 'Neutral') => {
+    const shadow = 'drop-shadow-[0_1px_1px_rgba(0,0,0,0.45)]';
     switch (sentiment) {
-      case 'Positive': return <TrendingUp className="w-5 h-5 text-sky-600" />;
-      case 'Negative': return <TrendingDown className="w-5 h-5 text-violet-600" />;
-      default: return <Minus className="w-5 h-5 text-slate-500" />;
+      case 'Positive':
+        return (
+          <TrendingUp
+            className={`w-5 h-5 shrink-0 text-amber-100 ${shadow}`}
+            strokeWidth={2.5}
+            aria-hidden
+          />
+        );
+      case 'Negative':
+        return (
+          <TrendingDown
+            className={`w-5 h-5 shrink-0 text-sky-100 ${shadow}`}
+            strokeWidth={2.5}
+            aria-hidden
+          />
+        );
+      default:
+        return <Minus className={`w-5 h-5 shrink-0 text-white ${shadow}`} strokeWidth={2.5} aria-hidden />;
     }
   };
 
-  const getSentimentColor = (sentiment?: string) => {
+  const getSentimentColor = (sentiment: 'Positive' | 'Negative' | 'Neutral') => {
     switch (sentiment) {
-      case 'Positive': return 'bg-emerald-600 border-emerald-600 text-white';
-      case 'Negative': return 'bg-red-600 border-red-600 text-white';
-      default: return 'bg-amber-500 border-amber-500 text-white';
+      // Nền đặc trùng màu viền (như Neutral), không dùng nền trắng / alpha làm nhạt
+      case 'Positive':
+        return 'bg-teal-700 border-teal-700 text-white shadow-sm dark:bg-teal-700 dark:border-teal-600';
+      case 'Negative':
+        return 'bg-rose-700 border-rose-700 text-white shadow-sm dark:bg-rose-700 dark:border-rose-600';
+      default:
+        return 'bg-amber-600 border-amber-600 text-white dark:bg-amber-600 dark:border-amber-500';
     }
   };
 
-  const getSentimentAccent = (sentiment?: string) => {
-    switch (sentiment) {
-      case 'Positive': return 'border-emerald-300 ring-emerald-100';
-      case 'Negative': return 'border-red-300 ring-red-100';
-      default: return 'border-amber-300 ring-amber-100';
+  /** Dòng Sentiment footer: cùng tông pill với badge góc trên */
+  const getFooterSentimentPillClass = (sentiment: 'Positive' | 'Negative' | 'Neutral' | null) => {
+    const s = sentiment ?? 'Neutral';
+    switch (s) {
+      case 'Positive':
+        return 'bg-teal-700 border border-teal-600 text-white dark:bg-teal-700 dark:border-teal-600';
+      case 'Negative':
+        return 'bg-rose-700 border border-rose-600 text-white dark:bg-rose-700 dark:border-rose-600';
+      default:
+        return 'bg-amber-600 border border-amber-500 text-white dark:bg-amber-600 dark:border-amber-500';
     }
   };
 
-  const getSentimentHover = (sentiment?: string) => {
+  const getSentimentAccent = (sentiment: 'Positive' | 'Negative' | 'Neutral') => {
     switch (sentiment) {
-      case 'Positive': return 'hover:ring-emerald-300 hover:shadow-emerald-200/40';
-      case 'Negative': return 'hover:ring-red-300 hover:shadow-red-200/40';
-      default: return 'hover:ring-amber-300 hover:shadow-amber-200/40';
+      case 'Positive': return 'border-teal-200/70 ring-teal-100/40 dark:border-teal-700/55 dark:ring-teal-950/30';
+      case 'Negative': return 'border-rose-200/70 ring-rose-100/40 dark:border-rose-700/55 dark:ring-rose-950/30';
+      default: return 'border-amber-200/70 ring-amber-100/40 dark:border-amber-700/50 dark:ring-amber-950/30';
     }
   };
 
-  const getScoreColor = (sentiment?: string) => {
+  const getSentimentHover = (sentiment: 'Positive' | 'Negative' | 'Neutral') => {
     switch (sentiment) {
-      case 'Positive': return 'text-emerald-600';
-      case 'Negative': return 'text-red-600';
-      default: return 'text-amber-600';
+      case 'Positive': return 'hover:ring-teal-300/70 hover:shadow-teal-900/15 dark:hover:ring-teal-600/40';
+      case 'Negative': return 'hover:ring-rose-300/70 hover:shadow-rose-900/15 dark:hover:ring-rose-600/40';
+      default: return 'hover:ring-amber-300 hover:shadow-amber-200/40 dark:hover:ring-amber-600/50';
     }
   };
+
+  const accentSentiment = label ?? 'Neutral';
 
   return (
     <div
       onClick={() => onClick(article)}
-      className={`bg-white dark:bg-slate-900 border rounded-xl p-5 hover:shadow-lg transition-all cursor-pointer group ring-1 ${getSentimentAccent(article.sentiment)} ${getSentimentHover(article.sentiment)} hover:ring-2`}
+      className={`bg-white dark:bg-slate-900 border rounded-xl p-5 hover:shadow-lg transition-all cursor-pointer group ring-1 ${getSentimentAccent(accentSentiment)} ${getSentimentHover(accentSentiment)} hover:ring-2`}
     >
       <div className="flex justify-between items-start mb-3">
         <span className="text-xs font-medium text-slate-500 dark:text-slate-300 px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">{formatSource(article.source)} • {formatDateToLocalWithOffset(article.timestamp)}</span>
-        {article.sentiment && (
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-sm ${getSentimentColor(article.sentiment)}`}>
-            {getSentimentIcon(article.sentiment)}
-            <span className="text-xs font-extrabold uppercase tracking-wide">{article.sentiment}</span>
+        {label !== null ? (
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-sm ${getSentimentColor(label)}`}>
+            {getSentimentIcon(label)}
+            <span className="text-xs font-extrabold uppercase tracking-wide text-white">{label}</span>
           </div>
-        )}
+        ) : null}
       </div>
 
       <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2 leading-snug group-hover:text-indigo-600 transition-colors">
@@ -74,21 +116,17 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, onClick }) => {
         {article.snippet}
       </p>
 
-      {/* Mini Footer */}
-      <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
-        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-          {article.sentimentScore !== undefined && (
-            <span className={getScoreColor(article.sentiment)}>
-              Sentiment: {formatUnitSentiment(article.sentimentScore)}{' '}
-              <span className="text-slate-400 dark:text-slate-500 font-normal">(-1…+1)</span>
-            </span>
-          )}
+      {article.sentimentScore !== undefined && (
+        <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${getFooterSentimentPillClass(
+              label ?? polarityFromUnitScore(article.sentimentScore),
+            )}`}
+          >
+            Sentiment: {formatUnitSentiment(article.sentimentScore)}
+          </span>
         </div>
-        <button className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 group-hover:text-indigo-700 transition-colors">
-          <BrainCircuit size={14} />
-          AI Analysis
-        </button>
-      </div>
+      )}
     </div>
   );
 };

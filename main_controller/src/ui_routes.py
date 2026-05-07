@@ -21,6 +21,8 @@ from shared.models.prediction import PredictionResult, SignalType
 from shared.supabase_news import (
     count_news_articles_from_supabase,
     count_news_articles_matching_symbol_from_supabase,
+    fetch_recent_news_source_hosts,
+    normalize_news_source_host,
 )
 from shared.supabase_service import SupabaseReadService
 
@@ -233,12 +235,30 @@ def _prediction_to_forecast(pred: PredictionResult, base_price: float, trend_hin
     }
 
 
+@router.get("/ai/news-sources", response_model=None)
+async def api_news_sources() -> dict[str, Any]:
+    """Hostnames observed on recent rows (for News Intelligence source filter)."""
+
+    if SupabaseReadService.from_env() is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Supabase is not configured on MainController: set SUPABASE_URL and "
+                "SUPABASE_SERVICE_ROLE_KEY (recommended) or SUPABASE_ANON_KEY with RLS "
+                "allowing SELECT on news_articles."
+            ),
+        )
+    hosts = await fetch_recent_news_source_hosts()
+    return {"hosts": hosts}
+
+
 @router.get("/ai/latest-news", response_model=None)
 async def api_latest_news(
     request: Request,
     start: str | None = None,
     end: str | None = None,
     tag: str | None = None,
+    source: str | None = None,
     page: int | None = Query(default=None, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> LatestNewsPageResponse | list[dict[str, Any]]:
@@ -248,12 +268,17 @@ async def api_latest_news(
 
     With ``page``: returns ``{items, page, page_size, total}`` using Supabase ``LIMIT/OFFSET``
     (symbol filters use a capped scan described in ``shared.supabase_news``).
+
+    Optional ``source`` filters by crawler hostname (normalized), matching ``source_url`` in DB.
     """
     clients: ModuleClients = request.app.state.clients
     start_dt = _parse_iso_maybe(start)
     end_dt = _parse_iso_maybe(end)
 
     pair = _symbol_to_pair(tag.strip()) if tag and tag.strip() else ""
+    source_host = normalize_news_source_host(source) if source else None
+    if source and source.strip() and source_host is None:
+        raise HTTPException(status_code=400, detail="Invalid source filter")
     if SupabaseReadService.from_env() is None:
         logger.warning("latest-news requested but Supabase is not configured")
         if page is not None:
@@ -286,6 +311,7 @@ async def api_latest_news(
                 lite=True,
                 publish_gte=start_dt,
                 publish_lte=end_dt,
+                source_host=source_host,
             )
             total: int = 0
             if pair:
@@ -293,11 +319,13 @@ async def api_latest_news(
                     symbol=pair,
                     publish_gte=start_dt,
                     publish_lte=end_dt,
+                    source_host=source_host,
                 )
             else:
                 total_val = await count_news_articles_from_supabase(
                     publish_gte=start_dt,
                     publish_lte=end_dt,
+                    source_host=source_host,
                 )
                 total = int(total_val or 0)
             items = _records_to_news_payload(raw, start_dt=start_dt, end_dt=end_dt)
@@ -323,6 +351,7 @@ async def api_latest_news(
             lite=True,
             publish_gte=start_dt,
             publish_lte=end_dt,
+            source_host=source_host,
         )
     except Exception as exc:
         logger.exception("latest-news crawler failed")
