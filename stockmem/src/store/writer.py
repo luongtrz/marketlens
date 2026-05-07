@@ -5,13 +5,13 @@ import uuid
 from ..models import StockMemRecord
 from ..search.embedder import RecordEmbedder
 from ..search.index import MemoryVectorIndex
-from .repository import RecordRepository
+from .base import Repository
 
 
 class RecordWriter:
     def __init__(
         self,
-        repository: RecordRepository,
+        repository: Repository,
         embedder: RecordEmbedder,
         index: MemoryVectorIndex,
         record_cache: dict[str, StockMemRecord],

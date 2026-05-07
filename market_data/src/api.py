@@ -125,6 +125,7 @@ async def snapshot(
         symbol=symbol.upper(),
         timestamp=datetime.now(timezone.utc),
         ohlcv=latest_candle,
+        recent_candles=candles,
         indicators=indicators,
         source="binance",
     )

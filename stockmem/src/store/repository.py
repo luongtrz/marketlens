@@ -167,6 +167,46 @@ class RecordRepository:
 
         return [StockMemRecord.model_validate(json.loads(r[0])) for r in rows]
 
+    async def list_missing_returns(self, symbol: str | None = None) -> list[StockMemRecord]:
+        query = "SELECT payload FROM stockmem_records WHERE json_extract(payload, '$.future_return_1d') IS NULL"
+        params: tuple = ()
+        if symbol:
+            query += " AND symbol = ?"
+            params = (symbol.upper(),)
+        query += " ORDER BY record_date"
+        async with aiosqlite.connect(self._db_path) as conn:
+            cursor = await conn.execute(query, params)
+            rows = await cursor.fetchall()
+        return [StockMemRecord.model_validate(json.loads(r[0])) for r in rows]
+
+    async def update_future_returns(
+        self,
+        record_id: str,
+        future_return_1d: float | None = None,
+        future_return_7d: float | None = None,
+        future_return_30d: float | None = None,
+    ) -> bool:
+        async with aiosqlite.connect(self._db_path) as conn:
+            cursor = await conn.execute(
+                "SELECT payload FROM stockmem_records WHERE id = ?", (record_id,)
+            )
+            row = await cursor.fetchone()
+            if row is None:
+                return False
+            payload = json.loads(row[0])
+            if future_return_1d is not None:
+                payload["future_return_1d"] = future_return_1d
+            if future_return_7d is not None:
+                payload["future_return_7d"] = future_return_7d
+            if future_return_30d is not None:
+                payload["future_return_30d"] = future_return_30d
+            await conn.execute(
+                "UPDATE stockmem_records SET payload = ? WHERE id = ?",
+                (json.dumps(payload, ensure_ascii=True), record_id),
+            )
+            await conn.commit()
+        return True
+
     async def close(self) -> None:
         # SQLite connections are opened/closed per call, nothing to release.
         return None

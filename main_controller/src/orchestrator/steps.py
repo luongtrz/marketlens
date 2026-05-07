@@ -99,7 +99,7 @@ async def step_collect(ctx: PipelineContext, clients: ModuleClients) -> None:
             symbol=ctx.symbol,
             timestamp=match.timestamp,
             ohlcv=match,
-            recent_candles=candles[-5:],
+            recent_candles=candles[-21:],
             indicators=indicators,
             source="binance",
         )
