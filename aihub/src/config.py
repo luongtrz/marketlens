@@ -7,7 +7,7 @@ class AIHubConfig(BaseAppConfig):
     """Configuration specific to the AIHub module."""
 
     model_path: str = "models/cryptobert"
-    hf_model_path: str = "https://dien2112-cryptobert.hf.space/api/sentiment"
+    hf_model_path: str = "https://dien2112-finbert.hf.space/api/sentiment"
 
     # StockMem similarity search service
     stockmem_url: str = "http://localhost:8003"
