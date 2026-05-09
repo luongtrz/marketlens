@@ -6,7 +6,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
-from typing import AsyncIterator, Literal
+from typing import Any, AsyncIterator, Literal
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, HTTPException, Query
@@ -25,6 +25,7 @@ from main_controller.src.auth.service import AuthService
 from main_controller.src.orchestrator.pipeline import Pipeline, PipelineConfig
 from main_controller.src.orchestrator.steps import ModuleClients
 from main_controller.src.ui_routes import router as ui_router
+from shared.models.factor import Factor, NormalizedFactor
 from shared.models.market import MarketSnapshot
 from shared.models.memory import StockMemRecord
 from shared.models.prediction import PredictionResult
@@ -203,6 +204,40 @@ async def _daily_cron(
                 logger.exception("Cron run failed for %s: %s", symbol, exc)
 
 
+def _rsi(candles: list[Any], period: int = 14) -> float:
+    if len(candles) < period + 1:
+        return 50.0
+    closes = [c.close for c in candles[-(period + 1):]]
+    deltas = [closes[i + 1] - closes[i] for i in range(len(closes) - 1)]
+    gains = [d for d in deltas if d > 0]
+    losses = [-d for d in deltas if d < 0]
+    avg_gain = sum(gains) / period
+    avg_loss = sum(losses) / period
+    if avg_loss == 0:
+        return 100.0
+    return round(100.0 - 100.0 / (1.0 + avg_gain / avg_loss), 2)
+
+
+def _macd_hist(candles: list[Any]) -> float:
+    """EMA-12 minus EMA-26 of closes (simplified single-bar MACD line, normalised by price)."""
+    if len(candles) < 27:
+        return 0.0
+    closes = [c.close for c in candles]
+
+    def _ema(data: list[float], p: int) -> float:
+        k = 2.0 / (p + 1)
+        v = data[0]
+        for x in data[1:]:
+            v = x * k + v * (1 - k)
+        return v
+
+    tail = closes[-26:]
+    e12 = _ema(tail[-12:], 12)
+    e26 = _ema(tail, 26)
+    last_price = closes[-1] or 1.0
+    return round((e12 - e26) / last_price * 100.0, 4)
+
+
 @app.post("/backfill")
 async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
     """Populate StockMem with historical records from Supabase + market history.
@@ -256,39 +291,63 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
 
     logger.info("backfill: %d articles across %d dates", len(all_articles), len(articles_by_date))
 
-    saved = 0
-    skipped = 0
-    errors = []
+    from collections import defaultdict as _dd
+    from urllib.parse import urlparse
 
+    # Pre-compute per-date metadata (fast, no I/O)
+    valid_dates = []
+    skipped = 0
     for target_date, articles in sorted(articles_by_date.items()):
         ohlcv = ohlcv_by_date.get(target_date)
         if ohlcv is None:
             skipped += 1
             continue
-
         scored = [a.sentiment_score for a in articles if a.sentiment_score != 0.0]
         avg_score = sum(scored) / len(scored) if scored else 0.0
-        if avg_score > 0.15:
-            label = "bullish"
-        elif avg_score < -0.15:
-            label = "bearish"
-        else:
-            label = "neutral"
-
-        # Build a 20-candle context window ending on (not including) target_date
+        label = "bullish" if avg_score > 0.15 else ("bearish" if avg_score < -0.15 else "neutral")
         preceding = [c for c in all_candles if c.timestamp.date() < target_date][-20:]
+        all_prec  = [c for c in all_candles if c.timestamp.date() < target_date]
+        rsi_val  = _rsi(preceding + [ohlcv])
+        macd_val = _macd_hist(all_prec + [ohlcv])
+        price_chg = round((ohlcv.close - preceding[-1].close) / preceding[-1].close * 100.0, 4) if preceding else 0.0
+        msi_val  = round(max(0.0, min(100.0, 50.0 + (rsi_val - 50.0) * 0.6 + avg_score * 15.0)), 2)
+        texts = [(a.summary or a.article_name or "")[:300] for a in articles[:8]]
+        combined = " ".join(t for t in texts if t.strip())[:2000]
+        valid_dates.append((target_date, articles, ohlcv, avg_score, label, preceding, rsi_val, macd_val, price_chg, msi_val, combined))
 
+    # Fire all AIHub factor calls concurrently
+    async def _fetch_factors(combined: str, td: date) -> list[Factor]:
+        if not combined.strip():
+            return []
+        try:
+            return await asyncio.wait_for(
+                clients.aihub.factors(text=combined, ticker=symbol),
+                timeout=25.0,
+            )
+        except Exception as exc:
+            logger.warning("backfill: AIHub factors failed for %s: %s", td, exc)
+            return []
+
+    factor_results: list[list[Factor]] = await asyncio.gather(
+        *[_fetch_factors(row[10], row[0]) for row in valid_dates]
+    )
+
+    # Build and save records
+    saved = 0
+    errors = []
+    for row, factor_list in zip(valid_dates, factor_results):
+        target_date, articles, ohlcv, avg_score, label, preceding, rsi_val, macd_val, price_chg, msi_val, _ = row
         day_start = datetime(target_date.year, target_date.month, target_date.day, tzinfo=timezone.utc)
-        snapshot = MarketSnapshot(
-            symbol=symbol,
-            timestamp=day_start,
-            ohlcv=ohlcv,
-            recent_candles=preceding,
-            indicators={},
-            source="binance",
-        )
+        first_article_id = str(articles[0].id) if articles else "backfill"
 
-        from urllib.parse import urlparse
+        normalized_factors = [
+            NormalizedFactor(
+                name=f.name, type=f.type, weight=f.confidence, polarity=f.polarity,
+                source_article_id=first_article_id, observed_at=day_start,
+            )
+            for f in factor_list
+        ]
+
         summary_parts = []
         for a in articles[:3]:
             name = (a.article_name or "").strip()
@@ -298,19 +357,18 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
             if name:
                 summary_parts.append(name[:120])
 
+        snapshot = MarketSnapshot(
+            symbol=symbol, timestamp=day_start, ohlcv=ohlcv, recent_candles=preceding,
+            indicators={"rsi": rsi_val, "macd_hist": macd_val, "price_change_pct": price_chg, "msi": msi_val},
+            source="binance",
+        )
         record = StockMemRecord(
-            date=target_date,
-            symbol=symbol,
-            sentiment_score=avg_score,
-            sentiment_label=label,
-            factors=[],
-            normalized_factors=[],
-            market_snapshot=snapshot,
-            indicator_vec=[],
-            summary=" ".join(summary_parts),
+            date=target_date, symbol=symbol,
+            sentiment_score=avg_score, sentiment_label=label,
+            factors=[f.name for f in factor_list], normalized_factors=normalized_factors,
+            market_snapshot=snapshot, summary=" ".join(summary_parts),
             article_ids=[a.id for a in articles],
         )
-
         try:
             await clients.stockmem.save(record)
             saved += 1
