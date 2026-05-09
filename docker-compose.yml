@@ -65,6 +65,7 @@ services:
     ports: ["8004:8004"]
     environment:
       STOCKMEM_URL: http://stockmem:8003
+      GROQ_API_KEY: ${AIHUB_GROQ_API_KEY:-}
     depends_on:
       - stockmem
 

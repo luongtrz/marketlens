@@ -276,15 +276,87 @@ def _resolve_event_type(factor: str) -> str | None:
     return _FACTOR_TYPE_MAP_LOWER.get(factor.lower())
 
 
+def _resolve_group_by_keyword(factor: str) -> str | None:
+    """Classify factor name to taxonomy group via keyword matching.
+
+    Ported from FactorLedge classify-service keyword map. Provides a strong
+    fallback when exact string matching fails against FACTOR_TYPE_MAP.
+    """
+    lower = factor.lower()
+
+    # Keyword → Group mapping (same as classify-service keywordMap)
+    _keyword_map: dict[str, list[str]] = {
+        "Regulation & Legal": [
+            "regulation", "legal", "government", "law", "enforcement",
+            "legislative", "ban", "sanction", "compliance", "sec", "regulatory",
+        ],
+        "Macroeconomic": [
+            "interest rate", "inflation", "fed", "cpi", "economic", "gdp",
+            "dollar", "quantitative", "monetary", "recession",
+        ],
+        "Industry Standards & Opinions": [
+            "protocol proposal", "industry", "report", "opinion", "analyst",
+            "influencer",
+        ],
+        "Protocol & Product": [
+            "protocol", "upgrade", "feature", "launch", "testnet", "mainnet",
+            "adoption", "fee", "gas", "hash rate", "supply", "halving",
+        ],
+        "Technology & Development": [
+            "technical", "breakthrough", "development", "audit", "certification",
+            "node", "validator", "ecosystem", "integration", "tooling", "update",
+        ],
+        "Exchange & Trading": [
+            "exchange", "listing", "delisting", "funding", "revenue",
+            "acquisition", "partnership", "custody", "liquidation", "reserve",
+            "trading",
+        ],
+        "DeFi & Ecosystem": [
+            "defi", "protocol launch", "migration", "cross-chain", "yield",
+        ],
+        "Whale & On-chain": [
+            "whale", "accumulation", "distribution", "on-chain", "flow", "miner",
+        ],
+        "Key Figures": [
+            "executive", "founder", "ceo", "resignation",
+        ],
+        "Market Performance": [
+            "market cap", "sector", "dominance", "volume", "etf",
+            "institutional", "price", "surge", "rally", "crash",
+        ],
+        "TradFi Crossover": [
+            "stock", "correlation", "bond", "commodity", "stablecoin",
+            "traditional finance",
+        ],
+        "Partnership & Adoption": [
+            "partnership", "adoption", "payment", "integration", "alliance",
+            "initiative", "strategic",
+        ],
+        "Risk & Warning": [
+            "security", "hack", "breach", "rug pull", "scam", "risk",
+            "insolvency", "exploit", "vulnerability",
+        ],
+    }
+
+    import re
+    for group, keywords in _keyword_map.items():
+        for kw in keywords:
+            escaped = re.escape(kw)
+            pattern = escaped.replace(r"\ ", r"\s+")
+            if re.search(rf"\b{pattern}\b", lower):
+                return group
+    return None
+
+
 def get_factor_type(factor: str) -> str | None:
     return _resolve_event_type(factor)
 
 
 def get_factor_group(factor: str) -> str | None:
     event_type = _resolve_event_type(factor)
-    if event_type is None:
-        return None
-    return TYPE_TO_GROUP.get(event_type)
+    if event_type is not None:
+        return TYPE_TO_GROUP.get(event_type)
+    return _resolve_group_by_keyword(factor)
 
 
 def get_factor_sentiment(factor: str) -> Sentiment | None:

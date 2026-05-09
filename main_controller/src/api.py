@@ -293,6 +293,29 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
 
     from collections import defaultdict as _dd
     from urllib.parse import urlparse
+    from shared.supabase_service import SupabaseReadService
+
+    # Fetch pre-computed factors from daily_factor_snapshots (one call covers the whole window)
+    factor_snapshot_by_date: dict[date, list[dict]] = {}
+    try:
+        snap_svc = SupabaseReadService.from_env(default_table="daily_factor_snapshots")
+        if snap_svc:
+            snap_rows = await snap_svc.select_rows(
+                order="snapshot_date.desc",
+                limit=days + 5,
+                columns="snapshot_date,factors_json",
+                extra_duplicate_params=[
+                    ("snapshot_date", f"gte.{start_date.isoformat()}"),
+                    ("snapshot_date", f"lte.{end_date.isoformat()}"),
+                    ("symbol", f"eq.{symbol.upper()}"),
+                ],
+            )
+            for row in snap_rows:
+                d = date.fromisoformat(str(row["snapshot_date"]))
+                factor_snapshot_by_date[d] = row.get("factors_json") or []
+            logger.info("backfill: loaded factor snapshots for %d dates from Supabase", len(factor_snapshot_by_date))
+    except Exception as exc:
+        logger.warning("backfill: daily_factor_snapshots fetch failed: %s", exc)
 
     # Pre-compute per-date metadata (fast, no I/O)
     valid_dates = []
@@ -315,8 +338,8 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
         combined = " ".join(t for t in texts if t.strip())[:2000]
         valid_dates.append((target_date, articles, ohlcv, avg_score, label, preceding, rsi_val, macd_val, price_chg, msi_val, combined))
 
-    # Fire all AIHub factor calls concurrently
-    async def _fetch_factors(combined: str, td: date) -> list[Factor]:
+    # Build factor list per date: prefer Supabase snapshot, fall back to AIHub
+    async def _fetch_factors_aihub(combined: str, td: date) -> list[Factor]:
         if not combined.strip():
             return []
         try:
@@ -328,13 +351,55 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
             logger.warning("backfill: AIHub factors failed for %s: %s", td, exc)
             return []
 
-    factor_results: list[list[Factor]] = await asyncio.gather(
-        *[_fetch_factors(row[10], row[0]) for row in valid_dates]
+    # Dates that have no Supabase snapshot need AIHub fallback
+    dates_needing_aihub = [row for row in valid_dates if row[0] not in factor_snapshot_by_date]
+    aihub_results = await asyncio.gather(
+        *[_fetch_factors_aihub(row[10], row[0]) for row in dates_needing_aihub]
     )
+    aihub_by_date: dict[date, list[Factor]] = {
+        row[0]: factors for row, factors in zip(dates_needing_aihub, aihub_results)
+    }
+
+    def _factor_list_for_date(td: date, first_article_id: str, day_start: datetime) -> list[Factor]:
+        """Return Factor list from Supabase snapshot or AIHub fallback."""
+        snap = factor_snapshot_by_date.get(td)
+        if snap:
+            factors = []
+            for item in snap:
+                try:
+                    factors.append(Factor(
+                        name=item.get("name", ""),
+                        type=item.get("type", "macro"),
+                        polarity=float(item.get("polarity", 0.0)),
+                        confidence=float(item.get("weight", item.get("confidence", 0.8))),
+                    ))
+                except Exception:
+                    continue
+            return factors
+        return aihub_by_date.get(td, [])
+
+    factor_results = [_factor_list_for_date(row[0], str(row[1][0].id) if row[1] else "backfill",
+                                             datetime(row[0].year, row[0].month, row[0].day, tzinfo=timezone.utc))
+                      for row in valid_dates]
 
     # Build and save records
     saved = 0
     errors = []
+
+    # ── Compute factor_vector for each date via FactorLedge classify-service ─
+    factor_vector_by_date: dict[date, list[float]] = {}
+    for td, flist in zip([row[0] for row in valid_dates], factor_results):
+        if flist:
+            try:
+                names = [f.name for f in flist]
+                fv = await clients.factorledge.classify_vector(names)
+                factor_vector_by_date[td] = fv
+                active = sum(1 for v in fv if v == 1.0)
+                logger.info("backfill: %s factor_vector %d/75 bits active", td, active)
+            except Exception as exc:
+                logger.warning("backfill: classify_vector failed for %s: %s", td, exc)
+                factor_vector_by_date[td] = []
+
     for row, factor_list in zip(valid_dates, factor_results):
         target_date, articles, ohlcv, avg_score, label, preceding, rsi_val, macd_val, price_chg, msi_val, _ = row
         day_start = datetime(target_date.year, target_date.month, target_date.day, tzinfo=timezone.utc)
@@ -366,6 +431,7 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
             date=target_date, symbol=symbol,
             sentiment_score=avg_score, sentiment_label=label,
             factors=[f.name for f in factor_list], normalized_factors=normalized_factors,
+            factor_vector=factor_vector_by_date.get(target_date, []),
             market_snapshot=snapshot, summary=" ".join(summary_parts),
             article_ids=[a.id for a in articles],
         )

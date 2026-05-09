@@ -1,5 +1,6 @@
 """Tests for individual pipeline step functions."""
 
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -8,6 +9,7 @@ import pytest
 from main_controller.src.orchestrator.context import PipelineContext
 from main_controller.src.orchestrator.exceptions import PipelineError
 from main_controller.src.orchestrator.steps import ModuleClients, step_collect, step_ai_score, step_stockmem, step_predict
+from shared.models.article import IngestionRecord
 from shared.models.prediction import SignalType
 
 
@@ -77,10 +79,10 @@ async def test_step_ai_score_happy(sample_article, sample_factor, sample_normali
     ctx.latest_articles = [sample_article]
 
     aihub = AsyncMock()
-    aihub.sentiment = AsyncMock(return_value={"score": 0.7, "label": "bullish"})
     aihub.factors = AsyncMock(return_value=[sample_factor])
     factorledge = AsyncMock()
-    factorledge.ingest = AsyncMock(return_value=[sample_normalized_factor])
+    factorledge.update_ledger = AsyncMock(return_value=[sample_normalized_factor])
+    factorledge.classify_vector = AsyncMock(return_value=[1.0] * 5 + [0.0] * 70)
     clients = _clients(aihub=aihub, factorledge=factorledge)
 
     await step_ai_score(ctx, clients)
@@ -88,6 +90,8 @@ async def test_step_ai_score_happy(sample_article, sample_factor, sample_normali
     assert ctx.sentiment_score == 0.7
     assert ctx.sentiment_label == "bullish"
     assert ctx.factors == [sample_normalized_factor]
+    assert ctx.raw_factors == [sample_factor]
+    assert ctx.factor_vector == [1.0] * 5 + [0.0] * 70
     assert ctx.errors == []
 
 
@@ -96,10 +100,10 @@ async def test_step_ai_score_factor_ledge_fail_uses_fallback(sample_article, sam
     ctx.latest_articles = [sample_article]
 
     aihub = AsyncMock()
-    aihub.sentiment = AsyncMock(return_value={"score": 0.5, "label": "neutral"})
     aihub.factors = AsyncMock(return_value=[sample_factor])
     factorledge = AsyncMock()
-    factorledge.ingest = AsyncMock(side_effect=Exception("FactorLedge down"))
+    factorledge.update_ledger = AsyncMock(side_effect=Exception("FactorLedge down"))
+    factorledge.classify_vector = AsyncMock(return_value=[])
     clients = _clients(aihub=aihub, factorledge=factorledge)
 
     await step_ai_score(ctx, clients)
@@ -108,22 +112,33 @@ async def test_step_ai_score_factor_ledge_fail_uses_fallback(sample_article, sam
     assert any("FactorLedge" in e for e in ctx.errors)
 
 
-async def test_step_ai_score_sentiment_fail_defaults_zero(sample_article):
+async def test_step_ai_score_sentiment_fail_defaults_zero():
     ctx = _ctx()
-    ctx.latest_articles = [sample_article]
+    ctx.latest_articles = [
+        IngestionRecord(
+            id="art-no-sent",
+            article_name="No Sentiment Article",
+            source="test",
+            url="https://example.com",
+            date_published=datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc),
+            date_crawled=datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc),
+            sentiment_score=0.0,  # No meaningful sentiment — defaults to neutral
+            sentiment_label="neutral",
+            factors=[],
+        )
+    ]
 
     aihub = AsyncMock()
-    aihub.sentiment = AsyncMock(side_effect=Exception("AIHub 500"))
     aihub.factors = AsyncMock(return_value=[])
     factorledge = AsyncMock()
-    factorledge.ingest = AsyncMock(return_value=[])
+    factorledge.update_ledger = AsyncMock(return_value=[])
+    factorledge.classify_vector = AsyncMock(return_value=[])
     clients = _clients(aihub=aihub, factorledge=factorledge)
 
     await step_ai_score(ctx, clients)
 
     assert ctx.sentiment_score == 0.0
     assert ctx.sentiment_label == "neutral"
-    assert any("sentiment" in e for e in ctx.errors)
 
 
 async def test_step_ai_score_factors_fail_defaults_empty(sample_article):
@@ -131,10 +146,10 @@ async def test_step_ai_score_factors_fail_defaults_empty(sample_article):
     ctx.latest_articles = [sample_article]
 
     aihub = AsyncMock()
-    aihub.sentiment = AsyncMock(return_value={"score": 0.3, "label": "neutral"})
     aihub.factors = AsyncMock(side_effect=Exception("AIHub factors 500"))
     factorledge = AsyncMock()
-    factorledge.ingest = AsyncMock(return_value=[])
+    factorledge.update_ledger = AsyncMock(return_value=[])
+    factorledge.classify_vector = AsyncMock(return_value=[])
     clients = _clients(aihub=aihub, factorledge=factorledge)
 
     await step_ai_score(ctx, clients)
@@ -144,12 +159,14 @@ async def test_step_ai_score_factors_fail_defaults_empty(sample_article):
 
 # --- step_stockmem ---
 
-async def test_step_stockmem_saves_and_searches(sample_market_snapshot, sample_similar_record):
+async def test_step_stockmem_saves_and_searches(sample_market_snapshot, sample_similar_record, sample_factor):
     ctx = _ctx()
     ctx.market_snapshot = sample_market_snapshot
     ctx.sentiment_score = 0.7
     ctx.sentiment_label = "bullish"
+    ctx.raw_factors = [sample_factor]
     ctx.factors = []
+    ctx.factor_vector = []
     ctx.latest_articles = []
 
     stockmem = AsyncMock()
@@ -160,7 +177,7 @@ async def test_step_stockmem_saves_and_searches(sample_market_snapshot, sample_s
     await step_stockmem(ctx, clients)
 
     stockmem.search.assert_awaited_once()
-    assert stockmem.search.await_args.kwargs.get("k") == 3
+    assert stockmem.search.await_args.kwargs.get("k") == 4  # k_similar=3 + 1
     assert ctx.current_record_id == "rec-999"
     assert ctx.similar_records == [sample_similar_record]
     assert ctx.current_record is not None
@@ -169,6 +186,7 @@ async def test_step_stockmem_saves_and_searches(sample_market_snapshot, sample_s
 async def test_step_stockmem_no_market_snapshot_raises():
     ctx = _ctx()
     ctx.market_snapshot = None
+    ctx.raw_factors = []
     clients = _clients()
 
     with pytest.raises(PipelineError, match="market_snapshot"):
@@ -180,6 +198,7 @@ async def test_step_stockmem_save_failure_raises_pipeline_error(sample_market_sn
     ctx.market_snapshot = sample_market_snapshot
     ctx.sentiment_score = 0.0
     ctx.sentiment_label = "neutral"
+    ctx.raw_factors = []
     ctx.factors = []
     ctx.latest_articles = []
 

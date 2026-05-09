@@ -3,7 +3,8 @@
 Data-flow summary:
   Step 1 COLLECT   (parallel)  : crawler.get_latest [REQUIRED] + market.get_snapshot [REQUIRED]
   Step 2 AI SCORE  (sequential): aggregate pre-computed sentiment from articles;
-                                  aihub.factors(summaries) → factorledge.update_ledger [graceful]
+                                  factors from Supabase daily_factor_snapshots (or AIHub fallback);
+                                  push to factorledge.update_ledger + classify_vector [graceful]
   Step 3 STOCKMEM  (sequential, REQUIRED): stockmem.save → stockmem.search(k=5)
   Step 4 PREDICT   (REQUIRED)  : aihub.predict(current, similar)
 
@@ -20,6 +21,7 @@ from urllib.parse import urlparse
 
 from main_controller.src.orchestrator.context import PipelineContext
 from main_controller.src.orchestrator.exceptions import PipelineError
+from shared.models.factor import Factor
 from shared.models.market import MarketSnapshot
 from shared.models.memory import StockMemRecord
 
@@ -133,16 +135,15 @@ async def step_collect(ctx: PipelineContext, clients: ModuleClients) -> None:
 
 
 async def step_ai_score(ctx: PipelineContext, clients: ModuleClients) -> None:
-    """STEP 2: Aggregate pre-computed sentiment; extract factors via LLM; push to ledger.
+    """STEP 2: Aggregate pre-computed sentiment; load factors from Supabase (or AIHub fallback).
 
     Sentiment — each IngestionRecord already carries sentiment_score (CryptoBERT/FinBERT)
     produced by the crawler enrichment pipeline.  We take the mean across all
     articles so that a single outlier does not dominate.
 
-    Factors — concatenate the richest available text per article (summary preferred)
-    and ask the LLM to identify the top market-moving factors.  Summaries give the
-    model structured, boilerplate-free context which produces higher-quality factors
-    than raw headlines or full article bodies.
+    Factors — prefer Supabase daily_factor_snapshots (pre-computed by external
+    pipeline).  Falls back to AIHub LLM extraction only when Supabase has no
+    snapshot for today.
     """
     articles = ctx.latest_articles or []
 
@@ -163,26 +164,63 @@ async def step_ai_score(ctx: PipelineContext, clients: ModuleClients) -> None:
         ctx.sentiment_label = "neutral"
         logger.warning("[step_ai_score] no pre-computed sentiment found, defaulting to 0.0")
 
-    # ── Factors: use summaries (or raw_text/headline fallback) ───────────────
-    combined_text = "\n\n".join(
-        t for a in articles if (t := _best_text(a))
-    )[:6000]  # ~1500 tokens — keeps LLM cost reasonable
+    # ── Factors: prefer Supabase daily_factor_snapshots ─────────────────────
+    raw_factors: list[Factor] = []
+    as_of = ctx.as_of_date or date.today()
 
-    factors_result = await asyncio.gather(
-        clients.aihub.factors(combined_text, ticker=ctx.symbol),
-        return_exceptions=True,
-    )
-    factors_result = factors_result[0]  # unwrap single-item gather
+    try:
+        from shared.supabase_service import SupabaseReadService  # noqa: E402
+        snap_svc = SupabaseReadService.from_env(default_table="daily_factor_snapshots")
+        if snap_svc is not None:
+            snap_rows = await snap_svc.select_rows(
+                order="snapshot_date.desc",
+                limit=1,
+                columns="snapshot_date,factors_json",
+                extra_duplicate_params=[
+                    ("snapshot_date", f"eq.{as_of.isoformat()}"),
+                    ("symbol", f"eq.{ctx.symbol.upper()}"),
+                ],
+            )
+            if snap_rows:
+                items = snap_rows[0].get("factors_json") or []
+                for item in items:
+                    try:
+                        raw_factors.append(Factor(
+                            name=str(item.get("name", "")),
+                            type=str(item.get("type", "macro")),
+                            polarity=float(item.get("polarity", 0.0)),
+                            confidence=float(item.get("weight", item.get("confidence", 0.8))),
+                        ))
+                    except (ValueError, TypeError) as exc:
+                        logger.debug("Skipping malformed Supabase factor: %s", exc)
+                logger.info(
+                    "[step_ai_score] loaded %d factors from Supabase daily_factor_snapshots",
+                    len(raw_factors),
+                )
+    except Exception as exc:
+        logger.warning("[step_ai_score] Supabase factor fetch failed: %s", exc)
 
-    raw_factors = []
-    if isinstance(factors_result, Exception):
-        ctx.errors.append(f"AIHub factors failed: {factors_result}")
-        logger.warning("Factors degraded to []: %s", factors_result)
-    else:
-        raw_factors = factors_result
-        logger.info("[step_ai_score] extracted %d factors", len(raw_factors))
+    # ── Fallback to AIHub LLM extraction ───────────────────────────────────
+    if not raw_factors:
+        combined_text = "\n\n".join(
+            t for a in articles if (t := _best_text(a))
+        )[:6000]
+
+        factors_result = await asyncio.gather(
+            clients.aihub.factors(combined_text, ticker=ctx.symbol),
+            return_exceptions=True,
+        )
+        factors_result = factors_result[0]
+
+        if isinstance(factors_result, Exception):
+            ctx.errors.append(f"AIHub factors failed: {factors_result}")
+            logger.warning("Factors degraded to []: %s", factors_result)
+        else:
+            raw_factors = factors_result
+            logger.info("[step_ai_score] extracted %d factors from AIHub", len(raw_factors))
 
     # ── Factor Ledge: push factors → build/update rolling ledger ─────────────
+    ctx.raw_factors = raw_factors
     try:
         ctx.factors = await clients.factorledge.update_ledger(
             records=[
@@ -197,6 +235,32 @@ async def step_ai_score(ctx: PipelineContext, clients: ModuleClients) -> None:
         ctx.errors.append(f"FactorLedge failed: {exc}")
         logger.warning("FactorLedge unavailable, factors=[]: %s", exc)
         ctx.factors = []
+
+    # ── Factor Vector: get 75d binary vector from classify-service ──────────
+    try:
+        factor_names = [f.name for f in raw_factors]
+        if factor_names:
+            ctx.factor_vector = await clients.factorledge.classify_vector(factor_names)
+            active_count = sum(1 for v in ctx.factor_vector if v == 1.0)
+            logger.info(
+                "[step_ai_score] factor vector: %d/75 bits active", active_count,
+            )
+        else:
+            ctx.factor_vector = []
+    except Exception as exc:
+        ctx.errors.append(f"FactorLedge classify_vector failed: {exc}")
+        logger.warning("FactorLedge classify_vector unavailable: %s", exc)
+        ctx.factor_vector = []
+
+
+def _headline(article) -> str:
+    """Return the article name/title, truncating URLs."""
+    name = (getattr(article, "article_name", "") or "").strip()
+    if name.startswith("http"):
+        path = urlparse(name).path.rstrip("/")
+        slug = path.rsplit("/", 1)[-1] if path else ""
+        return slug.replace("-", " ").replace("_", " ")
+    return name
 
 
 def _short_headlines_for_summary(articles: list) -> str:
@@ -224,10 +288,11 @@ async def step_stockmem(
         symbol=ctx.symbol,
         sentiment_score=ctx.sentiment_score or 0.0,
         sentiment_label=ctx.sentiment_label or "neutral",
-        factors=[f.name for f in ctx.factors],
-        normalized_factors=ctx.factors,
+        factors=[f.name for f in ctx.raw_factors],
+        normalized_factors=ctx.factors or ctx.raw_factors,
         market_snapshot=ctx.market_snapshot,
         indicator_vec=[],
+        factor_vector=ctx.factor_vector,
         summary=_short_headlines_for_summary(ctx.latest_articles),
         article_ids=[a.id for a in ctx.latest_articles],
         run_id=str(ctx.run_id),

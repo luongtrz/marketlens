@@ -39,3 +39,15 @@ class FactorLedgeClient(BaseHTTPClient):
     async def get_factor_vector(self) -> dict:
         """Return the 75-dim binary factor vector from query-service."""
         return await self._get("/query/factor-vector")  # type: ignore[return-value]
+
+    async def classify_vector(
+        self,
+        factors: list[str],
+    ) -> list[float]:
+        """Classify factor names via classify-service and return the 75d binary vector.
+
+        Uses the full 5-tier classification pipeline (exact → cache → keyword →
+        fuzzy → LLM fallback) to produce per-record factor vectors for StockMem.
+        """
+        body = await self._post("/classify/vector", {"factors": factors})
+        return body.get("factorVector", [])  # type: ignore[return-value]

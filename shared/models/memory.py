@@ -1,6 +1,7 @@
 """StockMem record and similarity search models."""
 
 from datetime import date
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -19,9 +20,10 @@ class StockMemRecord(BaseModel):
     sentiment_score: float
     sentiment_label: str = "neutral"
     factors: list[str]
-    normalized_factors: list[NormalizedFactor] = []
+    normalized_factors: list[Any] = []  # Factor | NormalizedFactor | dict
     market_snapshot: MarketSnapshot
     indicator_vec: list[float] = []  # Pre-computed market indicator vector
+    factor_vector: list[float] = []  # Pre-computed 75d factor vector (from FactorLedge)
     summary: str | None = None
     article_ids: list[str] = []
     future_return_1d: float | None = None

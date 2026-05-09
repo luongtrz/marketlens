@@ -5,7 +5,7 @@ from datetime import date, datetime, timezone
 from uuid import UUID
 
 from shared.models.article import IngestionRecord
-from shared.models.factor import NormalizedFactor
+from shared.models.factor import Factor, NormalizedFactor
 from shared.models.market import MarketSnapshot
 from shared.models.memory import SimilarRecord, StockMemRecord
 from shared.models.prediction import PredictResponse, PredictionResult, SignalType
@@ -22,7 +22,9 @@ class PipelineContext:
     market_snapshot: MarketSnapshot | None = None
     sentiment_score: float | None = None
     sentiment_label: str | None = None
+    raw_factors: list[Factor] = field(default_factory=list)  # Raw factors from Supabase or AIHub
     factors: list[NormalizedFactor] = field(default_factory=list)
+    factor_vector: list[float] = field(default_factory=list)  # 75d binary vector from FactorLedge
     current_record: StockMemRecord | None = None
     current_record_id: str | None = None
     similar_records: list[SimilarRecord] = field(default_factory=list)

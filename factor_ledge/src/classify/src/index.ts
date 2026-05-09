@@ -6,16 +6,21 @@
  *
  * POST /classify        { factor: string }
  * POST /classify/batch  { factors: string[] }
+ * POST /classify/vector { factors: string[] } → 75d binary vector for StockMem
  * GET  /health
  */
 
 import "dotenv/config";
-import fetch from "node-fetch";
 import {
   getFactorGroup,
   getFactorType,
   GROUPS,
   EVENT_TAXONOMY,
+  ALL_TYPES,
+  NUM_TYPES,
+  NUM_GROUPS,
+  GROUP_INDEX,
+  TYPE_INDEX,
 } from "../../../shared/Taxonomy_en.ts";
 import { createServer, IncomingMessage, ServerResponse } from "http";
 
@@ -27,7 +32,7 @@ const CLASSIFY_MODE = (process.env.CLASSIFY_MODE ?? "safe").toLowerCase();
 const classifyCache = new Map<string, { group: string; type: string | null }>();
 
 function normalizeFactor(factor: string): string {
-  return factor.trim().toLowerCase().replace(/\s+/g, " ");
+  return factor.trim().toLowerCase().replace(/\s+/g, " ").replace(/_/g, " ");
 }
 
 function calculateSimilarity(str1: string, str2: string): number {
@@ -222,8 +227,10 @@ async function classifyFactor(factor: string, allowLlmFallback = true): Promise<
     return { factor, group: cached.group, type: cached.type, source: "cache" };
   }
 
-  if (CLASSIFY_MODE === "fast") {
-    const keywordMatch = classifyByKeyword(factor);
+  // Keyword + fuzzy matching: always run when LLM fallback is disabled
+  // (caller wants best-effort local classification including heuristics)
+  if (CLASSIFY_MODE === "fast" || !allowLlmFallback) {
+    const keywordMatch = classifyByKeyword(normalized);
     if (keywordMatch) {
       classifyCache.set(normalized, keywordMatch);
       return {
@@ -234,7 +241,7 @@ async function classifyFactor(factor: string, allowLlmFallback = true): Promise<
       };
     }
 
-    const fuzzyMatch = classifyByFuzzyMatching(factor);
+    const fuzzyMatch = classifyByFuzzyMatching(normalized);
     if (fuzzyMatch) {
       classifyCache.set(normalized, fuzzyMatch);
       return {
@@ -362,6 +369,21 @@ Use the exact original factor text for each item. If unsure, return nulls.`;
   return result;
 }
 
+function applyClassificationToVector(
+  result: ClassifyResponse,
+  typeVector: number[],
+  groupVector: number[],
+): void {
+  if (result.group) {
+    const gIdx = GROUP_INDEX.get(result.group);
+    if (gIdx !== undefined) groupVector[gIdx] = 1;
+  }
+  if (result.type) {
+    const tIdx = TYPE_INDEX.get(result.type);
+    if (tIdx !== undefined) typeVector[tIdx] = 1;
+  }
+}
+
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((res) => {
     let body = "";
@@ -397,6 +419,56 @@ const server = createServer(async (req, res) => {
       if (!body.factor) return json(res, 400, { error: "factor required" });
       const result = await classifyFactor(body.factor, true);
       return json(res, 200, result);
+    } catch {
+      return json(res, 400, { error: "Invalid JSON" });
+    }
+  }
+
+  if (method === "POST" && url === "/classify/vector") {
+    try {
+      const body = JSON.parse(await readBody(req));
+      if (!Array.isArray(body.factors)) {
+        return json(res, 400, { error: "factors[] required" });
+      }
+
+      const factors = body.factors as string[];
+
+      // Build 62d type vector
+      const typeVector = new Array(NUM_TYPES).fill(0);
+      // Build 13d group vector
+      const groupVector = new Array(NUM_GROUPS).fill(0);
+
+      // First pass: try local classification (exact/cache/keyword/fuzzy)
+      const unresolved: string[] = [];
+      for (const f of factors) {
+        const result = await classifyFactor(f, false);
+        if (result.source === "needs-llm") {
+          unresolved.push(f);
+        } else {
+          applyClassificationToVector(result, typeVector, groupVector);
+        }
+      }
+
+      // Second pass: LLM batch call only for unresolved factors
+      if (unresolved.length > 0) {
+        const batchResult = await classifyBatchWithGroq(unresolved);
+        for (const f of unresolved) {
+          const key = normalizeFactor(f);
+          const llmResult = batchResult.get(key);
+          if (llmResult && llmResult.group) {
+            classifyCache.set(key, { group: llmResult.group, type: llmResult.type });
+            applyClassificationToVector(llmResult, typeVector, groupVector);
+          }
+        }
+      }
+
+      return json(res, 200, {
+        factorVector: [...typeVector, ...groupVector],
+        groupVector,
+        typeVector,
+        activeGroups: GROUPS.filter((_, i) => groupVector[i] === 1),
+        activeTypes: ALL_TYPES.filter((_, i) => typeVector[i] === 1),
+      });
     } catch {
       return json(res, 400, { error: "Invalid JSON" });
     }

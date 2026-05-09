@@ -12,6 +12,7 @@ Routes requests to the three TypeScript micro-services running internally:
   GET  /query/top         → query-service   :3003  GET  /query/top
   POST /classify          → classify-service:3001  POST /classify
   POST /classify/batch    → classify-service:3001  POST /classify/batch
+  POST /classify/vector   → classify-service:3001  POST /classify/vector  (75d for StockMem)
   GET  /health
 """
 
@@ -138,3 +139,8 @@ async def classify_single(request: Request) -> Response:
 @app.post("/classify/batch")
 async def classify_batch(request: Request) -> Response:
     return await _proxy(request, f"{CLASSIFY_URL}/classify/batch")
+
+
+@app.post("/classify/vector")
+async def classify_vector(request: Request) -> Response:
+    return await _proxy(request, f"{CLASSIFY_URL}/classify/vector")
