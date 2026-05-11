@@ -83,7 +83,8 @@ async def step_collect(ctx: PipelineContext, clients: ModuleClients) -> None:
 
         articles_task = clients.crawler.get_latest(
             ctx.symbol,
-            publish_lte=cutoff,  # articles published before target date only
+            publish_gte=cutoff,
+            publish_lte=cutoff + timedelta(days=1),
         )
         history_task = clients.market.get_history(
             ctx.symbol, interval="1d", limit=50, end_time=str(end_ts)

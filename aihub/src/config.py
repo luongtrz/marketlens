@@ -16,7 +16,7 @@ class AIHubConfig(BaseAppConfig):
     llm_backend: str = "gemini"
 
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-3.1-flash-lite-preview"
+    gemini_model: str = "gemini-3.1-flash-lite"
 
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
@@ -27,7 +27,7 @@ class AIHubConfig(BaseAppConfig):
 
     # Per-task backend overrides (empty = use global llm_backend)
     explain_backend: str = ""
-    predict_llm_backend: str = ""
+    predict_llm_backend: str = "gemini"
 
     # Sentiment uses CryptoBert HTTP API, not an LLM backend
     mock_mode: bool = False

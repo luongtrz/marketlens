@@ -28,7 +28,9 @@ services:
     environment:
       AIHUB_STOCKMEM_URL: http://stockmem:8003
       AIHUB_LLM_BACKEND: ${AIHUB_LLM_BACKEND:-groq}
-      AIHUB_GROQ_API_KEY: ${AIHUB_GROQ_API_KEY:-}
+      AIHUB_PREDICT_LLM_BACKEND: gemini
+      AIHUB_GEMINI_MODEL: gemini-3.1-flash-lite
+      AIHUB_GROQ_API_KEY: [REDACTED_GROQ_TOKEN]
       AIHUB_GROQ_MODEL: ${AIHUB_GROQ_MODEL:-llama-3.3-70b-versatile}
       AIHUB_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       AIHUB_GEMINI_API_KEY: ${GEMINI_API_KEY:-}
