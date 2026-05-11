@@ -29,6 +29,21 @@ INDICATOR_LABELS: list[str] = [
 ]
 
 
+def _nf_val(nf: Any, key: str, default: Any = "?") -> Any:
+    """Read a field from a NormalizedFactor, whether it is a dict or object."""
+    if isinstance(nf, dict):
+        return nf.get(key, default)
+    return getattr(nf, key, default)
+
+
+def _nf_float(nf: Any, key: str, default: float = 0.0) -> float:
+    """Read a numeric field, cast to float."""
+    try:
+        return float(_nf_val(nf, key, default))
+    except (ValueError, TypeError):
+        return default
+
+
 # ---------------------------------------------------------------------------
 # StockMem HTTP client
 # ---------------------------------------------------------------------------
@@ -155,7 +170,7 @@ def record_to_text(record: StockMemRecord, *, include_outcome: bool = False) -> 
     # --- Normalized factors (with type / weight) ---
     if record.normalized_factors:
         nf_parts = [
-            f"{nf.name} [{nf.type.value}, w={nf.weight:.2f}, pol={nf.polarity:+.2f}]"
+            f"{_nf_val(nf, 'name')} [{_nf_val(nf, 'type')}, w={_nf_float(nf, 'weight'):.2f}, pol={_nf_float(nf, 'polarity'):+.2f}]"
             for nf in record.normalized_factors
         ]
         lines.append("Normalized Factors: " + "; ".join(nf_parts))
