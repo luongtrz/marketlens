@@ -418,7 +418,8 @@ async def main() -> None:
             c7 = row.get("correct_7d")
             c7_str = "OK" if c7 else ("XX" if c7 is False else ("??" if in_warmup else "?"))
             warmup_mark = " [w]" if in_warmup else ""
-            print(f"{signal}({result['confidence']:.2f}) ret7d={r7:+.2f}%{warmup_mark} "
+            r7_str = f"{r7:+.2f}%" if isinstance(r7, (int, float)) else "N/A"
+            print(f"{signal}({result['confidence']:.2f}) ret7d={r7_str}{warmup_mark} "
                   f"dur={result['run_duration_ms']}ms")
 
             # Throttle between runs to avoid rate limiting
