@@ -15,6 +15,19 @@ def _as_float(value: object, fallback: float) -> float:
         return fallback
 
 
+def _as_bool(value: object, fallback: bool) -> bool:
+    if value is None:
+        return fallback
+    if isinstance(value, bool):
+        return value
+    s = str(value).strip().lower()
+    if s in {"1", "true", "yes", "y", "on"}:
+        return True
+    if s in {"0", "false", "no", "n", "off"}:
+        return False
+    return fallback
+
+
 @dataclass(frozen=True)
 class SearchWeights:
     w1_factor: float
@@ -73,6 +86,18 @@ def load_weights_from_config(
 class Settings:
     vector_backend: str = os.getenv("VECTOR_BACKEND", "memory")
     db_url: str = os.getenv("DB_URL", "sqlite+aiosqlite:///test.db")
+    auto_optimize_enabled: bool = _as_bool(os.getenv("AUTO_OPTIMIZE_ENABLED"), False)
+    auto_optimize_hour_utc: int = int(os.getenv("AUTO_OPTIMIZE_HOUR_UTC", "1"))
+    auto_optimize_minute_utc: int = int(os.getenv("AUTO_OPTIMIZE_MINUTE_UTC", "15"))
+    auto_optimize_horizon: str = os.getenv("AUTO_OPTIMIZE_HORIZON", "7d")
+    auto_optimize_trials: int = int(os.getenv("AUTO_OPTIMIZE_TRIALS", "80"))
+    auto_optimize_k: int = int(os.getenv("AUTO_OPTIMIZE_K", "5"))
+    auto_optimize_warmup: int = int(os.getenv("AUTO_OPTIMIZE_WARMUP", "250"))
+    auto_optimize_min_records: int = int(os.getenv("AUTO_OPTIMIZE_MIN_RECORDS", "320"))
+    auto_optimize_output: str = os.getenv(
+        "AUTO_OPTIMIZE_OUTPUT",
+        str(Path(__file__).resolve().parents[1] / "config" / "weights.auto.json"),
+    )
     weights: SearchWeights = load_weights_from_config(
         os.getenv("STOCKMEM_CONFIG"),
         os.getenv("WEIGHTS_FILE"),

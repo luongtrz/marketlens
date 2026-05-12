@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+import logging
 
 from .config import SearchWeights
 from .models import SimilarRecord, StockMemRecord
@@ -11,6 +12,9 @@ from .store.base import Repository
 from .store.pg_repository import PGRepository
 from .store.repository import RecordRepository
 from .store.writer import RecordWriter
+from .weights_retrainer import retrain_weights, write_weights_snapshot
+
+logger = logging.getLogger(__name__)
 
 
 def _build_repository(db_url: str) -> Repository:
@@ -110,3 +114,51 @@ class StockMemService:
                 }.items() if v is not None
             })
         return ok
+
+    def set_weights(self, weights: SearchWeights) -> None:
+        self.weights = weights
+        self.searcher = RecordSearcher(
+            embedder=self.embedder,
+            index=self.index,
+            record_cache=self.records_by_id,
+            weights=self.weights,
+        )
+
+    async def auto_retrain_weights(
+        self,
+        *,
+        horizon: str,
+        k: int,
+        warmup: int,
+        trials: int,
+        min_records: int,
+        output_path: str,
+    ) -> dict:
+        records = await self.repository.list_all()
+        labeled = [
+            r for r in records
+            if r.future_return_1d is not None
+            and r.future_return_7d is not None
+            and r.future_return_30d is not None
+        ]
+        if len(labeled) < min_records:
+            raise ValueError(
+                f"Insufficient labeled records: {len(labeled)} < min_records({min_records})"
+            )
+
+        new_weights, payload = retrain_weights(
+            labeled,
+            horizon=horizon,
+            k=k,
+            warmup=warmup,
+            trials=trials,
+        )
+        self.set_weights(new_weights)
+        write_weights_snapshot(output_path, payload)
+        logger.info(
+            "StockMem auto-retrained weights: w1=%.4f w2=%.4f w3=%.4f",
+            new_weights.w1_factor,
+            new_weights.w2_indicator,
+            new_weights.w3_price,
+        )
+        return payload

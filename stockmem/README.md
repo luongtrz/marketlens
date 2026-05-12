@@ -1,170 +1,219 @@
-# StockMem
+# StockMem Module
 
-StockMem is the module responsible for record storage and weighted vector similarity search.
+StockMem là memory/retrieval layer của hệ thống: lưu record thị trường theo ngày và trả về các case lịch sử tương tự để AIHub dùng cho RAG predict/explain.
 
-## Endpoints
+## 1) Module này làm gì
 
-- POST /record
-- GET /record/{id}
-- POST /search
-- GET /health
+- Lưu `StockMemRecord` theo khóa duy nhất `(date, symbol)`.
+- Chuẩn hóa record thành vector đặc trưng.
+- Tìm `k` record gần nhất bằng weighted similarity.
+- Quản lý nhãn forward return (`future_return_1d/7d/30d`) để backtest và tối ưu trọng số.
+- Tự động re-train trọng số similarity hằng ngày bằng Bayesian optimization (Optuna/TPE) nếu bật cấu hình.
 
-## Weighted Similarity
+---
 
-Search ranking uses:
+## 2) Cấu trúc code và vai trò từng phần
 
-score = w1 * sim(factor) + w2 * sim(indicator) + w3 * sim(price)
+### API layer
+- `stockmem/src/api.py`
+  - FastAPI app, endpoints:
+    - `POST /record`
+    - `GET /record/{id}`
+    - `POST /search`
+    - `GET /records/missing-returns`
+    - `PATCH /record/{id}/returns`
+    - `POST /weights/retrain` (manual trigger Bayesian retrain)
+    - `GET /health`
+  - Có background scheduler auto retrain daily khi `AUTO_OPTIMIZE_ENABLED=true`.
 
-Default coefficients are loaded from `stockmem/config.yaml`:
+### Service layer
+- `stockmem/src/service.py`
+  - `StockMemService` điều phối toàn bộ module.
+  - Chọn repository backend theo `DB_URL`:
+    - PostgreSQL: `PGRepository`
+    - SQLite: `RecordRepository`
+  - Quản lý cache, embedder, searcher, weight reload runtime.
+  - `auto_retrain_weights(...)` chạy Bayesian optimize và apply weights mới ngay trong process.
 
-- `w1_factor`: 0.35
-- `w2_indicator`: 0.20
-- `w3_price`: 0.45
+### Models
+- `stockmem/src/models.py`
+  - Schema chính: `StockMemRecord`, `MarketSnapshot`, `SimilarRecord`.
+  - Có bridge để tương thích format market snapshot cũ/mới.
 
-Override options at runtime:
+### Config
+- `stockmem/src/config.py`
+  - Runtime config cho DB/vector backend/weights.
+  - Config auto-optimize daily:
+    - `AUTO_OPTIMIZE_ENABLED`
+    - `AUTO_OPTIMIZE_HOUR_UTC`
+    - `AUTO_OPTIMIZE_MINUTE_UTC`
+    - `AUTO_OPTIMIZE_HORIZON`
+    - `AUTO_OPTIMIZE_TRIALS`
+    - `AUTO_OPTIMIZE_K`
+    - `AUTO_OPTIMIZE_WARMUP`
+    - `AUTO_OPTIMIZE_MIN_RECORDS`
+    - `AUTO_OPTIMIZE_OUTPUT`
 
-- `W1_FACTOR`, `W2_INDICATOR`, `W3_PRICE`
-- `WEIGHTS_FILE=/path/to/weights.json`
+### Search/Embedding
+- `stockmem/src/search/embedder.py`
+  - Split embedding:
+    - `factor_vec` (75 dims)
+    - `indicator_vec` (5 dims)
+    - `price_vec` (60 dims)
+- `stockmem/src/search/searcher.py`
+  - Weighted cosine:
+    - `score = w1*sim(factor) + w2*sim(indicator) + w3*sim(price)`
+  - Chỉ search trong cùng `symbol` với query.
+  - Hỗ trợ `before_date` để tránh look-ahead trong backtest.
+- `stockmem/src/search/index.py`
+  - In-memory index (FAISS nếu available, fallback numpy).
+- `stockmem/src/search/taxonomy.py`
+  - Taxonomy mapping cho factor vector.
 
-## Local Setup
+### Store/Persistence
+- `stockmem/src/store/base.py`: repository protocol.
+- `stockmem/src/store/repository.py`: SQLite impl + legacy migration.
+- `stockmem/src/store/pg_repository.py`: PostgreSQL impl.
+- `stockmem/src/store/writer.py`: upsert + incremental stats/index update (tránh full rebuild mỗi record).
+- `stockmem/src/store/reader.py`: helpers đọc record.
+- `stockmem/src/store/schema.py`: table constants.
 
-Run from repository root:
+### Bayesian retraining helper
+- `stockmem/src/weights_retrainer.py`
+  - Build dataset từ records đã có forward returns.
+  - Gọi logic Optuna/TPE từ `stockmem/scripts/optimize_weights.py`.
+  - Chọn stable weights (median của top trials), apply runtime, và persist snapshot JSON.
+
+---
+
+## 3) Data model chính
+
+`StockMemRecord` gồm:
+- Identity: `id`, `date`, `symbol`
+- Sentiment/factors: `sentiment_score`, `sentiment_label`, `factors`, `normalized_factors`, `factor_vector`
+- Market snapshot: RSI/MACD/MSI/FGI/price-change/candles
+- Metadata: `summary`, `article_ids`
+- Labels: `future_return_1d`, `future_return_7d`, `future_return_30d`
+
+---
+
+## 4) API contract ngắn gọn
+
+### `POST /record`
+Upsert record theo `(date, symbol)`.
+
+### `GET /record/{id}`
+Lấy record theo id.
+
+### `POST /search`
+Truy vấn tương đồng, có thể set `before_date` cho walk-forward.
+
+### `GET /records/missing-returns`
+Lấy records thiếu nhãn return (nếu thiếu bất kỳ trường nào trong `future_return_1d/7d/30d`).
+
+### `PATCH /record/{id}/returns`
+Patch `future_return_1d/7d/30d` cho record.
+
+### `POST /weights/retrain`
+Trigger Bayesian retrain ngay lập tức (manual).
+
+### `GET /health`
+Health check + backend/db info.
+
+---
+
+## 5) Auto Bayesian dynamic weights
+
+### Cơ chế
+- Khi `AUTO_OPTIMIZE_ENABLED=true`, StockMem chạy scheduler UTC mỗi ngày.
+- Đến giờ cấu hình, service sẽ:
+  1. Lấy records đã có đủ `future_return_1d/7d/30d`
+  2. Chạy Bayesian optimize (Optuna TPE)
+  3. Chọn stable weights (median top trials)
+  4. Apply weights runtime vào searcher
+  5. Ghi snapshot ra `AUTO_OPTIMIZE_OUTPUT`
+  6. Dùng distributed lock (PostgreSQL advisory lock) để đảm bảo nhiều replica không retrain trùng.
+
+### Thuật toán
+- Objective: `0.6*DA + 0.4*Sharpe` (walk-forward).
+- Ràng buộc: `w3 = 1 - w1 - w2` + bounds cho từng weight.
+- Mặc định horizon: `7d` (configurable).
+
+### Lưu ý vận hành
+- Cần đủ dữ liệu đã dán nhãn future returns (`AUTO_OPTIMIZE_MIN_RECORDS`).
+- Cần package `optuna` trong runtime (`pyproject` extra stockmem đã thêm).
+
+---
+
+## 6) Future-return backfill
+
+StockMem chỉ cung cấp primitive:
+- `GET /records/missing-returns`
+- `PATCH /record/{id}/returns`
+
+Việc tính return theo giá tương lai đang được orchestrate bởi Main Controller endpoint:
+- `POST /fill-returns` (ở `main_controller/src/api.py`)
+
+---
+
+## 7) Scripts & data
+
+### Scripts
+- `stockmem/scripts/backtest_api.py`: walk-forward backtest qua API.
+- `stockmem/scripts/optimize_weights.py`: Bayesian/grid optimization offline.
+- `stockmem/scripts/benchmark_weights.py`: compare baseline vs candidate.
+- `stockmem/scripts/regen_optimizer_data.py`: tái tạo dataset optimizer từ DB.
+- `stockmem/scripts/generate_mock_data.py`: tạo mock dataset.
+- `stockmem/scripts/patch_factors.py`: utility patch factors.
+
+### Data
+- `stockmem/data/mock_3y_records.json`
+- `stockmem/data/mock_3y_optimizer.json`
+- `stockmem/data/real_optimizer.json`
+
+---
+
+## 8) Test files
+
+- `stockmem/tests/test_store.py`
+- `stockmem/tests/test_search.py`
+- `stockmem/tests/test_vectorize.py`
+- `stockmem/tests/test_pg_repository.py`
+- `stockmem/tests/test_taxonomy.py`
+
+---
+
+## 9) Bug check (current) và technical debt
+
+### Đã fix trong nhánh hiện tại
+- Search có thể trộn record khác `symbol` trong cùng cache.
+  - Đã fix: filter cùng `symbol` trong `RecordSearcher.search`.
+- `missing-returns` chỉ lọc theo 1d.
+  - Đã fix: kiểm tra thiếu bất kỳ `1d/7d/30d`.
+- Auto retrain có thể chạy trùng khi đa replica.
+  - Đã fix: PostgreSQL advisory lock (`pg_try_advisory_lock`).
+- Save record gây rebuild `O(n)` mỗi lần.
+  - Đã fix: incremental update cho corpus stats/index.
+- Search full-scan tất cả records.
+  - Đã fix: ANN prefilter bằng index joint vector + weighted rerank.
+
+### Nợ kỹ thuật còn lại
+- Auto retrain mới lock phân tán ở tầng PostgreSQL; môi trường SQLite/local xem như single-node (không có lock liên tiến trình).
+- ANN prefilter đang dùng embedding joint rồi weighted rerank; nếu dữ liệu rất lớn vẫn nên tách hẳn ANN index theo chiến lược production (shard/persistent index).
+
+---
+
+## 10) Run local
 
 ```bash
-cd /home/luong/marketlens
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install fastapi "uvicorn[standard]" pydantic pydantic-settings httpx sqlalchemy aiosqlite asyncpg numpy pyyaml pytest pytest-asyncio pytest-cov
-```
-
-## Run Tests
-
-```bash
-cd /home/luong/marketlens
-source .venv/bin/activate
-PYTHONPATH=/home/luong/marketlens pytest -q stockmem/tests
-```
-
-Expected result:
-
-- 2 passed (test_store + test_search)
-
-## Optimize / Benchmark Weights
-
-Optimizer uses Bayesian Optimization (TPE sampler via Optuna), ported from the original logic.
-
-Input data should be vectorized rows with fields:
-
-- `date`
-- `factor_vec`
-- `indicator_vec`
-- `price_vec`
-- `future_return_7d`
-
-Install optimizer dependency:
-
-```bash
-cd /home/luong/marketlens
-source .venv/bin/activate
-pip install optuna
-```
-
-Optimize:
-
-```bash
-cd /home/luong/marketlens
-source .venv/bin/activate
-python stockmem/scripts/optimize_weights.py \
-	--data /path/to/history_real_optimizer.v2.json \
-	--trials 120 \
-	--horizon 7d \
-	--k 5 \
-	--warmup 250 \
-	--cv-folds 4 \
-	--stable-top-k 12 \
-	--output stockmem/config/weights.optimized.json
-```
-
-Notes:
-
-- Objective: `0.6 * DA + 0.4 * Sharpe`
-- Constraint: `w3 = 1 - w1 - w2` and each weight must stay in configured bounds
-- Output includes best-trial weights and stable median weights from top trials
-
-Benchmark vs baseline:
-
-```bash
-cd /home/luong/marketlens
-source .venv/bin/activate
-python stockmem/scripts/benchmark_weights.py \
-	--data /path/to/history_real_optimizer.v2.json \
-	--weights stockmem/config/weights.optimized.json
-```
-
-## Run API Locally
-
-```bash
-cd /home/luong/marketlens
 source .venv/bin/activate
 export PYTHONPATH=/home/luong/marketlens
 export VECTOR_BACKEND=memory
 export DB_URL=sqlite+aiosqlite:////tmp/stockmem-local.db
-uvicorn stockmem.src.api:app --host 127.0.0.1 --port 18080
+uvicorn stockmem.src.api:app --host 127.0.0.1 --port 8003
 ```
 
-## Smoke Test
-
-Open another terminal and run:
-
+Smoke test:
 ```bash
-BASE=http://127.0.0.1:18080
-
-curl -sS "$BASE/health"
-
-curl -sS -X POST "$BASE/record" \
-	-H 'Content-Type: application/json' \
-	-d '{"record":{"date":"2026-04-14","symbol":"BTC","sentiment_score":0.45,"factors":["macro","etf_flow"],"market_snapshot":{"rsi":55.1,"macd_hist":0.012},"summary":"initial summary","article_ids":["a1"]}}'
-
-curl -sS "$BASE/record/<id-from-record-response>"
-
-curl -sS -X POST "$BASE/search" \
-	-H 'Content-Type: application/json' \
-	-d '{"query":{"date":"2026-04-14","symbol":"BTC","sentiment_score":0.46,"factors":["macro"],"market_snapshot":{"rsi":55.0,"macd_hist":0.010},"summary":"query","article_ids":[]},"k":3}'
+curl -sS http://127.0.0.1:8003/health
 ```
-
-## Idempotency Check (same date + symbol)
-
-Write the same key twice, then verify IDs are equal and DB has one row for that key.
-
-```bash
-BASE=http://127.0.0.1:18080
-
-REC1=$(curl -sS -X POST "$BASE/record" -H 'Content-Type: application/json' -d '{"record":{"date":"2026-04-14","symbol":"BTC","sentiment_score":0.45,"factors":["macro"],"market_snapshot":{"rsi":55.1,"macd_hist":0.012},"summary":"first","article_ids":["a1"]}}')
-ID1=$(printf '%s' "$REC1" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
-
-REC2=$(curl -sS -X POST "$BASE/record" -H 'Content-Type: application/json' -d '{"record":{"date":"2026-04-14","symbol":"BTC","sentiment_score":0.47,"factors":["macro","onchain"],"market_snapshot":{"rsi":56.2,"macd_hist":0.02},"summary":"updated","article_ids":["a2"]}}')
-ID2=$(printf '%s' "$REC2" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
-
-python3 - <<'PY'
-import sqlite3
-conn = sqlite3.connect('/tmp/stockmem-local.db')
-cur = conn.cursor()
-cur.execute("SELECT COUNT(*) FROM stockmem_records WHERE record_date=? AND symbol=?", ('2026-04-14', 'BTC'))
-print('row_count_for_key=', cur.fetchone()[0])
-conn.close()
-PY
-
-echo "ID1=$ID1"
-echo "ID2=$ID2"
-```
-
-Expected result:
-
-- ID1 equals ID2
-- row_count_for_key equals 1
-
-## Notes
-
-- Local sqlite files are ignored by git via *.db rules.
-- This README reflects the current migration branch behavior in this repository.

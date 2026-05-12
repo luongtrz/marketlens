@@ -58,15 +58,44 @@ class RecordSearcher:
         k: int = 5,
         before_date: date | None = None,
     ) -> list[SimilarRecord]:
-        _ = self._index  # kept for future FAISS-based prefilter; full scan for now
         scored: list[tuple[float, StockMemRecord]] = []
         query_split = self._embedder.embed_split(query)
-        for rec in self._record_cache.values():
+        query_joint = self._embedder.embed(query)
+
+        # ANN prefilter via joint vector index, then weighted rerank.
+        pre_k = max(k * 30, 300)
+        pre_candidates = self._index.search(query_joint, pre_k)
+        candidate_ids = [c.record_id for c in pre_candidates]
+        if not candidate_ids:
+            candidate_records = list(self._record_cache.values())
+        else:
+            candidate_records = [
+                self._record_cache[rid]
+                for rid in candidate_ids
+                if rid in self._record_cache
+            ]
+
+        for rec in candidate_records:
+            if rec.symbol.upper() != query.symbol.upper():
+                continue
             if before_date is not None and rec.date >= before_date:
                 continue
             cand_split = self._embedder.embed_split(rec)
             score = self._weighted_score(query_split, cand_split)
             scored.append((score, rec))
+
+        if len(scored) < k:
+            seen_ids = {rec.id for _, rec in scored}
+            for rec in self._record_cache.values():
+                if rec.id in seen_ids:
+                    continue
+                if rec.symbol.upper() != query.symbol.upper():
+                    continue
+                if before_date is not None and rec.date >= before_date:
+                    continue
+                cand_split = self._embedder.embed_split(rec)
+                score = self._weighted_score(query_split, cand_split)
+                scored.append((score, rec))
 
         scored.sort(key=lambda x: x[0], reverse=True)
         k_eff = max(1, min(k, len(scored)))

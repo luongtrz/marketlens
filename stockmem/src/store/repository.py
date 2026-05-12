@@ -168,7 +168,12 @@ class RecordRepository:
         return [StockMemRecord.model_validate(json.loads(r[0])) for r in rows]
 
     async def list_missing_returns(self, symbol: str | None = None) -> list[StockMemRecord]:
-        query = "SELECT payload FROM stockmem_records WHERE json_extract(payload, '$.future_return_1d') IS NULL"
+        query = (
+            "SELECT payload FROM stockmem_records WHERE "
+            "json_extract(payload, '$.future_return_1d') IS NULL OR "
+            "json_extract(payload, '$.future_return_7d') IS NULL OR "
+            "json_extract(payload, '$.future_return_30d') IS NULL"
+        )
         params: tuple = ()
         if symbol:
             query += " AND symbol = ?"
@@ -206,6 +211,15 @@ class RecordRepository:
             )
             await conn.commit()
         return True
+
+    async def acquire_distributed_lock(self, lock_name: str) -> bool:
+        # SQLite is single-process in typical local/dev usage; treat as acquired.
+        _ = lock_name
+        return True
+
+    async def release_distributed_lock(self, lock_name: str) -> None:
+        _ = lock_name
+        return None
 
     async def close(self) -> None:
         # SQLite connections are opened/closed per call, nothing to release.
