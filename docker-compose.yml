@@ -33,7 +33,7 @@ services:
       AIHUB_GROQ_API_KEY: [REDACTED_GROQ_TOKEN]
       AIHUB_GROQ_MODEL: ${AIHUB_GROQ_MODEL:-llama-3.3-70b-versatile}
       AIHUB_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      AIHUB_GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AIHUB_GEMINI_API_KEY: [REDACTED_GOOGLE_API_KEY]
 
   market_data:
     build:

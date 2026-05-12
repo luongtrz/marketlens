@@ -205,10 +205,10 @@ def record_to_text(record: StockMemRecord, *, include_outcome: bool = False) -> 
 
 # Groq free / on_demand tier enforces tight per-request input limits (~8k tokens for
 # some models). Oversized prompts raise 413 / rate_limit_exceeded — clamp RAG aggressively.
-_MAX_PREDICT_SIMILAR_COUNT = 3
-_MAX_PREDICT_CHARS_CURRENT = 3600
-_MAX_PREDICT_CHARS_PER_CASE = 1200
-_MAX_PREDICT_CHARS_SIMILAR_TOTAL = 6000
+_MAX_PREDICT_SIMILAR_COUNT = 5
+_MAX_PREDICT_CHARS_CURRENT = 4000
+_MAX_PREDICT_CHARS_PER_CASE = 1400
+_MAX_PREDICT_CHARS_SIMILAR_TOTAL = 8000
 
 
 def _clip_predict_context(text: str, max_chars: int) -> str:
@@ -289,6 +289,17 @@ class RAGContextBuilder:
 
         similar_lines: list[str] = []
         if capped:
+            # Summary of case outcomes
+            rets_7d = [(c.record.future_return_7d) for c in capped if c.record.future_return_7d is not None]
+            if rets_7d:
+                pos = sum(1 for r in rets_7d if r > 0)
+                neg = sum(1 for r in rets_7d if r < 0)
+                avg_ret = sum(rets_7d) / len(rets_7d)
+                similar_lines.append(
+                    f"Case Summary: {pos} bullish, {neg} bearish out of {len(rets_7d)} cases. "
+                    f"Average 7d return: {avg_ret:+.2f}%"
+                )
+                similar_lines.append("")
             for i, case in enumerate(capped, 1):
                 rec = case.record
                 similar_lines.append(
