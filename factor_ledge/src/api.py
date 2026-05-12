@@ -1,201 +1,146 @@
-"""FactorLedge API: clean, normalize, and serve factor signals."""
+"""factor_ledge Python gateway — port 8004.
 
-from __future__ import annotations
+Acts as the single HTTP entry-point for the factor_ledge sub-system.
+Routes requests to the three TypeScript micro-services running internally:
 
-import re
-from collections import Counter
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+  POST /ledger/update     → ledger-service  :3002  POST /ledger/update
+  GET  /ledger/current    → ledger-service  :3002  GET  /ledger/current
+  GET  /ledger/snapshot   → ledger-service  :3002  GET  /ledger/snapshot
+  GET  /query/vector      → query-service   :3003  GET  /query/vector
+  GET  /query/factor-vector → query-service :3003  GET  /query/factor-vector
+  GET  /query/context     → query-service   :3003  GET  /query/context
+  GET  /query/top         → query-service   :3003  GET  /query/top
+  POST /classify          → classify-service:3001  POST /classify
+  POST /classify/batch    → classify-service:3001  POST /classify/batch
+  POST /classify/vector   → classify-service:3001  POST /classify/vector  (75d for StockMem)
+  GET  /health
+"""
 
-from fastapi import FastAPI, Query
-from pydantic import BaseModel, Field
+import os
+import logging
+from contextlib import asynccontextmanager
+from typing import AsyncIterator, Any
 
-from shared.models.factor import FactorType, NormalizedFactor
+import httpx
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 
-_STOPWORDS = {"a", "an", "and", "for", "in", "of", "on", "the", "to", "with"}
-_POSITIVE_KEYWORDS = (
-    "approval",
-    "adoption",
-    "breakthrough",
-    "bullish",
-    "buy",
-    "inflow",
-    "rally",
-    "surge",
-    "upgrade",
+logger = logging.getLogger(__name__)
+
+# ── Service URLs (override via env vars) ──────────────────────────────────────
+CLASSIFY_URL  = os.getenv("CLASSIFY_URL",  "http://localhost:3001")
+LEDGER_URL    = os.getenv("LEDGER_URL",    "http://localhost:3002")
+QUERY_URL     = os.getenv("QUERY_URL",     "http://localhost:3003")
+
+# Timeout in seconds for proxied requests
+_TIMEOUT = float(os.getenv("PROXY_TIMEOUT", "30"))
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    app.state.http = httpx.AsyncClient(timeout=_TIMEOUT)
+    yield
+    await app.state.http.aclose()
+
+
+app = FastAPI(
+    title="FactorLedge Gateway",
+    description="Python proxy / entry-point for the factor_ledge TypeScript services",
+    lifespan=lifespan,
 )
-_NEGATIVE_KEYWORDS = (
-    "ban",
-    "bearish",
-    "dump",
-    "hack",
-    "lawsuit",
-    "outflow",
-    "risk",
-    "sell",
-    "warning",
-)
-_TYPE_KEYWORDS: dict[FactorType, tuple[str, ...]] = {
-    FactorType.REGULATORY: ("sec", "etf", "law", "policy", "regulat", "reserve"),
-    FactorType.TECHNICAL: ("macd", "rsi", "support", "resistance", "volume", "volatility"),
-    FactorType.ON_CHAIN: ("staking", "mining", "onchain", "wallet", "hashrate"),
-    FactorType.EXCHANGE: ("binance", "coinbase", "listing", "liquidation", "orderbook"),
-    FactorType.SENTIMENT: ("fear", "greed", "sentiment", "social", "hype"),
-    FactorType.MACRO: ("cpi", "fed", "inflation", "institutional", "liquidity"),
-}
-_ENRICH_LOOKUP: dict[str, tuple[str, list[str]]] = {
-    "bitcoin": ("layer1", ["BTC", "BTCUSDT"]),
-    "btc": ("layer1", ["BTC", "BTCUSDT"]),
-    "ethereum": ("layer1", ["ETH", "ETHUSDT"]),
-    "eth": ("layer1", ["ETH", "ETHUSDT"]),
-    "solana": ("layer1", ["SOL", "SOLUSDT"]),
-    "sol": ("layer1", ["SOL", "SOLUSDT"]),
-    "binance": ("exchange", ["BNB", "BNBUSDT"]),
-    "xrp": ("payments", ["XRP", "XRPUSDT"]),
-}
 
 
-class IngestRequest(BaseModel):
-    article_id: str
-    factors: list[str] = Field(default_factory=list)
-    source: str
+# ── Helper ────────────────────────────────────────────────────────────────────
 
+async def _proxy(
+    request: Request,
+    target_url: str,
+    *,
+    method: str | None = None,
+    body: Any = None,
+) -> Response:
+    """Forward the incoming request to *target_url* and stream the response back."""
+    client: httpx.AsyncClient = request.app.state.http
+    m = method or request.method
 
-class IngestResponse(BaseModel):
-    factors: list[NormalizedFactor]
-
-
-class FactorSummary(BaseModel):
-    symbol: str | None = None
-    total: int
-    avg_weight: float
-    top_factors: list[str] = Field(default_factory=list)
-
-
-def _canonicalize_factor(value: str) -> str:
-    lowered = value.strip().lower()
-    cleaned = re.sub(r"[^a-z0-9\s]+", " ", lowered)
-    tokens = [token for token in cleaned.split() if token and token not in _STOPWORDS]
-    return "_".join(tokens)
-
-
-def _infer_type(name: str) -> FactorType:
-    haystack = name.replace("_", " ")
-    for factor_type, keywords in _TYPE_KEYWORDS.items():
-        if any(keyword in haystack for keyword in keywords):
-            return factor_type
-    return FactorType.MACRO
-
-
-def _infer_polarity(name: str) -> float:
-    haystack = name.replace("_", " ")
-    positive_hits = sum(1 for keyword in _POSITIVE_KEYWORDS if keyword in haystack)
-    negative_hits = sum(1 for keyword in _NEGATIVE_KEYWORDS if keyword in haystack)
-    if positive_hits == 0 and negative_hits == 0:
-        return 0.0
-    raw = 0.4 * (positive_hits - negative_hits)
-    return max(-1.0, min(1.0, raw))
-
-
-def _enrich(name: str) -> tuple[str | None, list[str]]:
-    haystack = name.replace("_", " ")
-    for keyword, (sector, symbols) in _ENRICH_LOOKUP.items():
-        if keyword in haystack:
-            return sector, symbols
-    return None, []
-
-
-@dataclass
-class FactorPipeline:
-    """In-memory processor for raw factor strings."""
-
-    history: list[NormalizedFactor] = field(default_factory=list)
-    frequency: Counter[str] = field(default_factory=Counter)
-
-    def run(self, article_id: str, raw_factors: list[str]) -> list[NormalizedFactor]:
-        now = datetime.now(timezone.utc)
-        seen: set[str] = set()
-        normalized: list[NormalizedFactor] = []
-
-        for raw in raw_factors:
-            cleaned = _canonicalize_factor(raw)
-            if not cleaned or cleaned in seen:
-                continue
-            seen.add(cleaned)
-
-            self.frequency[cleaned] += 1
-            frequency_bonus = min(0.35, 0.05 * float(self.frequency[cleaned] - 1))
-            weight = min(1.0, 0.5 + frequency_bonus)
-            sector, symbols = _enrich(cleaned)
-
-            normalized_factor = NormalizedFactor(
-                name=cleaned,
-                type=_infer_type(cleaned),
-                weight=weight,
-                polarity=_infer_polarity(cleaned),
-                sector=sector,
-                related_symbols=symbols,
-                source_article_id=article_id,
-                observed_at=now,
-            )
-            normalized.append(normalized_factor)
-
-        self.history.extend(normalized)
-        return normalized
-
-    def list(self, symbol: str | None, limit: int) -> list[NormalizedFactor]:
-        if symbol is None:
-            return list(reversed(self.history[-limit:]))
-
-        symbol_upper = symbol.upper()
-        filtered = [item for item in self.history if symbol_upper in item.related_symbols]
-        return list(reversed(filtered[-limit:]))
-
-    def summary(self, symbol: str | None) -> FactorSummary:
-        if symbol is None:
-            selected = self.history
+    try:
+        if m == "GET":
+            resp = await client.get(target_url, params=dict(request.query_params))
         else:
-            symbol_upper = symbol.upper()
-            selected = [item for item in self.history if symbol_upper in item.related_symbols]
+            payload = body if body is not None else await request.json()
+            resp = await client.request(m, target_url, json=payload)
+    except httpx.ConnectError as exc:
+        logger.error("Proxy connect error → %s: %s", target_url, exc)
+        return JSONResponse({"error": f"upstream unavailable: {target_url}"}, status_code=503)
+    except Exception as exc:
+        logger.error("Proxy error → %s: %s", target_url, exc)
+        return JSONResponse({"error": str(exc)}, status_code=502)
 
-        if not selected:
-            return FactorSummary(symbol=symbol, total=0, avg_weight=0.0, top_factors=[])
-
-        counts = Counter(item.name for item in selected)
-        top_factors = [name for name, _ in counts.most_common(5)]
-        avg_weight = sum(item.weight for item in selected) / float(len(selected))
-        return FactorSummary(
-            symbol=symbol,
-            total=len(selected),
-            avg_weight=avg_weight,
-            top_factors=top_factors,
-        )
+    return Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        media_type=resp.headers.get("content-type", "application/json"),
+    )
 
 
-app = FastAPI(title="FactorLedge", version="0.1.0")
-pipeline = FactorPipeline()
-
+# ── Health ────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+async def health() -> dict:
+    return {"status": "ok", "service": "factor-ledge-gateway", "port": 8004}
 
 
-@app.post("/ingest", response_model=IngestResponse)
-async def ingest(payload: IngestRequest) -> IngestResponse:
-    factors = pipeline.run(payload.article_id, payload.factors)
-    return IngestResponse(factors=factors)
+# ── Ledger endpoints (→ ledger-service :3002) ─────────────────────────────────
+
+@app.post("/ledger/update")
+async def ledger_update(request: Request) -> Response:
+    return await _proxy(request, f"{LEDGER_URL}/ledger/update")
 
 
-@app.get("/factors", response_model=list[NormalizedFactor])
-async def factors(
-    symbol: str | None = Query(default=None),
-    limit: int = Query(default=50, ge=1, le=500),
-) -> list[NormalizedFactor]:
-    return pipeline.list(symbol=symbol, limit=limit)
+@app.get("/ledger/current")
+async def ledger_current(request: Request) -> Response:
+    return await _proxy(request, f"{LEDGER_URL}/ledger/current")
 
 
-@app.get("/summary", response_model=FactorSummary)
-async def summary(symbol: str | None = Query(default=None)) -> FactorSummary:
-    return pipeline.summary(symbol=symbol)
+@app.get("/ledger/snapshot")
+async def ledger_snapshot(request: Request) -> Response:
+    return await _proxy(request, f"{LEDGER_URL}/ledger/snapshot")
 
+
+# ── Query endpoints (→ query-service :3003) ───────────────────────────────────
+
+@app.get("/query/vector")
+async def query_vector(request: Request) -> Response:
+    return await _proxy(request, f"{QUERY_URL}/query/vector")
+
+
+@app.get("/query/factor-vector")
+async def query_factor_vector(request: Request) -> Response:
+    return await _proxy(request, f"{QUERY_URL}/query/factor-vector")
+
+
+@app.get("/query/context")
+async def query_context(request: Request) -> Response:
+    return await _proxy(request, f"{QUERY_URL}/query/context")
+
+
+@app.get("/query/top")
+async def query_top(request: Request) -> Response:
+    return await _proxy(request, f"{QUERY_URL}/query/top")
+
+
+# ── Classify endpoints (→ classify-service :3001) ────────────────────────────
+
+@app.post("/classify")
+async def classify_single(request: Request) -> Response:
+    return await _proxy(request, f"{CLASSIFY_URL}/classify")
+
+
+@app.post("/classify/batch")
+async def classify_batch(request: Request) -> Response:
+    return await _proxy(request, f"{CLASSIFY_URL}/classify/batch")
+
+
+@app.post("/classify/vector")
+async def classify_vector(request: Request) -> Response:
+    return await _proxy(request, f"{CLASSIFY_URL}/classify/vector")

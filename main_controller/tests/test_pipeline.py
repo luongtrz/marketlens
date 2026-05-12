@@ -21,15 +21,15 @@ def _make_clients(
     market.get_snapshot = AsyncMock(return_value=sample_market_snapshot)
 
     aihub = AsyncMock()
-    aihub.sentiment = AsyncMock(return_value={"score": 0.7, "label": "bullish"})
     aihub.factors = AsyncMock(return_value=[])
     aihub.predict = AsyncMock(return_value=sample_predict_response)
 
     factorledge = AsyncMock()
-    factorledge.ingest = AsyncMock(return_value=[sample_normalized_factor])
+    factorledge.update_ledger = AsyncMock(return_value=[sample_normalized_factor])
+    factorledge.classify_vector = AsyncMock(return_value=[1.0] * 5 + [0.0] * 70)
 
     stockmem = AsyncMock()
-    stockmem.save = AsyncMock(return_value="rec-001")
+    stockmem.save = AsyncMock(return_value="rec-new")
     stockmem.search = AsyncMock(return_value=[sample_similar_record])
 
     return ModuleClients(
@@ -69,11 +69,11 @@ async def test_pipeline_market_fail_returns_hold(
     market.get_snapshot = AsyncMock(side_effect=Exception("MarketData down"))
 
     aihub = AsyncMock()
-    aihub.sentiment = AsyncMock(return_value={"score": 0.0, "label": "neutral"})
     aihub.factors = AsyncMock(return_value=[])
 
     factorledge = AsyncMock()
-    factorledge.ingest = AsyncMock(return_value=[sample_normalized_factor])
+    factorledge.update_ledger = AsyncMock(return_value=[sample_normalized_factor])
+    factorledge.classify_vector = AsyncMock(return_value=[])  # graceful failure doesn't need vector
 
     stockmem = AsyncMock()
 

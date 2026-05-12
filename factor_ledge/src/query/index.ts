@@ -20,8 +20,8 @@ import type {
   FactorLedger,
   FactorVectorResponse,
   WeightVectorResponse,
-} from "../../../../Services/shared/types.ts";
-import { ALL_TYPES, GROUPS } from "../../../../Services/shared/Taxonomy_en.ts";
+} from "../../shared/types.ts";
+import { ALL_TYPES, GROUPS } from "../../shared/Taxonomy_en.ts";
 
 const TYPE_INDEX = new Map<string, number>(
   ALL_TYPES.map((typeName, index) => [typeName, index])

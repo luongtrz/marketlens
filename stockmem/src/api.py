@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 
 from typing import Optional
 
@@ -18,6 +21,8 @@ from .models import (
 )
 from .service import StockMemService
 
+logger = logging.getLogger(__name__)
+
 
 class UpdateReturnsRequest(BaseModel):
     future_return_1d: Optional[float] = None
@@ -30,14 +35,73 @@ service = StockMemService(
     vector_backend=settings.vector_backend,
     weights=settings.weights,
 )
+_auto_task: asyncio.Task | None = None
+_retrain_lock = asyncio.Lock()
+_dist_lock_name = "stockmem:auto-retrain"
+
+
+async def _run_retrain_once() -> dict:
+    async with _retrain_lock:
+        acquired = await service.repository.acquire_distributed_lock(_dist_lock_name)
+        if not acquired:
+            raise RuntimeError("distributed_lock_not_acquired")
+        try:
+            return await service.auto_retrain_weights(
+                horizon=settings.auto_optimize_horizon,
+                k=settings.auto_optimize_k,
+                warmup=settings.auto_optimize_warmup,
+                trials=settings.auto_optimize_trials,
+                min_records=settings.auto_optimize_min_records,
+                output_path=settings.auto_optimize_output,
+            )
+        finally:
+            await service.repository.release_distributed_lock(_dist_lock_name)
+
+
+async def _auto_optimize_loop() -> None:
+    logger.info(
+        "StockMem auto-optimize loop enabled: daily %02d:%02d UTC",
+        settings.auto_optimize_hour_utc,
+        settings.auto_optimize_minute_utc,
+    )
+    while True:
+        now = datetime.now(timezone.utc)
+        target = now.replace(
+            hour=settings.auto_optimize_hour_utc,
+            minute=settings.auto_optimize_minute_utc,
+            second=0,
+            microsecond=0,
+        )
+        if target <= now:
+            target += timedelta(days=1)
+        await asyncio.sleep((target - now).total_seconds())
+        try:
+            payload = await _run_retrain_once()
+            logger.info(
+                "StockMem auto-optimize done: n=%s combined=%.4f",
+                payload.get("n_records"),
+                float(payload.get("metrics", {}).get("combined", 0.0)),
+            )
+        except Exception as exc:
+            if str(exc) == "distributed_lock_not_acquired":
+                logger.info("StockMem auto-optimize skipped: lock held by another replica")
+            else:
+                logger.warning("StockMem auto-optimize failed: %s", exc)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    global _auto_task
     await service.startup()
+    if settings.auto_optimize_enabled:
+        _auto_task = asyncio.create_task(_auto_optimize_loop())
     try:
         yield
     finally:
+        if _auto_task is not None:
+            _auto_task.cancel()
+            await asyncio.gather(_auto_task, return_exceptions=True)
+            _auto_task = None
         await service.repository.close()
 
 
@@ -90,3 +154,21 @@ async def health() -> HealthResponse:
         vector_backend=service.vector_backend,
         db_url=settings.db_url,
     )
+
+
+@app.post("/weights/retrain")
+async def retrain_weights_now() -> dict:
+    """Trigger Bayesian weight retraining immediately."""
+    try:
+        payload = await _run_retrain_once()
+    except RuntimeError as exc:
+        if str(exc) == "distributed_lock_not_acquired":
+            raise HTTPException(status_code=409, detail="retrain already running on another replica")
+        raise
+    return {
+        "status": "ok",
+        "weights": payload.get("weights"),
+        "metrics": payload.get("metrics"),
+        "optimized_at": payload.get("optimized_at"),
+        "output_path": settings.auto_optimize_output,
+    }

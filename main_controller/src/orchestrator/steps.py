@@ -1,10 +1,17 @@
 """Individual pipeline step functions.
 
 Data-flow summary:
-  Step 1 COLLECT  (parallel): crawler.get_latest [REQUIRED] + market.get_snapshot [REQUIRED]
-  Step 2 AI SCORE (parallel): aihub.sentiment + aihub.factors → factorledge.ingest [graceful]
-  Step 3 STOCKMEM (sequential, REQUIRED): stockmem.save → stockmem.search(k_similar, default 3)
-  Step 4 PREDICT  (REQUIRED): aihub.predict(current, similar)
+  Step 1 COLLECT   (parallel)  : crawler.get_latest [REQUIRED] + market.get_snapshot [REQUIRED]
+  Step 2 AI SCORE  (sequential): aggregate pre-computed sentiment from articles;
+                                  factors from Supabase daily_factor_snapshots (or AIHub fallback);
+                                  push to factorledge.update_ledger + classify_vector [graceful]
+  Step 3 STOCKMEM  (sequential, REQUIRED): stockmem.save → stockmem.search(k=5)
+  Step 4 PREDICT   (REQUIRED)  : aihub.predict(current, similar)
+
+Note — Step 2 no longer calls aihub.sentiment separately.
+  Each IngestionRecord already carries sentiment_score + sentiment_label produced
+  by the crawler enrichment pipeline (CryptoBERT / FinBERT).  We average those
+  pre-computed scores across all fetched articles.
 """
 
 import asyncio
@@ -14,18 +21,27 @@ from urllib.parse import urlparse
 
 from main_controller.src.orchestrator.context import PipelineContext
 from main_controller.src.orchestrator.exceptions import PipelineError
+from shared.models.factor import Factor
 from shared.models.market import MarketSnapshot
 from shared.models.memory import StockMemRecord
 
 
-def _headline(article) -> str:
-    """Return a usable headline for sentiment input.
+def _best_text(article) -> str:
+    """Return the richest available text for an article.
 
-    Why: upstream sometimes stores the URL in article_name. Sentiment over a
-    raw URL collapses to ~0; extracting the slug recovers a headline-like signal.
+    Priority: summary → raw_text (truncated) → headline slug.
     """
+    summary = (getattr(article, "summary", None) or "").strip()
+    if summary:
+        return summary
+
+    raw = (getattr(article, "raw_text", None) or "").strip()
+    if raw:
+        return raw[:800]  # keep token budget sane per-article
+
     name = (getattr(article, "article_name", "") or "").strip()
     if name.startswith("http"):
+        from urllib.parse import urlparse
         path = urlparse(name).path.rstrip("/")
         slug = path.rsplit("/", 1)[-1] if path else ""
         return slug.replace("-", " ").replace("_", " ")
@@ -67,7 +83,8 @@ async def step_collect(ctx: PipelineContext, clients: ModuleClients) -> None:
 
         articles_task = clients.crawler.get_latest(
             ctx.symbol,
-            publish_lte=cutoff,  # articles published before target date only
+            publish_gte=cutoff,
+            publish_lte=cutoff + timedelta(days=1),
         )
         history_task = clients.market.get_history(
             ctx.symbol, interval="1d", limit=50, end_time=str(end_ts)
@@ -119,46 +136,132 @@ async def step_collect(ctx: PipelineContext, clients: ModuleClients) -> None:
 
 
 async def step_ai_score(ctx: PipelineContext, clients: ModuleClients) -> None:
-    """STEP 2: Derive sentiment from pre-scored articles, call AIHub /factors."""
-    # Sentiment comes directly from Supabase-scored articles — no extra LLM call needed.
-    scored = [a.sentiment_score for a in ctx.latest_articles if a.sentiment_score != 0.0]
-    avg_score = sum(scored) / len(scored) if scored else 0.0
-    ctx.sentiment_score = max(-1.0, min(1.0, avg_score))
-    if ctx.sentiment_score > 0.15:
-        ctx.sentiment_label = "bullish"
-    elif ctx.sentiment_score < -0.15:
-        ctx.sentiment_label = "bearish"
+    """STEP 2: Aggregate pre-computed sentiment; load factors from Supabase (or AIHub fallback).
+
+    Sentiment — each IngestionRecord already carries sentiment_score (CryptoBERT/FinBERT)
+    produced by the crawler enrichment pipeline.  We take the mean across all
+    articles so that a single outlier does not dominate.
+
+    Factors — prefer Supabase daily_factor_snapshots (pre-computed by external
+    pipeline).  Falls back to AIHub LLM extraction only when Supabase has no
+    snapshot for today.
+    """
+    articles = ctx.latest_articles or []
+
+    # ── Sentiment: aggregate pre-computed scores ──────────────────────────────
+    scores = [a.sentiment_score for a in articles if a.sentiment_score is not None]
+    if scores:
+        avg = sum(scores) / len(scores)
+        ctx.sentiment_score = round(avg, 4)
+        ctx.sentiment_label = (
+            "bullish" if avg > 0.1 else "bearish" if avg < -0.1 else "neutral"
+        )
+        logger.info(
+            "[step_ai_score] sentiment aggregated from %d articles: %.4f (%s)",
+            len(scores), avg, ctx.sentiment_label,
+        )
     else:
+        ctx.sentiment_score = 0.0
         ctx.sentiment_label = "neutral"
-    logger.info("Sentiment from %d articles: score=%.3f label=%s", len(scored), ctx.sentiment_score, ctx.sentiment_label)
+        logger.warning("[step_ai_score] no pre-computed sentiment found, defaulting to 0.0")
 
-    combined_text = "\n".join(
-        h for a in ctx.latest_articles if (h := _headline(a))
-    )[:3500]
-
-    factors_result = await asyncio.gather(
-        clients.aihub.factors(combined_text, ticker=ctx.symbol),
-        return_exceptions=True,
-    )
-    factors_result = factors_result[0]
-
-    raw_factors = []
-    if isinstance(factors_result, Exception):
-        ctx.errors.append(f"AIHub factors failed: {factors_result}")
-        logger.warning("Factors degraded to []: %s", factors_result)
-    else:
-        raw_factors = factors_result
+    # ── Factors: prefer Supabase daily_factor_snapshots ─────────────────────
+    raw_factors: list[Factor] = []
+    as_of = ctx.as_of_date or date.today()
 
     try:
-        ctx.factors = await clients.factorledge.ingest(
-            article_id=f"batch_{ctx.run_id}",
-            factors=[f.name for f in raw_factors],
-            source="aihub",
+        from shared.supabase_service import SupabaseReadService  # noqa: E402
+        snap_svc = SupabaseReadService.from_env(default_table="daily_factor_snapshots")
+        if snap_svc is not None:
+            snap_rows = await snap_svc.select_rows(
+                order="snapshot_date.desc",
+                limit=1,
+                columns="snapshot_date,factors_json",
+                extra_duplicate_params=[
+                    ("snapshot_date", f"eq.{as_of.isoformat()}"),
+                    ("symbol", f"eq.{ctx.symbol.upper()}"),
+                ],
+            )
+            if snap_rows:
+                items = snap_rows[0].get("factors_json") or []
+                for item in items:
+                    try:
+                        raw_factors.append(Factor(
+                            name=str(item.get("name", "")),
+                            type=str(item.get("type", "macro")),
+                            polarity=float(item.get("polarity", 0.0)),
+                            confidence=float(item.get("weight", item.get("confidence", 0.8))),
+                        ))
+                    except (ValueError, TypeError) as exc:
+                        logger.debug("Skipping malformed Supabase factor: %s", exc)
+                logger.info(
+                    "[step_ai_score] loaded %d factors from Supabase daily_factor_snapshots",
+                    len(raw_factors),
+                )
+    except Exception as exc:
+        logger.warning("[step_ai_score] Supabase factor fetch failed: %s", exc)
+
+    # ── Fallback to AIHub LLM extraction ───────────────────────────────────
+    if not raw_factors:
+        combined_text = "\n\n".join(
+            t for a in articles if (t := _best_text(a))
+        )[:6000]
+
+        factors_result = await asyncio.gather(
+            clients.aihub.factors(combined_text, ticker=ctx.symbol),
+            return_exceptions=True,
+        )
+        factors_result = factors_result[0]
+
+        if isinstance(factors_result, Exception):
+            ctx.errors.append(f"AIHub factors failed: {factors_result}")
+            logger.warning("Factors degraded to []: %s", factors_result)
+        else:
+            raw_factors = factors_result
+            logger.info("[step_ai_score] extracted %d factors from AIHub", len(raw_factors))
+
+    # ── Factor Ledge: push factors → build/update rolling ledger ─────────────
+    ctx.raw_factors = raw_factors
+    try:
+        ctx.factors = await clients.factorledge.update_ledger(
+            records=[
+                {
+                    "date": str(date.today()),
+                    "factors": [f.name for f in raw_factors],
+                }
+            ],
+            window_days=7,
         )
     except Exception as exc:
         ctx.errors.append(f"FactorLedge failed: {exc}")
         logger.warning("FactorLedge unavailable, factors=[]: %s", exc)
         ctx.factors = []
+
+    # ── Factor Vector: get 75d binary vector from classify-service ──────────
+    try:
+        factor_names = [f.name for f in raw_factors]
+        if factor_names:
+            ctx.factor_vector = await clients.factorledge.classify_vector(factor_names)
+            active_count = sum(1 for v in ctx.factor_vector if v == 1.0)
+            logger.info(
+                "[step_ai_score] factor vector: %d/75 bits active", active_count,
+            )
+        else:
+            ctx.factor_vector = []
+    except Exception as exc:
+        ctx.errors.append(f"FactorLedge classify_vector failed: {exc}")
+        logger.warning("FactorLedge classify_vector unavailable: %s", exc)
+        ctx.factor_vector = []
+
+
+def _headline(article) -> str:
+    """Return the article name/title, truncating URLs."""
+    name = (getattr(article, "article_name", "") or "").strip()
+    if name.startswith("http"):
+        path = urlparse(name).path.rstrip("/")
+        slug = path.rsplit("/", 1)[-1] if path else ""
+        return slug.replace("-", " ").replace("_", " ")
+    return name
 
 
 def _short_headlines_for_summary(articles: list) -> str:
@@ -186,10 +289,11 @@ async def step_stockmem(
         symbol=ctx.symbol,
         sentiment_score=ctx.sentiment_score or 0.0,
         sentiment_label=ctx.sentiment_label or "neutral",
-        factors=[f.name for f in ctx.factors],
-        normalized_factors=ctx.factors,
+        factors=[f.name for f in ctx.raw_factors],
+        normalized_factors=ctx.factors or ctx.raw_factors,
         market_snapshot=ctx.market_snapshot,
         indicator_vec=[],
+        factor_vector=ctx.factor_vector,
         summary=_short_headlines_for_summary(ctx.latest_articles),
         article_ids=[a.id for a in ctx.latest_articles],
         run_id=str(ctx.run_id),

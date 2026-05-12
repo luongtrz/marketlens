@@ -8,7 +8,6 @@
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-import fetch from "node-fetch";
 import type {
   DailyRecord,
   FactorLedger,

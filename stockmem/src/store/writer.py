@@ -36,6 +36,7 @@ class RecordWriter:
         to_save = record.model_copy(update={"id": rid, "symbol": normalized_symbol})
 
         # Keep cache aligned with one-record-per-day/symbol semantics.
+        removed_ids: list[str] = []
         for cached_id, cached_record in list(self._record_cache.items()):
             if (
                 cached_id != rid
@@ -43,14 +44,16 @@ class RecordWriter:
                 and cached_record.symbol.upper() == normalized_symbol
             ):
                 del self._record_cache[cached_id]
+                removed_ids.append(cached_id)
 
         await self._repository.upsert(to_save)
         self._record_cache[rid] = to_save
 
-        # Indicator z-score depends on corpus stats; rebuild stats + FAISS index.
-        all_records = list(self._record_cache.values())
-        self._embedder.rebuild_corpus(all_records)
-        vectors = [(r.id, self._embedder.embed(r)) for r in all_records if r.id is not None]
-        self._index.rebuild(vectors)
+        # Incremental update to avoid O(n) rebuild on every save.
+        # Note: if we replaced an existing key or removed ids, index is patched accordingly.
+        for old_id in removed_ids:
+            self._index.remove(old_id)
+        self._embedder.update_corpus_with_record(to_save)
+        self._index.upsert(rid, self._embedder.embed(to_save))
 
         return rid

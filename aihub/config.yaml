@@ -1,12 +1,12 @@
 aihub:
   model_path: "models/cryptobert"
   llm_backend: "gemini"         # "gemini" | "openai" | "groq"
-  gemini_model: "gemini-2.0-flash"
+  gemini_model: "gemini-3.1-flash-lite"
   openai_model: "gpt-4o-mini"
   groq_model: "openai/gpt-oss-120b"
 
   # Per-task backend overrides (empty = use llm_backend above)
   explain_backend: ""
-  predict_llm_backend: ""
+  predict_llm_backend: "gemini"
 
   mock: false

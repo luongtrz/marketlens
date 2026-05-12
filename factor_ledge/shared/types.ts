@@ -38,3 +38,11 @@ export interface WeightVectorResponse {
   groups: string[];
   weights: number[];   // 13-dim, sum = 1.0
 }
+
+export interface FactorVectorResponse {
+  types: string[];         // ALL_TYPES labels (62-dim)
+  groups: string[];        // GROUPS labels (13-dim)
+  typeVector: number[];    // binary 0/1 per type
+  groupVector: number[];   // binary 0/1 per group
+  factorVector: number[];  // concat [typeVector, groupVector] = 75-dim
+}

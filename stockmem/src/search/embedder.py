@@ -162,6 +162,33 @@ class RecordEmbedder:
         std = np.sqrt(variance)
         self._stats = NormStats(mean=mean, std=std, count=mat.shape[0])
 
+    def update_corpus_with_record(self, record: StockMemRecord) -> None:
+        """Incrementally update indicator normalization stats (Welford)."""
+        raw = _extract_raw_numerical(record).astype(np.float64)
+        stats = self._stats
+        if stats.count <= 0:
+            self._stats = NormStats(
+                mean=raw,
+                std=np.ones(INDICATOR_DIM, dtype=np.float64),
+                count=1,
+            )
+            return
+
+        n = stats.count
+        mean_old = stats.mean
+        var_old = np.square(stats.std)
+        m2_old = var_old * n
+
+        n_new = n + 1
+        delta = raw - mean_old
+        mean_new = mean_old + (delta / n_new)
+        delta2 = raw - mean_new
+        m2_new = m2_old + delta * delta2
+        var_new = np.maximum(m2_new / n_new, 1e-8)
+        std_new = np.sqrt(var_new)
+
+        self._stats = NormStats(mean=mean_new, std=std_new, count=n_new)
+
     def _z_score(self, raw: np.ndarray) -> np.ndarray:
         stats = self._stats
         denom = np.where(stats.std > 1e-8, stats.std, 1e-8)
@@ -170,20 +197,26 @@ class RecordEmbedder:
         return np.clip(z, -Z_SCORE_CLIP, Z_SCORE_CLIP)
 
     def embed_split(self, record: StockMemRecord) -> SplitEmbedding:
-        type_vec = np.array(build_type_vector(record.factors), dtype=np.float32)
-        group_vec = np.array(build_group_vector(record.factors), dtype=np.float32)
+        # ── Factor vector ───────────────────────────────────────────────────
+        if record.factor_vector and len(record.factor_vector) == 75:
+            factor_vec = _l2_normalize(
+                np.array(record.factor_vector, dtype=np.float32)
+            )
+        else:
+            type_vec = np.array(build_type_vector(record.factors), dtype=np.float32)
+            group_vec = np.array(build_group_vector(record.factors), dtype=np.float32)
 
-        # When factor names don't match the taxonomy (free-form AIHub output),
-        # fall back to using FactorType from normalized_factors to populate group bits.
-        if not any(group_vec) and record.normalized_factors:
-            factor_types = [
-                nf.get("type") if isinstance(nf, dict) else getattr(nf, "type", None)
-                for nf in record.normalized_factors
-            ]
-            fallback = np.array(build_group_vector_from_types(factor_types), dtype=np.float32)
-            group_vec = np.maximum(group_vec, fallback)
+            # When factor names don't match the taxonomy (free-form AIHub output),
+            # fall back to using FactorType from normalized_factors to populate group bits.
+            if not any(group_vec) and record.normalized_factors:
+                factor_types = [
+                    nf.get("type") if isinstance(nf, dict) else getattr(nf, "type", None)
+                    for nf in record.normalized_factors
+                ]
+                fallback = np.array(build_group_vector_from_types(factor_types), dtype=np.float32)
+                group_vec = np.maximum(group_vec, fallback)
 
-        factor_vec = _l2_normalize(np.concatenate([type_vec, group_vec]))
+            factor_vec = _l2_normalize(np.concatenate([type_vec, group_vec]))
 
         raw = _extract_raw_numerical(record)
         z = self._z_score(raw)

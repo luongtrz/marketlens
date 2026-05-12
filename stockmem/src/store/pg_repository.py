@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import hashlib
 
 import asyncpg
 
@@ -112,20 +113,28 @@ class PGRepository:
         return [StockMemRecord.model_validate(json.loads(r["payload"])) for r in rows]
 
     async def list_missing_returns(self, symbol: str | None = None) -> list[StockMemRecord]:
-        """Return records that still have null future_return_1d."""
+        """Return records that still have any missing future return (1d/7d/30d)."""
         pool = self._require_pool()
         async with pool.acquire() as conn:
             if symbol:
                 rows = await conn.fetch(
                     "SELECT payload FROM stockmem_records WHERE symbol = $1"
-                    " AND (payload::json->>'future_return_1d') IS NULL"
+                    " AND ("
+                    " (payload::json->>'future_return_1d') IS NULL OR"
+                    " (payload::json->>'future_return_7d') IS NULL OR"
+                    " (payload::json->>'future_return_30d') IS NULL"
+                    " )"
                     " ORDER BY record_date",
                     symbol.upper(),
                 )
             else:
                 rows = await conn.fetch(
                     "SELECT payload FROM stockmem_records"
-                    " WHERE (payload::json->>'future_return_1d') IS NULL"
+                    " WHERE ("
+                    " (payload::json->>'future_return_1d') IS NULL OR"
+                    " (payload::json->>'future_return_7d') IS NULL OR"
+                    " (payload::json->>'future_return_30d') IS NULL"
+                    " )"
                     " ORDER BY record_date"
                 )
         return [StockMemRecord.model_validate(json.loads(r["payload"])) for r in rows]
@@ -158,3 +167,24 @@ class PGRepository:
                 record_id,
             )
         return True
+
+    @staticmethod
+    def _advisory_lock_key(lock_name: str) -> int:
+        digest = hashlib.sha1(lock_name.encode("utf-8")).digest()[:8]
+        key = int.from_bytes(digest, byteorder="big", signed=False)
+        if key >= 2**63:
+            key -= 2**64
+        return key
+
+    async def acquire_distributed_lock(self, lock_name: str) -> bool:
+        pool = self._require_pool()
+        key = self._advisory_lock_key(lock_name)
+        async with pool.acquire() as conn:
+            ok = await conn.fetchval("SELECT pg_try_advisory_lock($1::bigint)", key)
+        return bool(ok)
+
+    async def release_distributed_lock(self, lock_name: str) -> None:
+        pool = self._require_pool()
+        key = self._advisory_lock_key(lock_name)
+        async with pool.acquire() as conn:
+            await conn.execute("SELECT pg_advisory_unlock($1::bigint)", key)

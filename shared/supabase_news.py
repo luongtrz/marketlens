@@ -106,15 +106,9 @@ def supabase_row_to_ingestion(row: dict[str, Any]) -> IngestionRecord:
         url=source_url or "#",
         date_published=pub,
         date_crawled=crawled,
-<<<<<<< HEAD
         summary=(row.get("summary") or content[:2000] if content else None),
-        sentiment_score=score,
-        sentiment_label=label,
-=======
-        summary=(content[:2000] if content else None),
         sentiment_score=sentiment_score,
         sentiment_label=sentiment_label,
->>>>>>> origin/master
         factors=[],
         raw_text=content or None,
         metadata={},
