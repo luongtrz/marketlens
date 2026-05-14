@@ -50,7 +50,16 @@ requires = ["setuptools>=69.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["shared*", "crawler*", "aihub*", "market_data*", "stockmem*", "factor_ledge*", "main_controller*"]
+include = [
+    "shared*",
+    "crawler*",
+    "aihub*",
+    "market_data*",
+    "stockmem*",
+    "factor_ledge*",
+    "main_controller*",
+    "llm_gateway*",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -61,6 +70,7 @@ testpaths = [
     "stockmem/tests",
     "factor_ledge/tests",
     "main_controller/tests",
+    "llm_gateway/tests",
     "shared/tests",
 ]
 markers = [
