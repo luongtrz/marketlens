@@ -32,6 +32,15 @@ class AIHubConfig(BaseAppConfig):
     # Sentiment uses CryptoBert HTTP API, not an LLM backend
     mock_mode: bool = False
 
+    # Post-signal deterministic guardrails (applied after LLM /predict output)
+    post_rule_enabled: bool = True
+    post_rule_bull_30d_pct: float = 10.0
+    post_rule_bear_30d_pct: float = -10.0
+    post_rule_up_3d_pct: float = 3.0
+    post_rule_down_3d_pct: float = -3.0
+    post_rule_macd_confirm_eps: float = 0.0
+    post_rule_hold_override_max_conf: float = 0.72
+
     model_config = {
         "env_prefix": "AIHUB_",
         "env_file": "aihub/.env",

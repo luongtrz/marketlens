@@ -13,6 +13,8 @@ COPY stockmem ./stockmem
 
 # Install only the stockmem extra (no dev deps)
 RUN uv sync --frozen --extra stockmem --no-dev
+# Optuna is required by /weights/retrain (Bayesian optimization)
+RUN uv pip install --python /app/.venv/bin/python optuna
 
 ENV PYTHONPATH=/app
 ENV DB_URL=postgresql+asyncpg://postgres:pass@localhost:5432/stockmem
