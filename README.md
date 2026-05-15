@@ -14,6 +14,7 @@ The system consists of 6 independent modules, each exposing its own HTTP REST AP
 | **StockMem** | 8003 | Daily record storage, vector similarity search |
 | **FactorLedge** | 8004 | Factor normalization, cleaning, enrichment |
 | **MainController** | 8005 | Pipeline orchestration, scheduling, result assembly |
+| **LLMGateway** | 8006 | OpenCode Go gateway for final BUY/HOLD/SELL decisions |
 
 ## Quick Start
 
@@ -39,6 +40,7 @@ pytest
 
 # Run a single module
 uvicorn aihub.src.api:app --port 8001 --reload
+uvicorn llm_gateway.src.api:app --port 8006 --reload
 ```
 
 ## Configuration
