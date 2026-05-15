@@ -12,15 +12,47 @@ from llm_gateway.src.schema import LLMDecisionResponse
 from shared.models.prediction import SignalType
 
 
-SIGNAL_ONLY_SYSTEM_PROMPT = """You are a deterministic crypto trading action classifier.
-Output exactly one compact JSON object and no analysis:
-{"signal":"BUY"} or {"signal":"HOLD"} or {"signal":"SELL"}.
-Choose HOLD when evidence is mixed, weak, stale, or not actionable."""
+PREDICT_SYSTEM_PROMPT = """
+You are a crypto trading analyst. Decide one signal: BUY, SELL, or HOLD.
+Primary objective: maximize directional correctness on the 7-day horizon.
 
-WITH_REASON_SYSTEM_PROMPT = """You are a deterministic crypto trading action classifier.
-Output exactly one compact JSON object and no analysis:
-{"signal":"BUY|HOLD|SELL","reason":"short reason under 50 words"}.
-Choose HOLD when evidence is mixed, weak, stale, or not actionable."""
+Step 1 — Read historical evidence first.
+From the Similar Historical Cases section, compute:
+  knn_avg_7d = average of all provided ret7d values.
+  knn_bullish_count = how many cases had ret7d > 0.
+This is your BASE SIGNAL — what actually happened in similar conditions.
+
+Step 2 — Adjust with current indicators.
+Current RSI, MACD, and 3d price change can shift confidence, but CANNOT REVERSE the base signal
+unless ALL three hold:
+  a) |knn_avg_7d| < 2% (historically ambiguous), AND
+  b) Current 3d momentum is strongly opposite (e.g., 3d return < -3% for reversing BUY base), AND
+  c) sentiment_score < -0.3 (clearly bearish news today)
+If not all three hold, trust the historical base signal.
+
+RSI extreme warning — override to HOLD regardless of knn_avg_7d:
+  - RSI > 70 AND 3d momentum already negative → price exhaustion at top → output HOLD not BUY
+  - RSI < 30 AND 3d momentum already positive → bottom recovery underway → output HOLD not SELL
+
+Step 3 — Emit signal.
+  BUY:  knn_avg_7d > 0, reversal conditions NOT met
+  SELL: knn_avg_7d < 0, reversal conditions NOT met
+  HOLD: |knn_avg_7d| < 1% (ambiguous), or strong conflict between base and current
+
+Key rules:
+  - Do NOT emit SELL just because news looks bad today. News semantics are embedded in the
+    similar cases already. Trust the outcomes.
+  - knn_bullish_count >= 4/5 → strong BUY prior. Override only with clear evidence of breakdown.
+  - knn_bullish_count <= 1/5 → strong SELL prior. Override only with clear reversal evidence.
+
+You MUST respond with a JSON object:
+{
+  "signal": "BUY",
+  "reason": "2 concise sentences explaining the decision"
+}
+
+signal must be exactly: "BUY", "SELL", or "HOLD".
+"""
 
 
 class LLMGatewayError(RuntimeError):
@@ -50,24 +82,32 @@ class OpenCodeGoClient:
     ) -> LLMDecisionResponse:
         """Call OpenCode Go and normalize the result to BUY/HOLD/SELL."""
         selected_model = (model or self._config.default_model).strip()
+        model_candidates: list[str] = []
+        if selected_model:
+            model_candidates.append(selected_model)
+        for fb in self._config.parsed_fallback_models:
+            if fb not in model_candidates:
+                model_candidates.append(fb)
+
         last_error: Exception | None = None
 
-        for attempt in range(1, self._config.bounded_max_attempts + 1):
-            try:
-                content = await self._chat(
-                    prompt=prompt,
-                    model=selected_model,
-                    system=system,
-                    include_reason=include_reason,
-                )
-                parsed = self.parse_decision(content)
-                reason = parsed.reason if include_reason else None
-                return LLMDecisionResponse(
-                    signal=parsed.signal,
-                    reason=reason,
-                )
-            except Exception as exc:  # noqa: BLE001 - retry wraps upstream and parse failures.
-                last_error = exc
+        for candidate_model in model_candidates:
+            for _attempt in range(1, self._config.bounded_max_attempts + 1):
+                try:
+                    content = await self._chat(
+                        prompt=prompt,
+                        model=candidate_model,
+                        system=system,
+                        include_reason=include_reason,
+                    )
+                    parsed = self.parse_decision(content)
+                    reason = parsed.reason if include_reason else None
+                    return LLMDecisionResponse(
+                        signal=parsed.signal,
+                        reason=reason,
+                    )
+                except Exception as exc:  # noqa: BLE001 - retry wraps upstream and parse failures.
+                    last_error = exc
 
         detail = str(last_error) if last_error else "unknown error"
         raise LLMGatewayError(f"OpenCode Go call failed after retries: {detail}") from last_error
@@ -90,9 +130,7 @@ class OpenCodeGoClient:
         include_reason: bool = False,
     ) -> str:
         headers = self._headers()
-        system_prompt = system or (
-            WITH_REASON_SYSTEM_PROMPT if include_reason else SIGNAL_ONLY_SYSTEM_PROMPT
-        )
+        system_prompt = system or PREDICT_SYSTEM_PROMPT
         payload = {
             "model": model,
             "messages": [
@@ -109,13 +147,18 @@ class OpenCodeGoClient:
             data = response.json()
 
         try:
-            content = data["choices"][0]["message"]["content"]
+            message = data["choices"][0]["message"]
+            content = message.get("content")
+            reasoning_content = message.get("reasoning_content")
         except (KeyError, IndexError, TypeError) as exc:
             raise LLMGatewayError("OpenCode Go response did not include chat content") from exc
 
         if isinstance(content, list):
             content = "".join(str(part.get("text", part)) for part in content)
-        text = str(content).strip()
+        text = str(content).strip() if content is not None else ""
+        # Some providers can emit empty `content` but place useful text in `reasoning_content`.
+        if not text and reasoning_content:
+            text = str(reasoning_content).strip()
         if not text:
             raise LLMGatewayError("OpenCode Go returned empty content")
         return text
@@ -147,7 +190,7 @@ class OpenCodeGoClient:
 
         if isinstance(parsed, dict):
             signal_raw = str(parsed.get("signal", "")).strip().upper()
-            reason_raw = parsed.get("reason")
+            reason_raw = parsed.get("reason", parsed.get("explanation"))
             reason = str(reason_raw).strip() if reason_raw is not None else None
             if not reason:
                 reason = None
