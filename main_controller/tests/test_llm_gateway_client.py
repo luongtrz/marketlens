@@ -181,3 +181,52 @@ def test_rsi_normal_exhaustion_does_not_fire(sample_stockmem_record):
     client = LLMGatewayClient(min_directional_confidence=0.0, hold_release_bias=9.9)
     _, _, notes = client._apply_regime_policy(SignalType.BUY, current, [])
     assert "policy:block_buy_rsi_exhaustion" not in notes
+
+
+def _record_with_multi_candles(base, rsi: float, ret_3d_pct: float, ret_14d_pct: float):
+    """Build a record with enough candles to compute both 3d and 14d momentum."""
+    close_now = 95500.0
+    close_3d_ago = close_now / (1 + ret_3d_pct / 100)
+    close_14d_ago = close_now / (1 + ret_14d_pct / 100)
+    # 15 candles: index 0 = 14 days ago, index 11 = 3 days ago, index 14 = today
+    candles = [_make_ohlcv(close_14d_ago)]
+    for i in range(10):
+        candles.append(_make_ohlcv(close_now * 0.999))
+    candles.append(_make_ohlcv(close_3d_ago))  # index 11 = candles[-4] for 15-candle list
+    candles.append(_make_ohlcv(close_now * 1.00))
+    candles.append(_make_ohlcv(close_now * 1.00))
+    candles.append(_make_ohlcv(close_now))  # index 14 = candles[-1]
+    snap = base.market_snapshot.model_copy(
+        update={"indicators": {"rsi": rsi, "macd_hist": 0.0}, "recent_candles": candles}
+    )
+    return base.model_copy(update={"market_snapshot": snap})
+
+
+def test_dual_momentum_blocks_buy_in_early_correction(sample_stockmem_record):
+    """BUY is blocked when 14d return <= -4% AND 3d momentum negative (early bear phase)."""
+    # 14d=-5% (not yet at -6% bear_regime), 3d=-2.5%, RSI=55 (no RSI exhaustion)
+    current = _record_with_multi_candles(sample_stockmem_record, rsi=55.0, ret_3d_pct=-2.5, ret_14d_pct=-5.0)
+    client = LLMGatewayClient(min_directional_confidence=0.0, hold_release_bias=9.9)
+    signal, _, notes = client._apply_regime_policy(SignalType.BUY, current, [])
+    assert signal == SignalType.HOLD
+    assert "policy:block_buy_dual_momentum_bear" in notes
+
+
+def test_dual_momentum_blocks_sell_in_bull_recovery(sample_stockmem_record):
+    """SELL is blocked when 14d return >= +4% AND 3d momentum positive (recovery phase)."""
+    # 14d=+5%, 3d=+2.5% — strong recovery, SELL should be suppressed
+    bearish_case = sample_stockmem_record.model_copy(update={"future_return_7d": -1.5})
+    similar = [SimilarRecord(record=bearish_case, similarity=0.9)]
+    current = _record_with_multi_candles(sample_stockmem_record, rsi=55.0, ret_3d_pct=2.5, ret_14d_pct=5.0)
+    client = LLMGatewayClient(min_directional_confidence=0.0, hold_release_bias=9.9)
+    signal, _, notes = client._apply_regime_policy(SignalType.SELL, current, similar)
+    assert signal == SignalType.HOLD
+    assert "policy:block_sell_dual_momentum_bull" in notes
+
+
+def test_dual_momentum_does_not_fire_in_shallow_correction(sample_stockmem_record):
+    """Dual momentum does NOT fire when 14d return is shallow (-2%, above -4% threshold)."""
+    current = _record_with_multi_candles(sample_stockmem_record, rsi=55.0, ret_3d_pct=-2.5, ret_14d_pct=-2.0)
+    client = LLMGatewayClient(min_directional_confidence=0.0, hold_release_bias=9.9)
+    _, _, notes = client._apply_regime_policy(SignalType.BUY, current, [])
+    assert "policy:block_buy_dual_momentum_bear" not in notes

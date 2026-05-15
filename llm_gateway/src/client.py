@@ -34,6 +34,10 @@ RSI extreme warning — override to HOLD regardless of knn_avg_7d:
   - RSI > 70 AND 3d momentum already negative → price exhaustion at top → output HOLD not BUY
   - RSI < 30 AND 3d momentum already positive → bottom recovery underway → output HOLD not SELL
 
+Dual momentum: if 14d price return <= -4% AND 3d momentum is negative, output HOLD not BUY —
+the trend has already turned; historical knn_avg_7d may be from a different (bullish) regime.
+Symmetric: if 14d return >= +4% AND 3d momentum positive, output HOLD not SELL.
+
 Step 3 — Emit signal.
   BUY:  knn_avg_7d > 0, reversal conditions NOT met
   SELL: knn_avg_7d < 0, reversal conditions NOT met

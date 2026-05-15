@@ -260,6 +260,17 @@ class LLMGatewayClient(BaseHTTPClient):
             signal = SignalType.HOLD
             notes.append("policy:block_sell_rsi_oversold")
 
+        # Guardrail 7: dual-timeframe momentum confirmation — fires earlier than Guardrail 2
+        # (bear_regime needs 14d <= -6%; this needs 14d <= -4% + 3d already negative).
+        # Catches the first 2 weeks of a correction before the full regime flag triggers.
+        # Symmetric: blocks SELL when both timeframes confirm bullish recovery.
+        if signal == SignalType.BUY and ret_14d is not None and ret_14d <= -4.0 and short_down:
+            signal = SignalType.HOLD
+            notes.append("policy:block_buy_dual_momentum_bear")
+        elif signal == SignalType.SELL and ret_14d is not None and ret_14d >= 4.0 and short_up:
+            signal = SignalType.HOLD
+            notes.append("policy:block_sell_dual_momentum_bull")
+
         directional_bias = 0.0
         if bull_regime:
             directional_bias += 1.2
