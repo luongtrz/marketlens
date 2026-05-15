@@ -1,10 +1,9 @@
-"""AIHub module configuration."""
-
 from shared.config.base_config import BaseAppConfig
 
 
 class AIHubConfig(BaseAppConfig):
-    """Configuration specific to the AIHub module."""
+    """Configuration specific to the AIHub module.
+    """
 
     model_path: str = "models/cryptobert"
     hf_model_path: str = "https://dien2112-finbert.hf.space/api/sentiment"
@@ -25,8 +24,6 @@ class AIHubConfig(BaseAppConfig):
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
 
-    # Per-task backend overrides (empty = use global llm_backend)
-    explain_backend: str = ""
     predict_llm_backend: str = "gemini"
 
     # Sentiment uses CryptoBert HTTP API, not an LLM backend
@@ -40,10 +37,9 @@ class AIHubConfig(BaseAppConfig):
     post_rule_down_3d_pct: float = -3.0
     post_rule_macd_confirm_eps: float = 0.0
     post_rule_hold_override_max_conf: float = 0.72
-
     model_config = {
         "env_prefix": "AIHUB_",
-        "env_file": "aihub/.env",
+        "env_file": ".env",          # root /marketlens/.env — no aihub/.env
         "env_file_encoding": "utf-8",
         "extra": "ignore",
     }

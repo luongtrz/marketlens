@@ -28,12 +28,12 @@ services:
     environment:
       AIHUB_STOCKMEM_URL: http://stockmem:8003
       AIHUB_LLM_BACKEND: ${AIHUB_LLM_BACKEND:-groq}
-      AIHUB_PREDICT_LLM_BACKEND: gemini
-      AIHUB_GEMINI_MODEL: gemini-3.1-flash-lite
-      AIHUB_GROQ_API_KEY: [REDACTED_GROQ_TOKEN]
+      AIHUB_PREDICT_LLM_BACKEND: ${AIHUB_PREDICT_LLM_BACKEND:-gemini}
+      AIHUB_GEMINI_MODEL: ${AIHUB_GEMINI_MODEL:-gemini-3.1-flash-lite}
+      AIHUB_GROQ_API_KEY: ${AIHUB_GROQ_API_KEY:-}
       AIHUB_GROQ_MODEL: ${AIHUB_GROQ_MODEL:-llama-3.3-70b-versatile}
       AIHUB_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      AIHUB_GEMINI_API_KEY: [REDACTED_GOOGLE_API_KEY]
+      AIHUB_GEMINI_API_KEY: ${AIHUB_GEMINI_API_KEY:-}
       AIHUB_POST_RULE_ENABLED: ${AIHUB_POST_RULE_ENABLED:-true}
       AIHUB_POST_RULE_BULL_30D_PCT: ${AIHUB_POST_RULE_BULL_30D_PCT:-10}
       AIHUB_POST_RULE_BEAR_30D_PCT: ${AIHUB_POST_RULE_BEAR_30D_PCT:--10}
@@ -101,6 +101,16 @@ services:
       - market_data
       - stockmem
       - factor_ledge
+
+  llm_gateway:
+    build:
+      context: .
+      dockerfile: llm_gateway/Dockerfile
+    ports: ["8006:8006"]
+    environment:
+      LLM_GATEWAY_OPENCODE_GO_API_KEY: ${LLM_GATEWAY_OPENCODE_GO_API_KEY:-}
+      LLM_GATEWAY_DEFAULT_MODEL: ${LLM_GATEWAY_DEFAULT_MODEL:-deepseek-v4-pro}
+      LLM_GATEWAY_MAX_ATTEMPTS: ${LLM_GATEWAY_MAX_ATTEMPTS:-2}
 
   frontend:
     build: ./frontend
