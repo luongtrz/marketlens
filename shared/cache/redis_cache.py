@@ -57,7 +57,7 @@ class RedisCache:
             if not raw:
                 logger.debug("Redis cache miss: %s", key)
                 return None
-            logger.info("Redis cache hit: %s", key)
+            logger.debug("Redis cache hit: %s", key)
             return json.loads(raw)
         except Exception as exc:
             logger.debug("Redis get failed for %s: %s", key, exc)
