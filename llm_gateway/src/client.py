@@ -132,6 +132,8 @@ class OpenCodeGoClient:
         model: str,
         system: str | None = None,
         include_reason: bool = False,
+        max_tokens: int | None = None,
+        timeout: float | None = None,
     ) -> str:
         headers = self._headers()
         system_prompt = system or PREDICT_SYSTEM_PROMPT
@@ -142,11 +144,12 @@ class OpenCodeGoClient:
                 {"role": "user", "content": prompt},
             ],
             "temperature": self._config.temperature,
-            "max_tokens": self._config.max_output_tokens,
+            "max_tokens": max_tokens if max_tokens is not None else self._config.max_output_tokens,
         }
-        timeout = httpx.Timeout(self._config.request_timeout_seconds)
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(self._config.opencode_endpoint, headers=headers, json=payload)
+        effective_timeout = timeout if timeout is not None else self._config.request_timeout_seconds
+        timeout_obj = httpx.Timeout(effective_timeout)
+        async with httpx.AsyncClient(timeout=timeout_obj) as client:
+            response = await client.post(self._config.opencode_endpoint, headers=headers, json=payload, timeout=timeout_obj)
             response.raise_for_status()
             data = response.json()
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
@@ -16,6 +17,7 @@ from pydantic import BaseModel, Field
 from main_controller.src.clients.aihub_client import AIHubClient
 from main_controller.src.clients.crawler_client import CrawlerClient
 from main_controller.src.clients.factorledge_client import FactorLedgeClient
+from main_controller.src.clients.llm_gateway_client import LLMGatewayClient
 from main_controller.src.clients.market_client import MarketClient
 from main_controller.src.clients.stockmem_client import StockMemClient
 from main_controller.src.config import MainControllerConfig
@@ -60,11 +62,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     clients = ModuleClients(
         crawler=CrawlerClient(config.crawler_url),
         aihub=AIHubClient(config.aihub_url),
+        llm_gateway=LLMGatewayClient(
+            config.llm_gateway_url,
+            min_directional_confidence=config.llm_min_directional_confidence,
+            hold_release_bias=config.llm_hold_release_bias,
+            knn_confirm_threshold=config.llm_knn_confirm_threshold,
+        ),
         market=MarketClient(config.market_data_url),
         stockmem=StockMemClient(config.stockmem_url),
         factorledge=FactorLedgeClient(config.factorledge_url),
     )
-    app.state.pipeline = Pipeline(clients, PipelineConfig(k_similar=config.k_similar))
+    app.state.pipeline = Pipeline(
+        clients,
+        PipelineConfig(
+            k_similar=config.k_similar,
+            predict_provider=config.predict_provider,
+        ),
+    )
     app.state.clients = clients
     app.state.run_states: dict[str, RunState] = {}
     app.state.background_tasks: set[asyncio.Task] = set()
@@ -112,18 +126,31 @@ async def run(
     symbol: str,
     trigger: str = "manual",
     as_of_date: date | None = Query(default=None, alias="date", description="Historical date (YYYY-MM-DD). Omit for live mode."),
+    llm_model: str | None = Query(default=None, alias="model", description="Optional LLM model override for llm_gateway provider."),
 ) -> dict:
     run_id = str(uuid4())
     state = RunState(run_id=run_id, symbol=symbol, started_at=datetime.now(timezone.utc))
     app.state.run_states[run_id] = state
 
     task = asyncio.create_task(
-        _execute_run(run_id, symbol, app.state.pipeline, app.state.run_states, as_of_date=as_of_date)
+        _execute_run(
+            run_id,
+            symbol,
+            app.state.pipeline,
+            app.state.run_states,
+            as_of_date=as_of_date,
+            llm_model=llm_model,
+        )
     )
     app.state.background_tasks.add(task)
     task.add_done_callback(app.state.background_tasks.discard)
 
-    return {"run_id": run_id, "status": "pending", "as_of_date": str(as_of_date) if as_of_date else None}
+    return {
+        "run_id": run_id,
+        "status": "pending",
+        "as_of_date": str(as_of_date) if as_of_date else None,
+        "model": llm_model,
+    }
 
 
 @app.get("/status/{run_id}")
@@ -157,11 +184,17 @@ async def _execute_run(
     pipeline: Pipeline,
     run_states: dict[str, RunState],
     as_of_date: date | None = None,
+    llm_model: str | None = None,
 ) -> None:
     state = run_states[run_id]
     state.status = "running"
     try:
-        result = await pipeline.run(symbol, run_id=UUID(run_id), as_of_date=as_of_date)
+        result = await pipeline.run(
+            symbol,
+            run_id=UUID(run_id),
+            as_of_date=as_of_date,
+            llm_model=llm_model,
+        )
         state.result = result
         state.status = "done"
     except Exception as exc:
@@ -296,14 +329,14 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
     from shared.supabase_service import SupabaseReadService
 
     # Fetch pre-computed factors from daily_factor_snapshots (one call covers the whole window)
-    factor_snapshot_by_date: dict[date, list[dict]] = {}
+    factor_snapshot_by_date: dict[date, dict[str, Any]] = {}
     try:
         snap_svc = SupabaseReadService.from_env(default_table="daily_factor_snapshots")
         if snap_svc:
             snap_rows = await snap_svc.select_rows(
                 order="snapshot_date.desc",
                 limit=days + 5,
-                columns="snapshot_date,factors_json",
+                columns="snapshot_date,factors_json,factor_vector",
                 extra_duplicate_params=[
                     ("snapshot_date", f"gte.{start_date.isoformat()}"),
                     ("snapshot_date", f"lte.{end_date.isoformat()}"),
@@ -312,7 +345,10 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
             )
             for row in snap_rows:
                 d = date.fromisoformat(str(row["snapshot_date"]))
-                factor_snapshot_by_date[d] = row.get("factors_json") or []
+                factor_snapshot_by_date[d] = {
+                    "factors_json": row.get("factors_json"),
+                    "factor_vector": row.get("factor_vector"),
+                }
             logger.info("backfill: loaded factor snapshots for %d dates from Supabase", len(factor_snapshot_by_date))
     except Exception as exc:
         logger.warning("backfill: daily_factor_snapshots fetch failed: %s", exc)
@@ -360,22 +396,37 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
         row[0]: factors for row, factors in zip(dates_needing_aihub, aihub_results)
     }
 
+    def _parse_factors_json(raw: object) -> list[Factor]:
+        data = raw
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except Exception:
+                return []
+        if not isinstance(data, list):
+            return []
+        out: list[Factor] = []
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            try:
+                out.append(Factor(
+                    name=item.get("name", ""),
+                    type=item.get("type", "macro"),
+                    polarity=float(item.get("polarity", 0.0)),
+                    confidence=float(item.get("weight", item.get("confidence", 0.8))),
+                ))
+            except Exception:
+                continue
+        return out
+
     def _factor_list_for_date(td: date, first_article_id: str, day_start: datetime) -> list[Factor]:
         """Return Factor list from Supabase snapshot or AIHub fallback."""
         snap = factor_snapshot_by_date.get(td)
         if snap:
-            factors = []
-            for item in snap:
-                try:
-                    factors.append(Factor(
-                        name=item.get("name", ""),
-                        type=item.get("type", "macro"),
-                        polarity=float(item.get("polarity", 0.0)),
-                        confidence=float(item.get("weight", item.get("confidence", 0.8))),
-                    ))
-                except Exception:
-                    continue
-            return factors
+            parsed = _parse_factors_json(snap.get("factors_json"))
+            if parsed:
+                return parsed
         return aihub_by_date.get(td, [])
 
     factor_results = [_factor_list_for_date(row[0], str(row[1][0].id) if row[1] else "backfill",
@@ -389,6 +440,14 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
     # ── Compute factor_vector for each date via FactorLedge classify-service ─
     factor_vector_by_date: dict[date, list[float]] = {}
     for td, flist in zip([row[0] for row in valid_dates], factor_results):
+        snap = factor_snapshot_by_date.get(td) or {}
+        snap_vec = snap.get("factor_vector")
+        if isinstance(snap_vec, list) and len(snap_vec) == 75:
+            try:
+                factor_vector_by_date[td] = [float(v) for v in snap_vec]
+                continue
+            except Exception:
+                pass
         if flist:
             try:
                 names = [f.name for f in flist]
@@ -456,11 +515,11 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
 
 @app.post("/fill-returns")
 async def fill_returns(symbol: str) -> dict:
-    """Backfill future_return_1d/7d/30d for StockMem records that are missing them.
+    """Backfill future_return_1d/3d/7d/15d/30d for StockMem records that are missing them.
 
-    Fetches close price from Binance for D+1, D+7, D+30 relative to each record's
+    Fetches close price from Binance for each horizon relative to each record's
     date, then computes % change vs the record's own close price.
-    Only processes records where future_return_1d IS NULL.
+    Processes records where any future_return field IS NULL.
     """
     clients: ModuleClients = app.state.clients
     today = date.today()
@@ -477,9 +536,11 @@ async def fill_returns(symbol: str) -> dict:
             skipped += 1
             continue
 
-        r1d = r7d = r30d = None
+        returns: dict[str, float | None] = {
+            "r1d": None, "r3d": None, "r7d": None, "r15d": None, "r30d": None
+        }
 
-        for offset_days, attr in [(1, "r1d"), (7, "r7d"), (30, "r30d")]:
+        for offset_days, attr in [(1, "r1d"), (3, "r3d"), (7, "r7d"), (15, "r15d"), (30, "r30d")]:
             target = record_date + timedelta(days=offset_days)
             if target > today:
                 continue
@@ -495,23 +556,22 @@ async def fill_returns(symbol: str) -> dict:
                     (c for c in reversed(candles) if c.timestamp.date() <= target), None
                 )
                 if match:
-                    pct = (match.close - base_close) / base_close * 100.0
-                    if attr == "r1d":
-                        r1d = round(pct, 4)
-                    elif attr == "r7d":
-                        r7d = round(pct, 4)
-                    else:
-                        r30d = round(pct, 4)
+                    returns[attr] = round((match.close - base_close) / base_close * 100.0, 4)
             except Exception as exc:
                 errors.append(f"{record_date} D+{offset_days}: {exc}")
 
-        if r1d is None and r7d is None and r30d is None:
+        if all(v is None for v in returns.values()):
             skipped += 1
             continue
 
         try:
             await clients.stockmem.update_future_returns(
-                record.id, future_return_1d=r1d, future_return_7d=r7d, future_return_30d=r30d
+                record.id,
+                future_return_1d=returns["r1d"],
+                future_return_3d=returns["r3d"],
+                future_return_7d=returns["r7d"],
+                future_return_15d=returns["r15d"],
+                future_return_30d=returns["r30d"],
             )
             updated += 1
         except Exception as exc:

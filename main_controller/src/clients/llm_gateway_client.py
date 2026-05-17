@@ -14,14 +14,16 @@ class LLMGatewayClient(BaseHTTPClient):
         self,
         base_url: str = "http://localhost:8006",
         *,
-        min_directional_confidence: float = 0.56,
-        hold_release_bias: float = 2.2,
+        min_directional_confidence: float = 0.50,
+        hold_release_bias: float = 1.5,
         knn_confirm_threshold: float = 1.0,
+        knn_sell_threshold: float = -3.0,
     ) -> None:
         super().__init__(base_url, LLMGatewayClientError)
         self._min_directional_confidence = float(min_directional_confidence)
         self._hold_release_bias = float(hold_release_bias)
         self._knn_confirm_threshold = float(knn_confirm_threshold)
+        self._knn_sell_threshold = float(knn_sell_threshold)
 
     async def health_check(self) -> bool:
         body = await self._get("/health")
@@ -141,7 +143,14 @@ class LLMGatewayClient(BaseHTTPClient):
         close_14d = cls._safe_float(getattr(candles[-15], "close", None)) if len(candles) >= 15 else None
         ret_3d = cls._pct_change(close_3d, close_now) or 0.0
         ret_14d = cls._pct_change(close_14d, close_now) or 0.0
-        macd = cls._safe_float(indicators.get("macd_hist")) or 0.0
+        macd = cls._safe_float(indicators.get("macd_hist"))
+        if macd is None:
+            macd_obj = indicators.get("macd")
+            if isinstance(macd_obj, dict):
+                hist = macd_obj.get("histogram")
+                if isinstance(hist, list) and hist:
+                    macd = cls._safe_float(hist[-1])
+        macd = macd or 0.0
 
         sim7 = [cls._safe_float(c.record.future_return_7d) for c in similar[:3]]
         sim7_vals = [v for v in sim7 if v is not None]
@@ -188,30 +197,49 @@ class LLMGatewayClient(BaseHTTPClient):
         ret_3d = self._pct_change(close_3d, close_now)
         ret_14d = self._pct_change(close_14d, close_now)
         macd = self._safe_float(indicators.get("macd_hist"))
+        if macd is None:
+            # Old backfill format stores full MACD object; extract last histogram value.
+            macd_obj = indicators.get("macd")
+            if isinstance(macd_obj, dict):
+                hist = macd_obj.get("histogram")
+                if isinstance(hist, list) and hist:
+                    macd = self._safe_float(hist[-1])
         rsi = self._safe_float(indicators.get("rsi"))
 
+        sim3: list[float] = []
         sim7: list[float] = []
+        sim15: list[float] = []
         sim30: list[float] = []
         for case in similar[:5]:
+            r3 = self._safe_float(case.record.future_return_3d)
             r7 = self._safe_float(case.record.future_return_7d)
+            r15 = self._safe_float(case.record.future_return_15d)
             r30 = self._safe_float(case.record.future_return_30d)
+            if r3 is not None:
+                sim3.append(r3)
             if r7 is not None:
                 sim7.append(r7)
+            if r15 is not None:
+                sim15.append(r15)
             if r30 is not None:
                 sim30.append(r30)
+        avg3 = (sum(sim3) / len(sim3)) if sim3 else 0.0
         avg7 = (sum(sim7) / len(sim7)) if sim7 else 0.0
+        avg15 = (sum(sim15) / len(sim15)) if sim15 else 0.0
         avg30 = (sum(sim30) / len(sim30)) if sim30 else 0.0
         knn_has_data = len(sim7) > 0
 
         bull_regime = (
             (ret_14d is not None and ret_14d >= 6.0)
             or (avg30 >= 3.0)
+            or (avg15 >= 2.0)
             or (macd is not None and macd > 0 and avg7 >= 1.0)
         )
         bear_regime = (
             (ret_14d is not None and ret_14d <= -6.0)
-            or (avg30 <= -3.0)
-            or (macd is not None and macd < 0 and avg7 <= -1.0)
+            or (avg30 <= -4.0)
+            or (avg15 <= -3.0 and avg7 <= -1.5)
+            or (macd is not None and macd < 0 and avg7 <= -2.0)
         )
         short_up = ret_3d is not None and ret_3d >= 1.8
         short_down = ret_3d is not None and ret_3d <= -1.8
@@ -242,7 +270,7 @@ class LLMGatewayClient(BaseHTTPClient):
             if signal == SignalType.SELL and not knn_has_data:
                 signal = SignalType.HOLD
                 notes.append("policy:knn_no_data_suppress_sell")
-            elif signal == SignalType.SELL and avg7 > self._knn_confirm_threshold:
+            elif signal == SignalType.SELL and avg7 > self._knn_sell_threshold:
                 signal = SignalType.HOLD
                 notes.append("policy:knn_veto_sell")
             elif signal == SignalType.BUY and avg7 < -self._knn_confirm_threshold:
@@ -271,6 +299,14 @@ class LLMGatewayClient(BaseHTTPClient):
             signal = SignalType.HOLD
             notes.append("policy:block_sell_dual_momentum_bull")
 
+        # Guardrail 8: SELL requires confirmed bear regime.
+        # Prevents false SELLs during sideways/dip corrections within a bull market.
+        # G1 already blocks SELL in strong bull_regime; G8 enforces the converse —
+        # SELL must have positive bear confirmation, not just absence of bull regime.
+        if signal == SignalType.SELL and not bear_regime:
+            signal = SignalType.HOLD
+            notes.append("policy:sell_requires_bear_regime")
+
         directional_bias = 0.0
         if bull_regime:
             directional_bias += 1.2
@@ -280,10 +316,18 @@ class LLMGatewayClient(BaseHTTPClient):
             directional_bias += 0.8
         if short_down:
             directional_bias -= 0.8
+        if avg3 >= 0.5:
+            directional_bias += 0.4
+        elif avg3 <= -0.5:
+            directional_bias -= 0.4
         if avg7 >= 1.0:
             directional_bias += 0.8
         elif avg7 <= -1.0:
             directional_bias -= 0.8
+        if avg15 >= 1.0:
+            directional_bias += 0.7
+        elif avg15 <= -1.0:
+            directional_bias -= 0.7
         if avg30 >= 1.5:
             directional_bias += 0.6
         elif avg30 <= -1.5:
@@ -298,13 +342,17 @@ class LLMGatewayClient(BaseHTTPClient):
         if signal == SignalType.BUY:
             evidence += 1.8 if bull_regime else -1.8
             evidence += 1.2 if short_up else (-1.0 if short_down else 0.0)
+            evidence += 0.5 if avg3 >= 0 else -0.5
             evidence += 0.9 if avg7 >= 0 else -0.9
+            evidence += 0.7 if avg15 >= 0 else -0.7
             evidence += 0.6 if avg30 >= 0 else -0.6
             evidence += 0.4 if (rsi is not None and rsi < 68) else -0.2
         elif signal == SignalType.SELL:
             evidence += 1.8 if bear_regime else -1.8
             evidence += 1.2 if short_down else (-1.0 if short_up else 0.0)
+            evidence += 0.5 if avg3 <= 0 else -0.5
             evidence += 0.9 if avg7 <= 0 else -0.9
+            evidence += 0.7 if avg15 <= 0 else -0.7
             evidence += 0.6 if avg30 <= 0 else -0.6
             evidence += 0.4 if (rsi is not None and rsi > 32) else -0.2
         else:
@@ -324,8 +372,15 @@ class LLMGatewayClient(BaseHTTPClient):
             notes.append("policy:confidence_gate_to_hold")
 
         # Guardrail 5: release HOLD when directional bias is clearly one-sided.
-        if signal == SignalType.HOLD and abs(directional_bias) >= self._hold_release_bias:
-            signal = SignalType.BUY if directional_bias > 0 else SignalType.SELL
+        # In confirmed bear regime use a lower threshold (1.8) so crash signals aren't suppressed.
+        # Outside bear regime keep the higher threshold (self._hold_release_bias) to avoid
+        # over-generating SELL during recovery/bull periods.
+        effective_bias = 1.8 if bear_regime else self._hold_release_bias
+        if signal == SignalType.HOLD and abs(directional_bias) >= effective_bias:
+            if directional_bias > 0:
+                signal = SignalType.BUY
+            elif bear_regime:
+                signal = SignalType.SELL
             confidence = max(confidence, self._min_directional_confidence)
             notes.append("policy:hold_release_by_bias")
 

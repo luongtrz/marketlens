@@ -33,8 +33,19 @@ def test_store_save_and_read_roundtrip() -> None:
             market_snapshot=MarketSnapshot(rsi=52.0, macd_hist=0.01),
             summary="first",
             article_ids=["n1"],
+            future_return_1d=1.11,
+            future_return_7d=2.22,
+            future_return_30d=3.33,
         )
-        rec2 = rec1.model_copy(update={"summary": "updated", "symbol": "BTC"})
+        rec2 = rec1.model_copy(
+            update={
+                "summary": "updated",
+                "symbol": "BTC",
+                "future_return_1d": None,
+                "future_return_7d": None,
+                "future_return_30d": None,
+            }
+        )
 
         rid1 = await writer.save(rec1)
         rid2 = await writer.save(rec2)
@@ -48,6 +59,9 @@ def test_store_save_and_read_roundtrip() -> None:
         assert by_date is not None
         assert by_id.summary == "updated"
         assert by_date.id == rid2
+        assert by_date.future_return_1d == 1.11
+        assert by_date.future_return_7d == 2.22
+        assert by_date.future_return_30d == 3.33
         assert count == 1
 
     asyncio.run(scenario())

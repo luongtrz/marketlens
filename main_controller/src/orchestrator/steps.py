@@ -15,6 +15,7 @@ Note — Step 2 no longer calls aihub.sentiment separately.
 """
 
 import asyncio
+import json
 import logging
 from datetime import date, datetime, timedelta, timezone
 from urllib.parse import urlparse
@@ -50,6 +51,45 @@ def _best_text(article) -> str:
 logger = logging.getLogger(__name__)
 
 
+def _parse_supabase_factors(raw: object) -> list[Factor]:
+    """Parse daily_factor_snapshots.factors_json, tolerant to stringified JSON."""
+    items = raw
+    if isinstance(items, str):
+        try:
+            items = json.loads(items)
+        except Exception:
+            return []
+    if not isinstance(items, list):
+        return []
+
+    out: list[Factor] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        try:
+            out.append(Factor(
+                name=str(item.get("name", "")),
+                type=str(item.get("type", "macro")),
+                polarity=float(item.get("polarity", 0.0)),
+                confidence=float(item.get("weight", item.get("confidence", 0.8))),
+            ))
+        except (ValueError, TypeError):
+            continue
+    return out
+
+
+def _parse_supabase_factor_vector(raw: object) -> list[float]:
+    if not isinstance(raw, list):
+        return []
+    out: list[float] = []
+    for v in raw:
+        try:
+            out.append(float(v))
+        except (TypeError, ValueError):
+            return []
+    return out if len(out) == 75 else []
+
+
 class ModuleClients:
     """Container for all module client instances (injected via DI)."""
 
@@ -60,12 +100,14 @@ class ModuleClients:
         market=None,
         stockmem=None,
         factorledge=None,
+        llm_gateway=None,
     ) -> None:
         self.crawler = crawler
         self.aihub = aihub
         self.market = market
         self.stockmem = stockmem
         self.factorledge = factorledge
+        self.llm_gateway = llm_gateway
 
 
 async def step_collect(ctx: PipelineContext, clients: ModuleClients) -> None:
@@ -176,24 +218,17 @@ async def step_ai_score(ctx: PipelineContext, clients: ModuleClients) -> None:
             snap_rows = await snap_svc.select_rows(
                 order="snapshot_date.desc",
                 limit=1,
-                columns="snapshot_date,factors_json",
+                columns="snapshot_date,factors_json,factor_vector",
                 extra_duplicate_params=[
                     ("snapshot_date", f"eq.{as_of.isoformat()}"),
                     ("symbol", f"eq.{ctx.symbol.upper()}"),
                 ],
             )
             if snap_rows:
-                items = snap_rows[0].get("factors_json") or []
-                for item in items:
-                    try:
-                        raw_factors.append(Factor(
-                            name=str(item.get("name", "")),
-                            type=str(item.get("type", "macro")),
-                            polarity=float(item.get("polarity", 0.0)),
-                            confidence=float(item.get("weight", item.get("confidence", 0.8))),
-                        ))
-                    except (ValueError, TypeError) as exc:
-                        logger.debug("Skipping malformed Supabase factor: %s", exc)
+                raw_factors = _parse_supabase_factors(snap_rows[0].get("factors_json"))
+                snap_factor_vector = _parse_supabase_factor_vector(snap_rows[0].get("factor_vector"))
+                if snap_factor_vector:
+                    ctx.factor_vector = snap_factor_vector
                 logger.info(
                     "[step_ai_score] loaded %d factors from Supabase daily_factor_snapshots",
                     len(raw_factors),
@@ -240,13 +275,13 @@ async def step_ai_score(ctx: PipelineContext, clients: ModuleClients) -> None:
     # ── Factor Vector: get 75d binary vector from classify-service ──────────
     try:
         factor_names = [f.name for f in raw_factors]
-        if factor_names:
+        if not ctx.factor_vector and factor_names:
             ctx.factor_vector = await clients.factorledge.classify_vector(factor_names)
             active_count = sum(1 for v in ctx.factor_vector if v == 1.0)
             logger.info(
                 "[step_ai_score] factor vector: %d/75 bits active", active_count,
             )
-        else:
+        elif not ctx.factor_vector:
             ctx.factor_vector = []
     except Exception as exc:
         ctx.errors.append(f"FactorLedge classify_vector failed: {exc}")
@@ -292,7 +327,6 @@ async def step_stockmem(
         factors=[f.name for f in ctx.raw_factors],
         normalized_factors=ctx.factors or ctx.raw_factors,
         market_snapshot=ctx.market_snapshot,
-        indicator_vec=[],
         factor_vector=ctx.factor_vector,
         summary=_short_headlines_for_summary(ctx.latest_articles),
         article_ids=[a.id for a in ctx.latest_articles],
@@ -315,15 +349,30 @@ async def step_stockmem(
         raise PipelineError(f"StockMem failed: {exc}") from exc
 
 
-async def step_predict(ctx: PipelineContext, clients: ModuleClients) -> None:
-    """STEP 4: Call AIHub /predict with current context + similar cases (RAG)."""
+async def step_predict(
+    ctx: PipelineContext,
+    clients: ModuleClients,
+    predict_provider: str = "aihub",
+    llm_model: str | None = None,
+) -> None:
+    """STEP 4: Predict signal using selected provider."""
     if ctx.current_record is None or ctx.market_snapshot is None:
         raise PipelineError("current_record or market_snapshot is None — cannot predict")
 
     try:
-        ctx.prediction = await clients.aihub.predict(
-            current=ctx.current_record,
-            similar=ctx.similar_records,
-        )
+        provider = (predict_provider or "aihub").strip().lower()
+        if provider == "llm_gateway":
+            if clients.llm_gateway is None:
+                raise PipelineError("LLM Gateway client is not configured")
+            ctx.prediction = await clients.llm_gateway.predict(
+                current=ctx.current_record,
+                similar=ctx.similar_records,
+                model=llm_model,
+            )
+        else:
+            ctx.prediction = await clients.aihub.predict(
+                current=ctx.current_record,
+                similar=ctx.similar_records,
+            )
     except Exception as exc:
-        raise PipelineError(f"AIHub predict failed: {exc}") from exc
+        raise PipelineError(f"predict failed ({predict_provider}): {exc}") from exc

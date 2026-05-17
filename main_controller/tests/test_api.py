@@ -29,7 +29,7 @@ def _make_prediction_result() -> PredictionResult:
 
 
 class _MockPipeline:
-    async def run(self, symbol: str, run_id=None):
+    async def run(self, symbol: str, run_id=None, as_of_date=None, llm_model=None):
         result = _make_prediction_result()
         result.run_id = str(run_id) if run_id else result.run_id
         result.symbol = symbol
@@ -59,6 +59,13 @@ def test_run_returns_pending(client):
     body = resp.json()
     assert "run_id" in body
     assert body["status"] == "pending"
+
+
+def test_run_accepts_model_override(client):
+    resp = client.post("/run?symbol=BTCUSDT&model=qwen3.5-plus")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["model"] == "qwen3.5-plus"
 
 
 def test_status_404_unknown_run_id(client):

@@ -102,3 +102,45 @@ async def test_pipeline_run_id_propagated(
     result = await pipeline.run("BTCUSDT", run_id=run_id)
 
     assert result.run_id == str(run_id)
+
+
+async def test_pipeline_predict_via_llm_gateway(
+    sample_article, sample_market_snapshot, sample_normalized_factor,
+    sample_similar_record, sample_predict_response
+):
+    clients = _make_clients(
+        sample_article, sample_market_snapshot, sample_normalized_factor,
+        sample_similar_record, sample_predict_response,
+    )
+    llm_gateway = AsyncMock()
+    llm_gateway.predict = AsyncMock(return_value=sample_predict_response)
+    clients.llm_gateway = llm_gateway
+
+    pipeline = Pipeline(clients, PipelineConfig(k_similar=5, predict_provider="llm_gateway"))
+    result = await pipeline.run("BTCUSDT")
+
+    assert result.signal == SignalType.BUY
+    llm_gateway.predict.assert_awaited_once()
+
+
+async def test_pipeline_predict_via_llm_gateway_with_model_override(
+    sample_article, sample_market_snapshot, sample_normalized_factor,
+    sample_similar_record, sample_predict_response
+):
+    clients = _make_clients(
+        sample_article, sample_market_snapshot, sample_normalized_factor,
+        sample_similar_record, sample_predict_response,
+    )
+    llm_gateway = AsyncMock()
+    llm_gateway.predict = AsyncMock(return_value=sample_predict_response)
+    clients.llm_gateway = llm_gateway
+
+    pipeline = Pipeline(clients, PipelineConfig(k_similar=5, predict_provider="llm_gateway"))
+    result = await pipeline.run("BTCUSDT", llm_model="deepseek-v4-flash")
+
+    assert result.signal == SignalType.BUY
+    llm_gateway.predict.assert_awaited_once()
+    kwargs = llm_gateway.predict.await_args.kwargs
+    assert kwargs["model"] == "deepseek-v4-flash"
+    assert "current" in kwargs
+    assert "similar" in kwargs

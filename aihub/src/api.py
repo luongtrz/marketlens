@@ -227,6 +227,27 @@ async def predict(request: PredictRequest, http: Request) -> PredictResponse:
         if post_rule_notes:
             reasoning_steps.extend(post_rule_notes)
 
+        # kNN confirmation: veto directional signal when similar-case outcomes contradict it.
+        # Also suppress SELL when no kNN return data is available (cannot confirm).
+        knn_threshold = config.knn_confirm_threshold
+        if knn_threshold > 0.0 and request.similar:
+            sim7_vals = [
+                c.record.future_return_7d
+                for c in request.similar
+                if c.record.future_return_7d is not None
+            ]
+            if not sim7_vals and signal == SignalType.SELL:
+                signal = SignalType.HOLD
+                reasoning_steps.append("post-rule: knn_no_data_suppress_sell")
+            elif sim7_vals:
+                avg7 = sum(sim7_vals) / len(sim7_vals)
+                if signal == SignalType.SELL and avg7 > knn_threshold:
+                    signal = SignalType.HOLD
+                    reasoning_steps.append("post-rule: knn_veto_sell (similar cases bullish)")
+                elif signal == SignalType.BUY and avg7 < -knn_threshold:
+                    signal = SignalType.HOLD
+                    reasoning_steps.append("post-rule: knn_veto_buy (similar cases bearish)")
+
         return PredictResponse(
             signal=signal,
             confidence=conf,

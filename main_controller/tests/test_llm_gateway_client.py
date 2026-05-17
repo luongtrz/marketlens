@@ -230,3 +230,41 @@ def test_dual_momentum_does_not_fire_in_shallow_correction(sample_stockmem_recor
     client = LLMGatewayClient(min_directional_confidence=0.0, hold_release_bias=9.9)
     _, _, notes = client._apply_regime_policy(SignalType.BUY, current, [])
     assert "policy:block_buy_dual_momentum_bear" not in notes
+
+
+def test_adaptive_bias_releases_hold_in_bear_regime(sample_stockmem_record):
+    """In confirmed bear regime (ret_14d <= -6%), effective_bias drops to 1.8.
+
+    Setup: directional_bias=-2.0 (bear_regime -1.2 + avg7 -0.8).
+    G3 does not fire (no short_down), so HOLD reaches G5.
+    |−2.0| >= 1.8 (adaptive) → SELL released via hold_release_by_bias.
+    """
+    # ret_14d=-7% → bear_regime; ret_3d=-1% → NOT short_down (< -1.8 threshold)
+    current = _record_with_multi_candles(sample_stockmem_record, rsi=50.0, ret_3d_pct=-1.0, ret_14d_pct=-7.0)
+    bearish_case = sample_stockmem_record.model_copy(update={"future_return_7d": -2.0})
+    similar = [SimilarRecord(record=bearish_case, similarity=0.9)]
+    client = LLMGatewayClient(min_directional_confidence=0.0, hold_release_bias=2.8)
+    signal, _, notes = client._apply_regime_policy(SignalType.HOLD, current, similar)
+    # directional_bias = -1.2 (bear) + -0.8 (avg7=-2) = -2.0; |−2.0| >= 1.8 adaptive → SELL
+    assert signal == SignalType.SELL
+    assert "policy:hold_release_by_bias" in notes
+
+
+def test_adaptive_bias_keeps_hold_outside_bear_regime(sample_stockmem_record):
+    """Outside bear regime, effective_bias stays at 2.8 — moderate signals don't release HOLD.
+
+    Setup: directional_bias=-2.2 (short_down -0.8 + avg7 -0.8 + avg30 -0.6).
+    No bear_regime (ret_14d=-3%, avg30=-2%, macd=0) → effective_bias=2.8.
+    |−2.2| < 2.8 → HOLD stays.
+    """
+    # ret_14d=-3% → NOT bear_regime; ret_3d=-2.5% → short_down
+    current = _record_with_multi_candles(sample_stockmem_record, rsi=50.0, ret_3d_pct=-2.5, ret_14d_pct=-3.0)
+    bearish_case = sample_stockmem_record.model_copy(
+        update={"future_return_7d": -2.0, "future_return_30d": -2.0}
+    )
+    similar = [SimilarRecord(record=bearish_case, similarity=0.9)]
+    client = LLMGatewayClient(min_directional_confidence=0.0, hold_release_bias=2.8)
+    signal, _, notes = client._apply_regime_policy(SignalType.HOLD, current, similar)
+    # directional_bias = -0.8 (short_down) + -0.8 (avg7) + -0.6 (avg30) = -2.2; |−2.2| < 2.8 → HOLD
+    assert signal == SignalType.HOLD
+    assert "policy:hold_release_by_bias" not in notes

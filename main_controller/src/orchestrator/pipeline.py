@@ -29,8 +29,9 @@ logger = logging.getLogger(__name__)
 class PipelineConfig:
     """Configuration for the pipeline orchestrator."""
 
-    def __init__(self, k_similar: int = 5) -> None:
+    def __init__(self, k_similar: int = 5, predict_provider: str = "aihub") -> None:
         self.k_similar = k_similar
+        self.predict_provider = predict_provider
 
 
 class Pipeline:
@@ -47,7 +48,13 @@ class Pipeline:
         self._clients = clients
         self._config = config or PipelineConfig()
 
-    async def run(self, symbol: str, run_id: UUID | None = None, as_of_date: date | None = None) -> PredictionResult:
+    async def run(
+        self,
+        symbol: str,
+        run_id: UUID | None = None,
+        as_of_date: date | None = None,
+        llm_model: str | None = None,
+    ) -> PredictionResult:
         """Execute the full pipeline for a given symbol.
 
         Args:
@@ -83,7 +90,12 @@ class Pipeline:
             return _hold_result(ctx)
 
         try:
-            await step_predict(ctx, self._clients)
+            await step_predict(
+                ctx,
+                self._clients,
+                predict_provider=self._config.predict_provider,
+                llm_model=llm_model,
+            )
         except PipelineError as exc:
             logger.error("step_predict PipelineError: %s", exc)
             ctx.errors.append(str(exc))
