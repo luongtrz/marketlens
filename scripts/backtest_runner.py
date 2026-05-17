@@ -57,7 +57,7 @@ MARKET_URL = "http://localhost:8002"
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY") or ""
 
-HORIZONS = {"1d": 1, "7d": 7, "30d": 30}
+HORIZONS = {"1d": 1, "3d": 3, "7d": 7, "15d": 15, "30d": 30}
 
 
 def supabase_headers() -> dict[str, str]:
@@ -70,7 +70,7 @@ def supabase_headers() -> dict[str, str]:
 
 
 # ── Correctness ───────────────────────────────────────────────────────────────
-def check_correct(signal: str, actual_return: float, threshold: float = 1.0) -> bool | None:
+def check_correct(signal: str, actual_return: float, threshold: float = 0.5) -> bool | None:
     """Return True if signal direction matches actual return.
 
     HOLD is correct if |return| < threshold (flat market).
@@ -88,7 +88,7 @@ def check_correct(signal: str, actual_return: float, threshold: float = 1.0) -> 
 # ── Market Data ───────────────────────────────────────────────────────────────
 async def fetch_actual_returns(http: httpx.AsyncClient, symbol: str, td: date) -> dict[str, float | None]:
     """Get actual forward returns for a date from Binance."""
-    result: dict[str, float | None] = {"1d": None, "7d": None, "30d": None}
+    result: dict[str, float | None] = {"1d": None, "3d": None, "7d": None, "15d": None, "30d": None}
 
     # Get close price on target date
     end_ts = int((datetime(td.year, td.month, td.day, tzinfo=timezone.utc) + timedelta(days=1)).timestamp() * 1000)
@@ -145,14 +145,29 @@ async def supabase_upsert(http: httpx.AsyncClient, table: str, row: dict, on_con
     return ok
 
 
+async def supabase_select_all(
+    http: httpx.AsyncClient, table: str, base_params: list[tuple[str, str]], page_size: int = 1000
+) -> list[dict]:
+    """Paginate through all rows, bypassing Supabase's 1000-row cap."""
+    all_rows: list[dict] = []
+    offset = 0
+    while True:
+        params = base_params + [("limit", str(page_size)), ("offset", str(offset))]
+        batch = await supabase_select(http, table, params)
+        all_rows.extend(batch)
+        if len(batch) < page_size:
+            break
+        offset += page_size
+    return all_rows
+
+
 async def get_completed_dates(http: httpx.AsyncClient, symbol: str) -> set[str]:
     """Return set of dates already in backtest_results."""
-    rows = await supabase_select(http, "backtest_results", [
+    rows = await supabase_select_all(http, "backtest_results", [
         ("select", "backtest_date"),
         ("symbol", f"eq.{symbol.upper()}"),
-        ("signal", "not.is.null"),  # only completed rows
+        ("signal", "not.is.null"),
         ("order", "backtest_date.desc"),
-        ("limit", "5000"),
     ])
     return {r["backtest_date"] for r in rows}
 
@@ -160,17 +175,16 @@ async def get_completed_dates(http: httpx.AsyncClient, symbol: str) -> set[str]:
 async def get_available_dates(http: httpx.AsyncClient, symbol: str,
                                start: date | None, end: date | None) -> list[date]:
     """Get all dates that have daily_factor_snapshots (i.e., can be backtested)."""
-    filters: list[tuple[str, str]] = [
+    base_params: list[tuple[str, str]] = [
         ("select", "snapshot_date"),
         ("symbol", f"eq.{symbol.upper()}"),
         ("order", "snapshot_date.asc"),
-        ("limit", "5000"),
     ]
     if start:
-        filters.append(("snapshot_date", f"gte.{start.isoformat()}"))
+        base_params.append(("snapshot_date", f"gte.{start.isoformat()}"))
     if end:
-        filters.append(("snapshot_date", f"lte.{end.isoformat()}"))
-    rows = await supabase_select(http, "daily_factor_snapshots", filters)
+        base_params.append(("snapshot_date", f"lte.{end.isoformat()}"))
+    rows = await supabase_select_all(http, "daily_factor_snapshots", base_params)
     dates = []
     for r in rows:
         d = r.get("snapshot_date", "")
@@ -180,12 +194,20 @@ async def get_available_dates(http: httpx.AsyncClient, symbol: str,
 
 
 # ── Main runner ───────────────────────────────────────────────────────────────
-async def run_backtest(http: httpx.AsyncClient, symbol: str, td: date) -> dict | None:
+async def run_backtest(
+    http: httpx.AsyncClient,
+    symbol: str,
+    td: date,
+    model: str | None = None,
+) -> dict | None:
     """Run a single backtest, return result dict or None on failure."""
     t0 = time.time()
 
     # 1. Call /run
-    r = await http.post(f"{MAIN_URL}/run", params={"symbol": symbol, "date": td.isoformat()})
+    params = {"symbol": symbol, "date": td.isoformat()}
+    if model:
+        params["model"] = model
+    r = await http.post(f"{MAIN_URL}/run", params=params)
     if r.status_code != 200:
         print(f"  /run failed: {r.status_code} {r.text[:100]}")
         return None
@@ -251,6 +273,9 @@ async def main() -> None:
     parser.add_argument("--reverse", action="store_true", help="Run newest dates first (2026 -> 2023). Better when StockMem already has data.")
     parser.add_argument("--stats", action="store_true", help="Only print accuracy stats, no new runs")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be run, don't execute")
+    parser.add_argument("--model", default=None, help="Optional llm_gateway model override, e.g. qwen3.5-plus")
+    parser.add_argument("--workers", type=int, default=4, help="Parallel workers (default: 4). Each worker calls the LLM concurrently.")
+    parser.add_argument("--force", action="store_true", help="Re-run all dates, ignoring already-completed ones.")
     args = parser.parse_args()
 
     symbol = args.symbol.upper()
@@ -276,7 +301,7 @@ async def main() -> None:
         # ── Stats mode: read existing results ──
         if args.stats:
             rows = await supabase_select(http, "backtest_results", [
-                ("select", "signal,confidence,sentiment_score,correct_1d,correct_7d,correct_30d,actual_return_7d,backtest_date"),
+                ("select", "signal,confidence,sentiment_score,correct_1d,correct_3d,correct_7d,correct_15d,correct_30d,actual_return_7d,backtest_date"),
                 ("symbol", f"eq.{symbol}"),
                 ("signal", "not.is.null"),
                 ("order", "backtest_date.desc"),
@@ -286,21 +311,32 @@ async def main() -> None:
                 print("No results yet.")
                 return
             total = len(rows)
-            d1 = sum(1 for r in rows if r.get("correct_1d") is True)
-            d7 = sum(1 for r in rows if r.get("correct_7d") is True)
-            d30 = sum(1 for r in rows if r.get("correct_30d") is True)
-            d1n = sum(1 for r in rows if r.get("correct_1d") is not None)
-            d7n = sum(1 for r in rows if r.get("correct_7d") is not None)
-            d30n = sum(1 for r in rows if r.get("correct_30d") is not None)
+            horizon_labels = [("1d", "D+1 "), ("3d", "D+3 "), ("7d", "D+7 "), ("15d", "D+15"), ("30d", "D+30")]
+            counts: dict[str, int] = {}
+            totals: dict[str, int] = {}
+            for h, _ in horizon_labels:
+                counts[h] = sum(1 for r in rows if r.get(f"correct_{h}") is True)
+                totals[h] = sum(1 for r in rows if r.get(f"correct_{h}") is not None)
 
             buys = [r for r in rows if r.get("signal") == "BUY"]
             sells = [r for r in rows if r.get("signal") == "SELL"]
+            holds = [r for r in rows if r.get("signal") == "HOLD"]
+
+            # BUY/SELL precision (excl. HOLD) — use D+7 as reference horizon
+            dir_rows = [r for r in buys + sells if r.get("actual_return_7d") is not None]
+            dir_correct = [r for r in dir_rows if r.get("correct_7d") is True]
+            dir_n = len(dir_rows)
+            dir_c = len(dir_correct)
 
             print(f"\n=== Accuracy for {symbol} ({total} runs) ===")
-            print(f"  D+1  DA: {d1}/{d1n} = {d1/d1n*100:.1f}%" if d1n else "  D+1  DA: N/A")
-            print(f"  D+7  DA: {d7}/{d7n} = {d7/d7n*100:.1f}%" if d7n else "  D+7  DA: N/A")
-            print(f"  D+30 DA: {d30}/{d30n} = {d30/d30n*100:.1f}%" if d30n else "  D+30 DA: N/A")
-            print(f"  Signal dist: BUY={len(buys)} SELL={len(sells)} HOLD={total-len(buys)-len(sells)}")
+            for h, label in horizon_labels:
+                n = totals[h]
+                c = counts[h]
+                print(f"  {label} DA: {c}/{n} = {c/n*100:.1f}%" if n else f"  {label} DA: N/A")
+            if totals.get("7d") and dir_n:
+                print(f"  Coverage : {dir_n}/{totals['7d']} = {dir_n/totals['7d']*100:.1f}%  (days with BUY/SELL)")
+                print(f"  Precision: {dir_c}/{dir_n} = {dir_c/dir_n*100:.1f}%  (BUY/SELL correct, excl. HOLD)")
+            print(f"  Signal dist: BUY={len(buys)} SELL={len(sells)} HOLD={len(holds)}")
             print(f"  Avg confidence: {sum(r.get('confidence',0) for r in rows)/total:.3f}")
             print(f"  Avg sentiment: {sum(r.get('sentiment_score',0) for r in rows)/total:.3f}")
             return
@@ -322,6 +358,9 @@ async def main() -> None:
         # ── Find pending dates ──
         completed = await get_completed_dates(http, symbol)
         print(f"  {len(completed)} already completed")
+        if args.force:
+            completed = set()
+            print("  --force: ignoring completed, re-running all dates")
 
         pending = sorted(set(d.isoformat() for d in available) - completed, reverse=args.reverse)
         order_label = "newest-first" if args.reverse else "oldest-first"
@@ -342,96 +381,107 @@ async def main() -> None:
         # ── Run backtests ──
         limit = args.max if args.max > 0 else len(pending)
         to_run = pending[:limit]
-        print(f"\nRunning {len(to_run)} backtests...\n")
+        workers = min(args.workers, len(to_run))
+        print(f"\nRunning {len(to_run)} backtests with {workers} parallel workers...\n")
 
-        stats = {"total": 0, "warmup": 0, "eval": 0,
-                 "correct_1d": 0, "correct_7d": 0, "correct_30d": 0,
-                 "eval_1d": 0, "eval_7d": 0, "eval_30d": 0, "errors": 0}
+        stats: dict[str, int] = {"total": 0, "warmup": 0, "eval": 0, "errors": 0,
+                 "dir_signals_7d": 0, "dir_correct_7d": 0}
+        for _h in HORIZONS:
+            stats[f"correct_{_h}"] = 0
+            stats[f"eval_{_h}"] = 0
 
         warmup = args.warmup
+        sem = asyncio.Semaphore(workers)
+        n_eval = max(len(to_run) - warmup, 0)
 
-        for i, d_str in enumerate(to_run):
+        async def process_one(i: int, d_str: str) -> None:
             td = date.fromisoformat(d_str)
-            in_warmup = stats["total"] < warmup
-            tag = "[WARMUP]" if in_warmup else f"[{stats['eval']+1}/{len(to_run)-warmup}]"
-            print(f"{tag} {td} ...", end=" ", flush=True)
+            in_warmup = i < warmup
+            tag = "[WARMUP]" if in_warmup else f"[{i - warmup + 1}/{n_eval}]"
 
-            try:
-                result = await run_backtest(http, symbol, td)
-            except Exception as exc:
-                print(f"FAIL: {exc}")
-                stats["errors"] += 1
-                continue
+            async with sem:
+                try:
+                    result = await run_backtest(http, symbol, td, model=args.model)
+                except Exception as exc:
+                    print(f"{tag} {td} FAIL: {exc}", flush=True)
+                    stats["errors"] += 1
+                    return
 
-            if result is None:
-                print("FAIL (no result)")
-                stats["errors"] += 1
-                continue
+                if result is None:
+                    print(f"{tag} {td} FAIL (no result)", flush=True)
+                    stats["errors"] += 1
+                    return
 
-            # Compute actual returns
-            actual = await fetch_actual_returns(http, symbol, td)
+                actual = await fetch_actual_returns(http, symbol, td)
+                signal = result["signal"]
 
-            signal = result["signal"]
+                row: dict = {
+                    "symbol": symbol,
+                    "backtest_date": d_str,
+                    "run_id": result["run_id"],
+                    "signal": signal,
+                    "confidence": result["confidence"],
+                    "sentiment_score": result["sentiment_score"],
+                    "explanation": result["explanation"],
+                    "errors": json.dumps(result["errors"]),
+                    "n_similar_cases": result["n_similar_cases"],
+                    "top_similar_date": result["top_similar_date"],
+                    "top_similar_similarity": result["top_similar_similarity"],
+                    "top_similar_ret7d": result["top_similar_ret7d"],
+                    "run_duration_ms": result["run_duration_ms"],
+                }
 
-            # Build row for Supabase
-            row: dict = {
-                "symbol": symbol,
-                "backtest_date": d_str,
-                "run_id": result["run_id"],
-                "signal": signal,
-                "confidence": result["confidence"],
-                "sentiment_score": result["sentiment_score"],
-                "explanation": result["explanation"],
-                "errors": json.dumps(result["errors"]),
-                "n_similar_cases": result["n_similar_cases"],
-                "top_similar_date": result["top_similar_date"],
-                "top_similar_similarity": result["top_similar_similarity"],
-                "top_similar_ret7d": result["top_similar_ret7d"],
-                "run_duration_ms": result["run_duration_ms"],
-            }
+                for h_label in HORIZONS:
+                    val = actual.get(h_label)
+                    row[f"actual_return_{h_label}"] = val
+                    correct = check_correct(signal, val) if val is not None else None
+                    row[f"correct_{h_label}"] = correct
+                    if not in_warmup and correct is not None:
+                        stats[f"eval_{h_label}"] += 1
+                        if correct:
+                            stats[f"correct_{h_label}"] += 1
 
-            for h_label in ["1d", "7d", "30d"]:
-                val = actual.get(h_label)
-                row[f"actual_return_{h_label}"] = val
-                correct = check_correct(signal, val) if val is not None else None
-                row[f"correct_{h_label}"] = correct
-                if not in_warmup and correct is not None:
-                    stats[f"eval_{h_label}"] += 1
-                    if correct:
-                        stats[f"correct_{h_label}"] += 1
+                if not in_warmup and signal in ("BUY", "SELL"):
+                    val7 = actual.get("7d")
+                    if val7 is not None:
+                        stats["dir_signals_7d"] += 1
+                        if check_correct(signal, val7):
+                            stats["dir_correct_7d"] += 1
 
-            # Write to Supabase
-            ok = await supabase_upsert(http, "backtest_results", row)
-            if not ok:
-                stats["errors"] += 1
-                print("WRITE FAIL")
-                continue
+                ok = await supabase_upsert(http, "backtest_results", row)
+                if not ok:
+                    stats["errors"] += 1
+                    print(f"{tag} {td} WRITE FAIL", flush=True)
+                    return
 
-            stats["total"] += 1
-            if in_warmup:
-                stats["warmup"] += 1
-            else:
-                stats["eval"] += 1
+                stats["total"] += 1
+                if in_warmup:
+                    stats["warmup"] += 1
+                else:
+                    stats["eval"] += 1
 
-            # Print one-line summary
-            r7 = actual.get("7d")
-            c7 = row.get("correct_7d")
-            c7_str = "OK" if c7 else ("XX" if c7 is False else ("??" if in_warmup else "?"))
-            warmup_mark = " [w]" if in_warmup else ""
-            r7_str = f"{r7:+.2f}%" if isinstance(r7, (int, float)) else "N/A"
-            print(f"{signal}({result['confidence']:.2f}) ret7d={r7_str}{warmup_mark} "
-                  f"dur={result['run_duration_ms']}ms")
+                r7 = actual.get("7d")
+                warmup_mark = " [w]" if in_warmup else ""
+                r7_str = f"{r7:+.2f}%" if isinstance(r7, (int, float)) else "N/A"
+                print(f"{tag} {td} {signal}({result['confidence']:.2f}) ret7d={r7_str}{warmup_mark} "
+                      f"dur={result['run_duration_ms']}ms", flush=True)
 
-            # Throttle between runs to avoid rate limiting
-            await asyncio.sleep(1)
+        await asyncio.gather(*[process_one(i, d_str) for i, d_str in enumerate(to_run)])
 
         # ── Final stats ──
         print(f"\n{'=' * 50}")
         print(f"Done. {stats['total']} runs ({stats['warmup']} warmup + {stats['eval']} eval), {stats['errors']} errors")
+        horizon_labels = [("1d", "D+1 "), ("3d", "D+3 "), ("7d", "D+7 "), ("15d", "D+15"), ("30d", "D+30")]
         if stats["eval_7d"] > 0:
-            print(f"  D+1  DA : {stats['correct_1d']}/{stats['eval_1d']} = {stats['correct_1d']/stats['eval_1d']*100:.1f}%")
-            print(f"  D+7  DA : {stats['correct_7d']}/{stats['eval_7d']} = {stats['correct_7d']/stats['eval_7d']*100:.1f}%")
-            print(f"  D+30 DA : {stats['correct_30d']}/{stats['eval_30d']} = {stats['correct_30d']/stats['eval_30d']*100:.1f}%")
+            for h, label in horizon_labels:
+                c, n = stats[f"correct_{h}"], stats[f"eval_{h}"]
+                print(f"  {label} DA : {c}/{n} = {c/n*100:.1f}%" if n else f"  {label} DA : N/A")
+            ds = stats["dir_signals_7d"]
+            dc = stats["dir_correct_7d"]
+            ev = stats["eval_7d"]
+            if ds > 0:
+                print(f"  Coverage : {ds}/{ev} = {ds/ev*100:.1f}%  (days with BUY/SELL out of eval)")
+                print(f"  Precision: {dc}/{ds} = {dc/ds*100:.1f}%  (BUY/SELL correct, excl. HOLD)")
         else:
             print("  No eval data (all warmup). Run with more --max.")
 

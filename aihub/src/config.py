@@ -26,6 +26,21 @@ class AIHubConfig(BaseAppConfig):
 
     predict_llm_backend: str = "gemini"
 
+    # Sentiment uses CryptoBert HTTP API, not an LLM backend
+    mock_mode: bool = False
+
+    # Post-signal deterministic guardrails (applied after LLM /predict output)
+    post_rule_enabled: bool = True
+    post_rule_bull_30d_pct: float = 10.0
+    post_rule_bear_30d_pct: float = -10.0
+    post_rule_up_3d_pct: float = 3.0
+    post_rule_down_3d_pct: float = -3.0
+    post_rule_macd_confirm_eps: float = 0.0
+    post_rule_hold_override_max_conf: float = 0.72
+
+    # kNN confirmation: suppress directional signal when similar-case avg 7d return contradicts.
+    # Set to 0.0 to disable.
+    knn_confirm_threshold: float = 1.0
     model_config = {
         "env_prefix": "AIHUB_",
         "env_file": ".env",          # root /marketlens/.env — no aihub/.env

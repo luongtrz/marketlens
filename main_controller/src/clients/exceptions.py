@@ -23,3 +23,7 @@ class StockMemClientError(ClientError):
 
 class FactorLedgeClientError(ClientError):
     """Raised when FactorLedge service call fails."""
+
+
+class LLMGatewayClientError(ClientError):
+    """Raised when LLM Gateway service call fails."""

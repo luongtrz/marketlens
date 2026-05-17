@@ -43,14 +43,18 @@ class StockMemClient(BaseHTTPClient):
         self,
         record_id: str,
         future_return_1d: float | None = None,
+        future_return_3d: float | None = None,
         future_return_7d: float | None = None,
+        future_return_15d: float | None = None,
         future_return_30d: float | None = None,
     ) -> None:
         await self._patch(
             f"/record/{record_id}/returns",
             {k: v for k, v in {
                 "future_return_1d": future_return_1d,
+                "future_return_3d": future_return_3d,
                 "future_return_7d": future_return_7d,
+                "future_return_15d": future_return_15d,
                 "future_return_30d": future_return_30d,
             }.items() if v is not None},
         )

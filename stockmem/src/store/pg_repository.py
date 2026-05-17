@@ -70,9 +70,23 @@ class PGRepository:
         record_date = record.date.isoformat()
         symbol = record.symbol.upper()
         payload_record = record.model_copy(update={"symbol": symbol})
-        payload = json.dumps(payload_record.model_dump(mode="json"), ensure_ascii=True)
 
         async with pool.acquire() as conn:
+            existing_payload_raw = await conn.fetchval(
+                "SELECT payload FROM stockmem_records WHERE record_date = $1 AND symbol = $2",
+                record_date,
+                symbol,
+            )
+            if existing_payload_raw:
+                existing = json.loads(existing_payload_raw)
+                keep_updates: dict[str, float] = {}
+                for key in ("future_return_1d", "future_return_3d", "future_return_7d", "future_return_15d", "future_return_30d"):
+                    if getattr(payload_record, key) is None and existing.get(key) is not None:
+                        keep_updates[key] = float(existing[key])
+                if keep_updates:
+                    payload_record = payload_record.model_copy(update=keep_updates)
+
+            payload = json.dumps(payload_record.model_dump(mode="json"), ensure_ascii=True)
             await conn.execute(
                 """
                 INSERT INTO stockmem_records (id, record_date, symbol, payload)
@@ -121,7 +135,9 @@ class PGRepository:
                     "SELECT payload FROM stockmem_records WHERE symbol = $1"
                     " AND ("
                     " (payload::json->>'future_return_1d') IS NULL OR"
+                    " (payload::json->>'future_return_3d') IS NULL OR"
                     " (payload::json->>'future_return_7d') IS NULL OR"
+                    " (payload::json->>'future_return_15d') IS NULL OR"
                     " (payload::json->>'future_return_30d') IS NULL"
                     " )"
                     " ORDER BY record_date",
@@ -132,7 +148,9 @@ class PGRepository:
                     "SELECT payload FROM stockmem_records"
                     " WHERE ("
                     " (payload::json->>'future_return_1d') IS NULL OR"
+                    " (payload::json->>'future_return_3d') IS NULL OR"
                     " (payload::json->>'future_return_7d') IS NULL OR"
+                    " (payload::json->>'future_return_15d') IS NULL OR"
                     " (payload::json->>'future_return_30d') IS NULL"
                     " )"
                     " ORDER BY record_date"
@@ -143,7 +161,9 @@ class PGRepository:
         self,
         record_id: str,
         future_return_1d: float | None = None,
+        future_return_3d: float | None = None,
         future_return_7d: float | None = None,
+        future_return_15d: float | None = None,
         future_return_30d: float | None = None,
     ) -> bool:
         """Patch future_return fields into the stored JSON payload. Returns True if found."""
@@ -155,12 +175,15 @@ class PGRepository:
             if row is None:
                 return False
             payload = json.loads(row["payload"])
-            if future_return_1d is not None:
-                payload["future_return_1d"] = future_return_1d
-            if future_return_7d is not None:
-                payload["future_return_7d"] = future_return_7d
-            if future_return_30d is not None:
-                payload["future_return_30d"] = future_return_30d
+            for key, val in [
+                ("future_return_1d", future_return_1d),
+                ("future_return_3d", future_return_3d),
+                ("future_return_7d", future_return_7d),
+                ("future_return_15d", future_return_15d),
+                ("future_return_30d", future_return_30d),
+            ]:
+                if val is not None:
+                    payload[key] = val
             await conn.execute(
                 "UPDATE stockmem_records SET payload = $1 WHERE id = $2",
                 json.dumps(payload, ensure_ascii=True),

@@ -240,3 +240,43 @@ async def test_step_predict_aihub_fail_raises_pipeline_error(sample_market_snaps
 
     with pytest.raises(PipelineError, match="predict"):
         await step_predict(ctx, clients)
+
+
+async def test_step_predict_llm_gateway_happy(sample_market_snapshot, sample_stockmem_record, sample_predict_response):
+    ctx = _ctx()
+    ctx.market_snapshot = sample_market_snapshot
+    ctx.current_record = sample_stockmem_record
+    ctx.similar_records = []
+
+    llm_gateway = AsyncMock()
+    llm_gateway.predict = AsyncMock(return_value=sample_predict_response)
+    clients = _clients(llm_gateway=llm_gateway)
+
+    await step_predict(ctx, clients, predict_provider="llm_gateway")
+
+    assert ctx.prediction == sample_predict_response
+    llm_gateway.predict.assert_awaited_once_with(
+        current=sample_stockmem_record,
+        similar=[],
+        model=None,
+    )
+
+
+async def test_step_predict_llm_gateway_model_override(sample_market_snapshot, sample_stockmem_record, sample_predict_response):
+    ctx = _ctx()
+    ctx.market_snapshot = sample_market_snapshot
+    ctx.current_record = sample_stockmem_record
+    ctx.similar_records = []
+
+    llm_gateway = AsyncMock()
+    llm_gateway.predict = AsyncMock(return_value=sample_predict_response)
+    clients = _clients(llm_gateway=llm_gateway)
+
+    await step_predict(ctx, clients, predict_provider="llm_gateway", llm_model="qwen3.5-plus")
+
+    assert ctx.prediction == sample_predict_response
+    llm_gateway.predict.assert_awaited_once_with(
+        current=sample_stockmem_record,
+        similar=[],
+        model="qwen3.5-plus",
+    )

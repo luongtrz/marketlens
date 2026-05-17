@@ -72,12 +72,13 @@ class StockMemRecord(BaseModel):
     factors: list[str]
     normalized_factors: list[Any] = Field(default_factory=list)
     market_snapshot: MarketSnapshot
-    indicator_vec: list[float] = Field(default_factory=list)  # Pre-computed market indicator vector
     factor_vector: list[float] = Field(default_factory=list)  # Pre-computed 75d factor vector (from FactorLedge)
     summary: Optional[str] = None
     article_ids: list[str] = Field(default_factory=list)
     future_return_1d: Optional[float] = None
+    future_return_3d: Optional[float] = None
     future_return_7d: Optional[float] = None
+    future_return_15d: Optional[float] = None
     future_return_30d: Optional[float] = None
 
 

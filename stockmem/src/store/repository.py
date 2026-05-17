@@ -113,9 +113,23 @@ class RecordRepository:
         record_date = record.date.isoformat()
         symbol = record.symbol.upper()
         payload_record = record.model_copy(update={"symbol": symbol})
-        payload = json.dumps(payload_record.model_dump(mode="json"), ensure_ascii=True)
 
         async with aiosqlite.connect(self._db_path) as conn:
+            cursor_existing = await conn.execute(
+                "SELECT payload FROM stockmem_records WHERE record_date = ? AND symbol = ?",
+                (record_date, symbol),
+            )
+            existing_row = await cursor_existing.fetchone()
+            if existing_row is not None:
+                existing_payload = json.loads(existing_row[0])
+                keep_updates: dict[str, float] = {}
+                for key in ("future_return_1d", "future_return_7d", "future_return_30d"):
+                    if getattr(payload_record, key) is None and existing_payload.get(key) is not None:
+                        keep_updates[key] = float(existing_payload[key])
+                if keep_updates:
+                    payload_record = payload_record.model_copy(update=keep_updates)
+
+            payload = json.dumps(payload_record.model_dump(mode="json"), ensure_ascii=True)
             await conn.execute(
                 """
                 INSERT INTO stockmem_records (id, record_date, symbol, payload)

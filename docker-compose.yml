@@ -34,6 +34,13 @@ services:
       AIHUB_GROQ_MODEL: ${AIHUB_GROQ_MODEL:-llama-3.3-70b-versatile}
       AIHUB_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       AIHUB_GEMINI_API_KEY: ${AIHUB_GEMINI_API_KEY:-}
+      AIHUB_POST_RULE_ENABLED: ${AIHUB_POST_RULE_ENABLED:-true}
+      AIHUB_POST_RULE_BULL_30D_PCT: ${AIHUB_POST_RULE_BULL_30D_PCT:-10}
+      AIHUB_POST_RULE_BEAR_30D_PCT: ${AIHUB_POST_RULE_BEAR_30D_PCT:--10}
+      AIHUB_POST_RULE_UP_3D_PCT: ${AIHUB_POST_RULE_UP_3D_PCT:-3}
+      AIHUB_POST_RULE_DOWN_3D_PCT: ${AIHUB_POST_RULE_DOWN_3D_PCT:--3}
+      AIHUB_POST_RULE_MACD_CONFIRM_EPS: ${AIHUB_POST_RULE_MACD_CONFIRM_EPS:-0}
+      AIHUB_POST_RULE_HOLD_OVERRIDE_MAX_CONF: ${AIHUB_POST_RULE_HOLD_OVERRIDE_MAX_CONF:-0.72}
 
   market_data:
     build:
@@ -56,6 +63,18 @@ services:
     environment:
       DB_URL: postgresql+asyncpg://postgres:pass@db:5432/postgres
       VECTOR_BACKEND: memory
+      WEIGHTS_FILE: ${WEIGHTS_FILE:-/app/stockmem/config/weights.auto.json}
+      AUTO_OPTIMIZE_ENABLED: ${AUTO_OPTIMIZE_ENABLED:-true}
+      AUTO_OPTIMIZE_HOUR_UTC: ${AUTO_OPTIMIZE_HOUR_UTC:-1}
+      AUTO_OPTIMIZE_MINUTE_UTC: ${AUTO_OPTIMIZE_MINUTE_UTC:-15}
+      AUTO_OPTIMIZE_HORIZON: ${AUTO_OPTIMIZE_HORIZON:-7d}
+      AUTO_OPTIMIZE_TRIALS: ${AUTO_OPTIMIZE_TRIALS:-80}
+      AUTO_OPTIMIZE_K: ${AUTO_OPTIMIZE_K:-5}
+      AUTO_OPTIMIZE_WARMUP: ${AUTO_OPTIMIZE_WARMUP:-250}
+      AUTO_OPTIMIZE_MIN_RECORDS: ${AUTO_OPTIMIZE_MIN_RECORDS:-320}
+      AUTO_OPTIMIZE_OUTPUT: ${AUTO_OPTIMIZE_OUTPUT:-/app/stockmem/config/weights.auto.json}
+    volumes:
+      - ./stockmem/config:/app/stockmem/config
     depends_on:
       db:
         condition: service_healthy
@@ -82,6 +101,8 @@ services:
       MAIN_CONTROLLER_MARKET_DATA_URL: http://market_data:8002
       MAIN_CONTROLLER_STOCKMEM_URL: http://stockmem:8003
       MAIN_CONTROLLER_FACTORLEDGE_URL: http://factor_ledge:8004
+      MAIN_CONTROLLER_LLM_GATEWAY_URL: ${MAIN_CONTROLLER_LLM_GATEWAY_URL:-http://llm_gateway:8006}
+      MAIN_CONTROLLER_PREDICT_PROVIDER: ${MAIN_CONTROLLER_PREDICT_PROVIDER:-aihub}
       MAIN_CONTROLLER_DB_URL: postgresql+asyncpg://postgres:pass@db:5432/postgres
       MAIN_CONTROLLER_JWT_SECRET: ${MAIN_CONTROLLER_JWT_SECRET:-change-me}
       SUPABASE_URL: ${SUPABASE_URL:-}
@@ -94,6 +115,7 @@ services:
       - market_data
       - stockmem
       - factor_ledge
+      - llm_gateway
 
   llm_gateway:
     build:
@@ -102,8 +124,10 @@ services:
     ports: ["8006:8006"]
     environment:
       LLM_GATEWAY_OPENCODE_GO_API_KEY: ${LLM_GATEWAY_OPENCODE_GO_API_KEY:-}
-      LLM_GATEWAY_DEFAULT_MODEL: ${LLM_GATEWAY_DEFAULT_MODEL:-deepseek-v4-pro}
-      LLM_GATEWAY_MAX_ATTEMPTS: ${LLM_GATEWAY_MAX_ATTEMPTS:-2}
+      LLM_GATEWAY_DEFAULT_MODEL: ${LLM_GATEWAY_DEFAULT_MODEL:-deepseek-v4-flash}
+      LLM_GATEWAY_FALLBACK_MODELS: ${LLM_GATEWAY_FALLBACK_MODELS:-qwen3.5-plus}
+      LLM_GATEWAY_MAX_ATTEMPTS: ${LLM_GATEWAY_MAX_ATTEMPTS:-1}
+      LLM_GATEWAY_REQUEST_TIMEOUT_SECONDS: ${LLM_GATEWAY_REQUEST_TIMEOUT_SECONDS:-15}
 
   frontend:
     build: ./frontend

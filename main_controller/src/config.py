@@ -10,10 +10,12 @@ class MainControllerConfig(BaseAppConfig):
 
     crawler_url: str = "http://localhost:8000"
     aihub_url: str = "http://localhost:8001"
+    llm_gateway_url: str = "http://localhost:8006"
     market_data_url: str = "http://localhost:8002"
     stockmem_url: str = "http://localhost:8003"
     factorledge_url: str = "http://localhost:8004"
     k_similar: int = 5
+    predict_provider: str = "aihub"  # "aihub" | "llm_gateway"
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
     jwt_access_ttl_minutes: int = 30
@@ -25,6 +27,15 @@ class MainControllerConfig(BaseAppConfig):
     # UTC hour to trigger daily run (0-23)
     cron_hour: int = 23
     cron_minute: int = 50
+
+    # LLM signal post-policy tuning
+    llm_min_directional_confidence: float = 0.58
+    llm_hold_release_bias: float = 2.8
+
+    # kNN confirmation: require similar-case avg 7d return to agree with LLM signal.
+    # If LLM says BUY but kNN avg7 < -knn_confirm_threshold → HOLD (and vice versa).
+    # Set to 0.0 to disable.
+    llm_knn_confirm_threshold: float = 1.0
 
     model_config = SettingsConfigDict(
         env_prefix="MAIN_CONTROLLER_",

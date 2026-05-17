@@ -20,14 +20,6 @@ from shared.models.memory import StockMemRecord, SimilarRecord
 # Indicator-vec index labels (must stay in sync with
 # stockmem/src/search/embedder.py  _extract_raw_numerical)
 # ---------------------------------------------------------------------------
-INDICATOR_LABELS: list[str] = [
-    "MSI (Market Sentiment Index, 0-100)",
-    "RSI (Relative Strength Index, 0-100)",
-    "Sentiment Score (-1 to +1)",
-    "Fear & Greed Index (0-100)",
-    "Price Change %",
-]
-
 
 def _nf_val(nf: Any, key: str, default: Any = "?") -> Any:
     """Read a field from a NormalizedFactor, whether it is a dict or object."""
@@ -91,21 +83,6 @@ class StockMemClient:
 # ---------------------------------------------------------------------------
 # Record → human-readable text
 # ---------------------------------------------------------------------------
-def _format_indicator_vec(vec: list[float]) -> str:
-    """Translate an indicator_vec into labelled lines.
-
-    The vector produced by the StockMem embedder has 5 dimensions that are
-    z-scored and L2-normalized.  Even in normalized form the sign and relative
-    magnitude carry useful meaning for the LLM.
-    """
-    if not vec:
-        return "  (no indicator vector available)"
-    lines: list[str] = []
-    for i, val in enumerate(vec):
-        label = INDICATOR_LABELS[i] if i < len(INDICATOR_LABELS) else f"indicator[{i}]"
-        lines.append(f"  {label}: {val:+.4f}")
-    return "\n".join(lines)
-
 
 def _format_future_returns(record: StockMemRecord) -> str | None:
     """Format known future-return labels (ground-truth outcomes)."""
@@ -184,11 +161,6 @@ def record_to_text(record: StockMemRecord, *, include_outcome: bool = False) -> 
     )
     if snap.indicators:
         lines.append("Indicators: " + _format_indicators(snap.indicators))
-
-    # --- Indicator vector (z-scored market metrics) ---
-    if record.indicator_vec:
-        lines.append("Market Index (z-scored, L2-normalized):")
-        lines.append(_format_indicator_vec(record.indicator_vec))
 
     # --- Summary ---
     if record.summary:

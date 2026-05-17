@@ -21,6 +21,74 @@ from shared.models.prediction import SignalType
 logger = logging.getLogger(__name__)
 
 
+def _safe_float(value: object) -> float | None:
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def _pct_change(old: float | None, new: float | None) -> float | None:
+    if old is None or new is None or old == 0:
+        return None
+    return (new - old) / old * 100.0
+
+
+def _apply_post_signal_rules(
+    signal: SignalType, conf: float, request: PredictRequest, config: AIHubConfig
+) -> tuple[SignalType, list[str]]:
+    """Apply deterministic guardrails after LLM signal generation.
+
+    Rules:
+    - Block SELL when 30d trend is strongly bullish unless short-term breaks down.
+    - Block HOLD when 3d momentum is clearly directional.
+    """
+    if not config.post_rule_enabled:
+        return signal, []
+
+    notes: list[str] = []
+
+    snapshot = request.current.market_snapshot
+    indicators = snapshot.indicators or {}
+    candles = list(snapshot.recent_candles or [])
+
+    macd_hist = _safe_float(indicators.get("macd_hist"))
+    close_now = _safe_float(getattr(snapshot.ohlcv, "close", None))
+
+    close_3d = _safe_float(getattr(candles[-4], "close", None)) if len(candles) >= 4 else None
+    close_30d = _safe_float(getattr(candles[-20], "close", None)) if len(candles) >= 20 else None
+
+    ret_3d = _pct_change(close_3d, close_now)
+    ret_30d = _pct_change(close_30d, close_now)
+
+    bullish_30d = ret_30d is not None and ret_30d >= config.post_rule_bull_30d_pct
+    bearish_30d = ret_30d is not None and ret_30d <= config.post_rule_bear_30d_pct
+    clear_up_3d = ret_3d is not None and ret_3d >= config.post_rule_up_3d_pct
+    clear_down_3d = ret_3d is not None and ret_3d <= config.post_rule_down_3d_pct
+    macd_buy_ok = macd_hist is not None and macd_hist >= config.post_rule_macd_confirm_eps
+    macd_sell_ok = macd_hist is not None and macd_hist <= -config.post_rule_macd_confirm_eps
+
+    if signal == SignalType.SELL and bullish_30d and not (clear_down_3d and macd_sell_ok):
+        signal = SignalType.HOLD
+        notes.append(
+            "post-rule: blocked SELL because 30d trend is strongly bullish without confirmed 3d+MACD breakdown."
+        )
+
+    if signal == SignalType.HOLD and conf <= config.post_rule_hold_override_max_conf:
+        if clear_up_3d and not bearish_30d and macd_buy_ok:
+            signal = SignalType.BUY
+            notes.append(
+                "post-rule: upgraded HOLD -> BUY because 3d momentum+MACD confirms upside and 30d regime is not bearish."
+            )
+        elif clear_down_3d and not bullish_30d and macd_sell_ok:
+            signal = SignalType.SELL
+            notes.append(
+                "post-rule: downgraded HOLD -> SELL because 3d momentum+MACD confirms downside and 30d regime is not bullish."
+            )
+
+    return signal, notes
+
+
 def _predict_error_response(exc: Exception) -> PredictResponse:
     """Map exceptions to HOLD + actionable copy (network vs keys vs upstream)."""
     raw = str(exc).strip()
@@ -134,6 +202,7 @@ async def predict(request: PredictRequest, http: Request) -> PredictResponse:
     """Generate a trading signal using RAG with similar historical cases."""
     predict_llm: LLMClient = http.app.state.predict_client
     rag_builder: RAGContextBuilder = http.app.state.rag_builder
+    config: AIHubConfig = http.app.state.config
 
     from aihub.src.predict.client import PredictClient
 
@@ -153,11 +222,37 @@ async def predict(request: PredictRequest, http: Request) -> PredictResponse:
         conf = float(result.get("confidence", 0))
         conf = max(0.0, min(1.0, conf))
 
+        signal, post_rule_notes = _apply_post_signal_rules(signal, conf, request, config)
+        reasoning_steps = list(result.get("reasoning_steps", []))
+        if post_rule_notes:
+            reasoning_steps.extend(post_rule_notes)
+
+        # kNN confirmation: veto directional signal when similar-case outcomes contradict it.
+        # Also suppress SELL when no kNN return data is available (cannot confirm).
+        knn_threshold = config.knn_confirm_threshold
+        if knn_threshold > 0.0 and request.similar:
+            sim7_vals = [
+                c.record.future_return_7d
+                for c in request.similar
+                if c.record.future_return_7d is not None
+            ]
+            if not sim7_vals and signal == SignalType.SELL:
+                signal = SignalType.HOLD
+                reasoning_steps.append("post-rule: knn_no_data_suppress_sell")
+            elif sim7_vals:
+                avg7 = sum(sim7_vals) / len(sim7_vals)
+                if signal == SignalType.SELL and avg7 > knn_threshold:
+                    signal = SignalType.HOLD
+                    reasoning_steps.append("post-rule: knn_veto_sell (similar cases bullish)")
+                elif signal == SignalType.BUY and avg7 < -knn_threshold:
+                    signal = SignalType.HOLD
+                    reasoning_steps.append("post-rule: knn_veto_buy (similar cases bearish)")
+
         return PredictResponse(
             signal=signal,
             confidence=conf,
             explanation=result.get("explanation", ""),
-            reasoning_steps=list(result.get("reasoning_steps", [])),
+            reasoning_steps=reasoning_steps,
         )
     except Exception as exc:
         logger.exception("predict endpoint failed: %s", exc)

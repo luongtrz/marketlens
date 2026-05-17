@@ -72,9 +72,13 @@ def load_weights_from_config(
         if wf.exists():
             with wf.open("r", encoding="utf-8") as fh:
                 payload = json.load(fh)
-            w1 = _as_float(payload.get("w1_factor"), w1)
-            w2 = _as_float(payload.get("w2_indicator"), w2)
-            w3 = _as_float(payload.get("w3_price"), w3)
+            src = payload
+            if isinstance(payload, dict) and isinstance(payload.get("weights"), dict):
+                src = payload.get("weights")
+            if isinstance(src, dict):
+                w1 = _as_float(src.get("w1_factor"), w1)
+                w2 = _as_float(src.get("w2_indicator"), w2)
+                w3 = _as_float(src.get("w3_price"), w3)
 
     w1 = _as_float(os.getenv("W1_FACTOR"), w1)
     w2 = _as_float(os.getenv("W2_INDICATOR"), w2)
