@@ -16,6 +16,7 @@ interface LightweightChartProps {
     onChartClick?: (time: number) => void;
     onLoadMore?: (oldestTime: number) => void;
     onCrosshairMove?: (data: { time: number | null, open?: number, high?: number, low?: number, close?: number, volume?: number } | null) => void;
+    resetKey?: string;
 }
 
 const LightweightChart: React.FC<LightweightChartProps> = ({
@@ -26,7 +27,8 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
     visibleRange = null,
     onChartClick,
     onLoadMore,
-    onCrosshairMove
+    onCrosshairMove,
+    resetKey,
 }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<any>(null);
@@ -75,6 +77,9 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
         macdSeriesRef.current = null;
         macdSignalRef.current = null;
         macdHistRef.current = null;
+        isInitializedRef.current = false;
+        prevTypeRef.current = type;
+        prevIndicatorsRef.current = indicators;
 
         const chart = createChart(chartContainerRef.current, {
             layout: {
@@ -266,7 +271,7 @@ const LightweightChart: React.FC<LightweightChartProps> = ({
             macdSignalRef.current = null;
             macdHistRef.current = null;
         };
-    }, []);
+    }, [resetKey]);
 
     // Handle Visible Range Changes
     const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({ display: 'none' });

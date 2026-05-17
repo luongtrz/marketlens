@@ -5,7 +5,7 @@ import { CoinData, ForecastResult, HistoryPoint, NewsArticle } from '../types';
 import LightweightChart from '../components/LightweightChart';
 
 import { Search, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, GripHorizontal, Globe, BrainCircuit, Sparkles, RefreshCw, Zap, Target, ShieldAlert, Check, Loader2, X, SlidersHorizontal, Activity, BarChart2, Star, ChevronDown, List, Hand, Calendar } from 'lucide-react';
-import { getTopCoins, getHistoricalData, generateMarketForecast, fetchLatestNews, createChatSession, MarketWebSocket } from '../services/apiService';
+import { getTopCoins, getHistoricalData, generateMarketForecast, fetchLatestNews, getCachedLatestNews, getCachedTopCoins, createChatSession, MarketWebSocket } from '../services/apiService';
 import { useAuth } from '../context/AuthContext';
 import { formatDateToLocalWithOffset } from '../utils/formatters';
 
@@ -48,6 +48,57 @@ type SortDirection = 'asc' | 'desc';
 
 const CONTEXT_NEWS_PAGE_SIZE = 8;
 
+const makeShellCoin = (symbol: string): CoinData => ({
+    symbol,
+    name: symbol,
+    price: 0,
+    change24h: 0,
+    volume: '-',
+    marketCap: '-',
+    history: [],
+});
+
+const getInitialCoins = (): CoinData[] => {
+    const cached = getCachedTopCoins();
+    return cached?.length ? cached : [makeShellCoin('BTC'), makeShellCoin('ETH')];
+};
+
+const percentChange = (price: number, change: number): number => {
+    const previous = price - change;
+    if (!Number.isFinite(previous) || previous === 0) return 0;
+    return (change / previous) * 100;
+};
+
+const CoinIcon: React.FC<{ symbol: string; size?: 'sm' | 'md' }> = ({ symbol, size = 'md' }) => {
+    const normalized = symbol.toUpperCase();
+    const box = size === 'sm' ? 'w-5 h-5 text-[11px]' : 'w-6 h-6 text-xs';
+
+    if (normalized === 'BTC') {
+        return (
+            <div className={`${box} rounded-full flex items-center justify-center font-bold text-white bg-[#f7931a] shadow-sm`}>
+                ₿
+            </div>
+        );
+    }
+
+    if (normalized === 'ETH') {
+        return (
+            <div className={`${box} rounded-full flex items-center justify-center bg-[#627eea] shadow-sm`}>
+                <div className="relative h-4 w-2.5">
+                    <div className="absolute left-1/2 top-0 h-0 w-0 -translate-x-1/2 border-l-[5px] border-r-[5px] border-b-[8px] border-l-transparent border-r-transparent border-b-white/95" />
+                    <div className="absolute left-1/2 bottom-0 h-0 w-0 -translate-x-1/2 border-l-[5px] border-r-[5px] border-t-[8px] border-l-transparent border-r-transparent border-t-white/80" />
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className={`${box} rounded-full flex items-center justify-center font-bold text-white shadow-sm ${normalized === 'SOL' ? 'bg-purple-600' : 'bg-slate-700'}`}>
+            {normalized[0]}
+        </div>
+    );
+};
+
 const Dashboard: React.FC = () => {
     const { isAuthenticated } = useAuth();
     const getNewsCardAccent = (sentiment?: string) => {
@@ -61,7 +112,7 @@ const Dashboard: React.FC = () => {
         if (sentiment === 'Negative') return 'hover:border-red-300 hover:ring-red-200/70 hover:shadow-red-200/30';
         return 'hover:border-amber-300 hover:ring-amber-200/70 hover:shadow-amber-200/30';
     };
-    const [coins, setCoins] = useState<CoinData[]>([]);
+    const [coins, setCoins] = useState<CoinData[]>(getInitialCoins);
     const [selectedCoinSymbol, setSelectedCoinSymbol] = useState<string>(() => {
         return localStorage.getItem('marketlens_selected_coin') || 'BTC';
     });
@@ -81,7 +132,8 @@ const Dashboard: React.FC = () => {
     const [loadingForecast, setLoadingForecast] = useState(false);
     const [combinedChartData, setCombinedChartData] = useState<any[]>([]);
     const [timeRange, setTimeRange] = useState('1d');
-    const [loadingMarket, setLoadingMarket] = useState(true);
+    const [loadingMarket, setLoadingMarket] = useState(false);
+    const [loadingChart, setLoadingChart] = useState(true);
     const [loadingMoreHistory, setLoadingMoreHistory] = useState(false);
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -92,6 +144,7 @@ const Dashboard: React.FC = () => {
     const currentSymbolRef = useRef<string>('');
     const sidebarRef = useRef<HTMLDivElement>(null);
     const contextNewsListScrollRef = useRef<HTMLDivElement>(null);
+    const lastChartFetchKeyRef = useRef<string>('');
 
     const [searchQuery, setSearchQuery] = useState('');
     const [favorites, setFavorites] = useState<Set<string>>(new Set(['BTC', 'ETH']));
@@ -107,7 +160,9 @@ const Dashboard: React.FC = () => {
     const [hasActiveRange, setHasActiveRange] = useState(false);
 
     // News State
-    const [contextNews, setContextNews] = useState<NewsArticle[]>([]);
+    const [contextNews, setContextNews] = useState<NewsArticle[]>(() => {
+        return getCachedLatestNews(undefined, undefined, localStorage.getItem('marketlens_selected_coin') || 'BTC') || [];
+    });
     const [contextNewsPage, setContextNewsPage] = useState(1);
     const [loadingNews, setLoadingNews] = useState(false);
 
@@ -157,10 +212,13 @@ const Dashboard: React.FC = () => {
     });
 
     const selectedCoin = coins.find(c => c.symbol === selectedCoinSymbol) || coins[0];
+    const chartResetKey = `${selectedCoinSymbol}:${timeRange}`;
 
     useEffect(() => {
         const fetchMarket = async () => {
-            setLoadingMarket(true);
+            if (coins.length === 0) {
+                setLoadingMarket(true);
+            }
             const data = await getTopCoins();
             setCoins(data);
             if (data.length > 0 && !data.find(c => c.symbol === selectedCoinSymbol)) {
@@ -175,59 +233,96 @@ const Dashboard: React.FC = () => {
 
 
     useEffect(() => {
+        setCombinedChartData([]);
+        setHoveredCandle(null);
+        setLoadingChart(true);
+        lastChartFetchKeyRef.current = '';
+    }, [chartResetKey]);
+
+    useEffect(() => {
+        let cancelled = false;
+
         const fetchChart = async () => {
-            if (!selectedCoin) return;
-            // Skip fetch when Custom range is selected - Custom is for news filtering only, not chart data
-            if (timeRange === 'Custom') return;
-
-            const { limit, aggregate, type, format } = getRangeParams(timeRange);
-            // CryptoCompare uses Symbol directly
-            const history = await getHistoricalData(selectedCoin.symbol, limit, aggregate, type);
-
-            let chartData = history.map(h => ({
-                ...h,
-                time: new Date(h.ts).toLocaleString('en-US', format)
-            }));
-
-            if (forecastResult && forecastResult.predictedPrices.length > 0) {
-                const lastHistoryPoint = chartData[chartData.length - 1];
-                const lastTime = lastHistoryPoint ? lastHistoryPoint.ts : new Date().getTime();
-                const lastPrice = lastHistoryPoint ? lastHistoryPoint.price! : selectedCoin.price;
-
-                // Simple Linear/Exponential Projection for visualized forecast
-                // We use the time interval from the last two points to project future time
-                const pointInterval = chartData.length > 1
-                    ? chartData[chartData.length - 1].ts - chartData[chartData.length - 2].ts
-                    : (type === 'minute' ? 600 * 1000 : 3600 * 1000); // Fallback
-
-                const finalPredictedPrice = forecastResult.predictedPrices[forecastResult.predictedPrices.length - 1];
-                const steps = forecastResult.predictedPrices.length;
-                const ratio = finalPredictedPrice / lastPrice;
-                const growthRate = Math.pow(ratio, 1 / steps) - 1;
-
-                const futurePoints = Array.from({ length: steps }).map((_, index) => {
-                    const futureTime = new Date(lastTime + (index + 1) * pointInterval);
-                    const interpolatedPrice = lastPrice * Math.pow(1 + growthRate, index + 1);
-
-                    return {
-                        time: futureTime.toLocaleString('en-US', format),
-                        ts: futureTime.getTime(),
-                        forecast: parseFloat(interpolatedPrice.toFixed(2)),
-                    };
-                });
-
-                const bridgePoint = {
-                    ...chartData[chartData.length - 1],
-                    forecast: lastPrice
-                };
-                chartData[chartData.length - 1] = bridgePoint;
-                chartData = [...chartData, ...futurePoints];
+            if (!selectedCoin) {
+                setLoadingChart(false);
+                return;
             }
-            setCombinedChartData(chartData);
+            // Skip fetch when Custom range is selected - Custom is for news filtering only, not chart data
+            if (timeRange === 'Custom') {
+                setLoadingChart(false);
+                return;
+            }
+
+            setLoadingChart(true);
+            const { limit, aggregate, type, format } = getRangeParams(timeRange);
+            const fetchKey = `${selectedCoin.symbol}:${timeRange}:${limit}:${aggregate}:${type}:${forecastResult ? 'forecast' : 'plain'}`;
+            if (fetchKey === lastChartFetchKeyRef.current && combinedChartData.length > 0) {
+                setLoadingChart(false);
+                return;
+            }
+            // CryptoCompare uses Symbol directly
+            try {
+                const history = await getHistoricalData(selectedCoin.symbol, limit, aggregate, type);
+                if (cancelled) return;
+
+                if (history.length === 0) {
+                    setCombinedChartData((prev) => prev);
+                    return;
+                }
+
+                let chartData = history.map(h => ({
+                    ...h,
+                    time: new Date(h.ts).toLocaleString('en-US', format)
+                }));
+
+                if (forecastResult && forecastResult.predictedPrices.length > 0) {
+                    const lastHistoryPoint = chartData[chartData.length - 1];
+                    const lastTime = lastHistoryPoint ? lastHistoryPoint.ts : new Date().getTime();
+                    const lastPrice = lastHistoryPoint ? lastHistoryPoint.price! : selectedCoin.price;
+
+                    // Simple Linear/Exponential Projection for visualized forecast
+                    // We use the time interval from the last two points to project future time
+                    const pointInterval = chartData.length > 1
+                        ? chartData[chartData.length - 1].ts - chartData[chartData.length - 2].ts
+                        : (type === 'minute' ? 600 * 1000 : 3600 * 1000); // Fallback
+
+                    const finalPredictedPrice = forecastResult.predictedPrices[forecastResult.predictedPrices.length - 1];
+                    const steps = forecastResult.predictedPrices.length;
+                    const ratio = finalPredictedPrice / lastPrice;
+                    const growthRate = Math.pow(ratio, 1 / steps) - 1;
+
+                    const futurePoints = Array.from({ length: steps }).map((_, index) => {
+                        const futureTime = new Date(lastTime + (index + 1) * pointInterval);
+                        const interpolatedPrice = lastPrice * Math.pow(1 + growthRate, index + 1);
+
+                        return {
+                            time: futureTime.toLocaleString('en-US', format),
+                            ts: futureTime.getTime(),
+                            forecast: parseFloat(interpolatedPrice.toFixed(2)),
+                        };
+                    });
+
+                    const bridgePoint = {
+                        ...chartData[chartData.length - 1],
+                        forecast: lastPrice
+                    };
+                    chartData[chartData.length - 1] = bridgePoint;
+                    chartData = [...chartData, ...futurePoints];
+                }
+                setCombinedChartData(chartData);
+                lastChartFetchKeyRef.current = fetchKey;
+            } finally {
+                if (!cancelled) {
+                    setLoadingChart(false);
+                }
+            }
         };
 
         fetchChart();
-    }, [selectedCoin, forecastResult, timeRange]);
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedCoin?.symbol, forecastResult, timeRange]);
 
     const handleLoadMore = async (oldestTimestamp: number) => {
         if (!selectedCoin || loadingMoreHistory || timeRange === 'Custom') return;
@@ -588,7 +683,7 @@ const Dashboard: React.FC = () => {
             return {
                 price: currentPrice,
                 change: selectedCoin.change24h,
-                percent: (selectedCoin.change24h / (selectedCoin.price - selectedCoin.change24h)) * 100
+                percent: percentChange(selectedCoin.price, selectedCoin.change24h)
             };
         }
 
@@ -750,9 +845,7 @@ const Dashboard: React.FC = () => {
                                     onClick={() => setIsCoinDropdownOpen(!isCoinDropdownOpen)}
                                     className="flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 p-1 -ml-1 rounded-lg transition-colors text-left group"
                                 >
-                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm ${selectedCoin.symbol === 'BTC' ? 'bg-orange-500' : selectedCoin.symbol === 'ETH' ? 'bg-blue-600' : selectedCoin.symbol === 'SOL' ? 'bg-purple-600' : 'bg-slate-700'}`}>
-                                        {selectedCoin.symbol[0]}
-                                    </div>
+                                    <CoinIcon symbol={selectedCoin.symbol} />
 
                                     <div className="flex items-center gap-3">
                                         <div className="flex items-center gap-1.5">
@@ -825,6 +918,7 @@ const Dashboard: React.FC = () => {
                                                             <div onClick={(e) => { e.stopPropagation(); toggleFavorite(e, coin.symbol); }} className="text-slate-300 hover:text-amber-400">
                                                                 <Star size={14} fill={favorites.has(coin.symbol) ? "#fbbf24" : "none"} className={favorites.has(coin.symbol) ? "text-amber-400" : ""} />
                                                             </div>
+                                                            <CoinIcon symbol={coin.symbol} size="sm" />
                                                             <div className="text-left">
                                                                 <div className="font-bold text-sm text-slate-900 dark:text-white leading-none">{coin.symbol}</div>
                                                                 <div className="text-[10px] text-slate-400">{coin.name}</div>
@@ -838,7 +932,7 @@ const Dashboard: React.FC = () => {
                                                         </div>
                                                         <div className={`w-[20%] text-right`}>
                                                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${coin.change24h >= 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400'}`}>
-                                                                {((coin.change24h / (coin.price - coin.change24h)) * 100).toFixed(2)}%
+                                                                {percentChange(coin.price, coin.change24h).toFixed(2)}%
                                                             </span>
                                                         </div>
                                                     </button>
@@ -938,16 +1032,32 @@ const Dashboard: React.FC = () => {
                 {/* Chart Content */}
                 <div className="flex-1 relative flex flex-col bg-white dark:bg-slate-900 min-h-0">
                     <div className="flex-1 relative min-h-0">
-                        <LightweightChart
-                            data={combinedChartData}
-                            color={headerStats.change >= 0 ? '#10b981' : '#f43f5e'}
-                            type={chartType}
-                            indicators={indicators}
-                            onChartClick={handleChartClick}
-                            visibleRange={chartVisibleRange}
-                            onLoadMore={handleLoadMore}
-                            onCrosshairMove={setHoveredCandle}
-                        />
+                        {combinedChartData.length > 0 ? (
+                            <LightweightChart
+                                data={combinedChartData}
+                                color={headerStats.change >= 0 ? '#10b981' : '#f43f5e'}
+                                type={chartType}
+                                indicators={indicators}
+                                onChartClick={handleChartClick}
+                                visibleRange={chartVisibleRange}
+                                onLoadMore={handleLoadMore}
+                                onCrosshairMove={setHoveredCandle}
+                                resetKey={chartResetKey}
+                            />
+                        ) : (
+                            <div className="flex h-full min-h-[400px] items-center justify-center bg-white dark:bg-slate-900">
+                                <div className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                                    {loadingChart ? (
+                                        <>
+                                            <Loader2 className="animate-spin text-indigo-600" size={18} />
+                                            <span>Loading chart...</span>
+                                        </>
+                                    ) : (
+                                        <span>No chart data available.</span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                         {isRangeSelecting && (
                             <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg z-10 pointer-events-none animate-in fade-in slide-in-from-top-2">
                                 {rangeStart ? "Click end point..." : "Click start point..."}

@@ -26,6 +26,13 @@ class MainControllerConfig(BaseAppConfig):
     cron_hour: int = 23
     cron_minute: int = 50
 
+    cache_enabled: bool = True
+    cache_market_snapshot_ttl_seconds: int = 45
+    cache_market_history_ttl_seconds: int = 300
+    cache_market_historical_history_ttl_seconds: int = 86400
+    cache_news_first_page_ttl_seconds: int = 120
+    cache_ai_predict_ttl_seconds: int = 90000
+
     model_config = SettingsConfigDict(
         env_prefix="MAIN_CONTROLLER_",
         env_file="main_controller/.env",

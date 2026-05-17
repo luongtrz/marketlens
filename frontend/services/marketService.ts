@@ -9,6 +9,7 @@
  */
 
 import { CoinData, HistoryPoint } from '../types';
+import { getCached, getOrFetchCached, setCached } from './memoryCache';
 
 // --- Configuration ---
 
@@ -17,6 +18,82 @@ const MARKET_BASE_URL =
 
 const MOCK_MODE = String(import.meta.env.VITE_MOCK_MODE || '').toLowerCase() === 'true';
 const MOCK_SYMBOLS = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP'];
+const SYMBOLS_TTL_MS = 5 * 60 * 1000;
+const SNAPSHOT_TTL_MS = 30 * 1000;
+const HISTORY_TTL_MS = 5 * 60 * 1000;
+const PERSISTED_HISTORY_TTL_MS = 15 * 60 * 1000;
+const TOP_COINS_TTL_MS = 30 * 1000;
+
+const historyCacheKey = (
+    symbol: string,
+    interval: string,
+    limit: number,
+    endTime?: number,
+) => `market:history:${symbol.toUpperCase()}:${interval}:${limit}:${endTime || 'live'}`;
+
+export const getCachedTopCoins = (): CoinData[] | null => getCached<CoinData[]>('market:top-coins');
+
+export const getCachedHistoricalData = (
+    symbol: string,
+    interval: string = '1h',
+    limit: number = 200,
+    endTime?: number,
+): HistoryPoint[] | null => {
+    const key = historyCacheKey(symbol, interval, limit, endTime);
+    return getCached<HistoryPoint[]>(key) || readPersistedHistory(key);
+};
+
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const fetchJsonWithRetry = async (url: string, label: string, attempts = 3): Promise<any> => {
+    let lastError: unknown;
+    for (let i = 0; i < attempts; i++) {
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`${label} failed with status ${res.status}`);
+            return await res.json();
+        } catch (error) {
+            lastError = error;
+            if (i < attempts - 1) {
+                await delay(250 * (i + 1));
+            }
+        }
+    }
+    throw lastError;
+};
+
+const persistentStorageKey = (key: string) => `marketlens:${key}`;
+
+const readPersistedHistory = (key: string, allowExpired = false): HistoryPoint[] | null => {
+    try {
+        const raw = localStorage.getItem(persistentStorageKey(key));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as { expiresAt: number; value: HistoryPoint[] };
+        if (!allowExpired && Date.now() >= parsed.expiresAt) return null;
+        if (!Array.isArray(parsed.value) || parsed.value.length === 0) return null;
+        console.info('[persistent-cache] hit', key);
+        setCached(key, parsed.value, HISTORY_TTL_MS);
+        return parsed.value;
+    } catch {
+        return null;
+    }
+};
+
+const writePersistedHistory = (key: string, value: HistoryPoint[]) => {
+    try {
+        if (!value.length) return;
+        localStorage.setItem(
+            persistentStorageKey(key),
+            JSON.stringify({
+                value,
+                expiresAt: Date.now() + PERSISTED_HISTORY_TTL_MS,
+            }),
+        );
+        console.debug('[persistent-cache] set', key);
+    } catch {
+        // localStorage can be full or disabled; memory cache still works.
+    }
+};
 
 const buildMockHistory = (symbol: string, limit: number): HistoryPoint[] => {
     const now = Date.now();
@@ -57,18 +134,20 @@ function getWsUrl(): string {
  * Returns e.g. ["BTC", "ETH", "SOL", "BNB", "XRP"]
  */
 export const fetchSymbols = async (): Promise<string[]> => {
+    const cacheKey = 'market:symbols';
+    const cached = !MOCK_MODE ? await getOrFetchCached(cacheKey, SYMBOLS_TTL_MS, async () => {
+        const data = await fetchJsonWithRetry(`${MARKET_BASE_URL}/symbols`, 'fetchSymbols');
+        return data.symbols || [];
+    }).catch((e) => {
+        console.error('fetchSymbols failed', e);
+        return [];
+    }) : null;
+    if (cached) return cached;
+
     if (MOCK_MODE) {
         return [...MOCK_SYMBOLS];
     }
-    try {
-        const res = await fetch(`${MARKET_BASE_URL}/symbols`);
-        if (!res.ok) throw new Error('Failed to fetch symbols');
-        const data = await res.json();
-        return data.symbols || [];
-    } catch (e) {
-        console.error('fetchSymbols failed', e);
-        return [];
-    }
+    return [];
 };
 
 /**
@@ -85,16 +164,18 @@ export const fetchHistoricalData = async (
     if (MOCK_MODE) {
         return buildMockHistory(symbol.toUpperCase(), Math.min(limit, 200));
     }
-    try {
+    const cacheKey = historyCacheKey(symbol, interval, limit, endTime);
+    const persisted = readPersistedHistory(cacheKey);
+    if (persisted) return persisted;
+
+    return getOrFetchCached(cacheKey, HISTORY_TTL_MS, async () => {
         let url = `${MARKET_BASE_URL}/history?symbol=${symbol}&interval=${interval}&limit=${limit}`;
         if (endTime) {
             url += `&end_time=${endTime}`;
         }
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('Failed to fetch history');
-        const candles = await res.json();
+        const candles = await fetchJsonWithRetry(url, 'fetchHistoricalData');
 
-        return candles.map((c: any) => ({
+        const history = candles.map((c: any) => ({
             ts: new Date(c.timestamp).getTime(),
             time: c.timestamp, // Will be formatted by Dashboard
             price: c.close,
@@ -104,10 +185,12 @@ export const fetchHistoricalData = async (
             close: c.close,
             volume: c.volume,
         }));
-    } catch (e) {
+        writePersistedHistory(cacheKey, history);
+        return history;
+    }).catch((e) => {
         console.error('fetchHistoricalData failed', e);
-        return [];
-    }
+        return readPersistedHistory(cacheKey, true) || [];
+    });
 };
 
 /**
@@ -127,21 +210,21 @@ export const fetchSnapshot = async (
         const changeSign = Math.random() > 0.5 ? 1 : -1;
         return { price: Number(price.toFixed(2)), change24h: Number((price * 0.02 * changeSign).toFixed(2)), indicators: {} };
     }
-    try {
-        const res = await fetch(
+    const cacheKey = `market:snapshot:${symbol.toUpperCase()}:${interval}`;
+    return getOrFetchCached(cacheKey, SNAPSHOT_TTL_MS, async () => {
+        const data = await fetchJsonWithRetry(
             `${MARKET_BASE_URL}/snapshot?symbol=${symbol}&interval=${interval}`,
+            'fetchSnapshot',
         );
-        if (!res.ok) return null;
-        const data = await res.json();
         return {
             price: data.ohlcv.close,
             change24h: 0, // Snapshot doesn't include 24h change
             indicators: data.indicators || {},
         };
-    } catch (e) {
+    }).catch((e) => {
         console.error('fetchSnapshot failed', e);
         return null;
-    }
+    });
 };
 
 /**
@@ -168,34 +251,39 @@ export const fetchTopCoins = async (): Promise<CoinData[]> => {
             };
         });
     }
-    const symbols = await fetchSymbols();
-    const coins: CoinData[] = [];
+    return getOrFetchCached('market:top-coins', TOP_COINS_TTL_MS, async () => {
+        const symbols = await fetchSymbols();
+        const coins: CoinData[] = [];
 
-    for (const symbol of symbols) {
-        try {
-            const snapshot = await fetchSnapshot(symbol, '1h');
-            const history = await fetchHistoricalData(symbol, '1h', 24);
+        const results = await Promise.all(symbols.map(async (symbol) => {
+            try {
+                const snapshot = await fetchSnapshot(symbol, '1h');
+                const history = await fetchHistoricalData(symbol, '1h', 24);
 
-            // Calculate 24h change from history
-            const firstClose = history.length > 0 ? history[0].price! : snapshot?.price || 0;
-            const currentPrice = snapshot?.price || 0;
-            const change24h = currentPrice - firstClose;
+                // Calculate 24h change from history
+                const firstClose = history.length > 0 ? history[0].price! : snapshot?.price || 0;
+                const currentPrice = snapshot?.price || 0;
+                const change24h = currentPrice - firstClose;
 
-            coins.push({
-                symbol,
-                name: symbol, // Could be enhanced with full names
-                price: currentPrice,
-                change24h,
-                volume: '-',
-                marketCap: '-',
-                history,
-            });
-        } catch {
-            console.warn(`Failed to fetch data for ${symbol}`);
-        }
-    }
+                return {
+                    symbol,
+                    name: symbol, // Could be enhanced with full names
+                    price: currentPrice,
+                    change24h,
+                    volume: '-',
+                    marketCap: '-',
+                    history,
+                };
+            } catch {
+                console.warn(`Failed to fetch data for ${symbol}`);
+                return null;
+            }
+        }));
 
-    return coins;
+        coins.push(...results.filter((coin): coin is CoinData => coin !== null));
+
+        return coins;
+    });
 };
 
 // --- WebSocket Manager ---

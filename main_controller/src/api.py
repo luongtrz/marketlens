@@ -25,6 +25,7 @@ from main_controller.src.auth.service import AuthService
 from main_controller.src.orchestrator.pipeline import Pipeline, PipelineConfig
 from main_controller.src.orchestrator.steps import ModuleClients
 from main_controller.src.ui_routes import router as ui_router
+from shared.cache import RedisCache
 from shared.models.factor import Factor, NormalizedFactor
 from shared.models.market import MarketSnapshot
 from shared.models.memory import StockMemRecord
@@ -47,6 +48,11 @@ class RunState(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     config = MainControllerConfig()
+    cache = (
+        RedisCache(config.redis_url, namespace="marketlens:main_controller")
+        if config.cache_enabled
+        else None
+    )
     auth_repo = AuthRepository(config.db_url)
     await auth_repo.init()
     app.state.auth = AuthService(
@@ -58,14 +64,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         issuer=config.jwt_issuer,
     )
     clients = ModuleClients(
-        crawler=CrawlerClient(config.crawler_url),
-        aihub=AIHubClient(config.aihub_url),
-        market=MarketClient(config.market_data_url),
+        crawler=CrawlerClient(
+            config.crawler_url,
+            cache=cache,
+            news_ttl_seconds=config.cache_news_first_page_ttl_seconds,
+        ),
+        aihub=AIHubClient(
+            config.aihub_url,
+            cache=cache,
+            predict_ttl_seconds=config.cache_ai_predict_ttl_seconds,
+        ),
+        market=MarketClient(
+            config.market_data_url,
+            cache=cache,
+            snapshot_ttl_seconds=config.cache_market_snapshot_ttl_seconds,
+            history_ttl_seconds=config.cache_market_history_ttl_seconds,
+            historical_history_ttl_seconds=config.cache_market_historical_history_ttl_seconds,
+        ),
         stockmem=StockMemClient(config.stockmem_url),
         factorledge=FactorLedgeClient(config.factorledge_url),
     )
     app.state.pipeline = Pipeline(clients, PipelineConfig(k_similar=config.k_similar))
     app.state.clients = clients
+    app.state.cache = cache
+    app.state.config = config
     app.state.run_states: dict[str, RunState] = {}
     app.state.background_tasks: set[asyncio.Task] = set()
 
@@ -86,6 +108,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     cron_task.cancel()
     if app.state.background_tasks:
         await asyncio.gather(*app.state.background_tasks, return_exceptions=True)
+    if cache is not None:
+        await cache.close()
     await auth_repo.aclose()
 
 

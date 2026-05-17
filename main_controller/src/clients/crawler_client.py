@@ -3,6 +3,7 @@
 import os
 from datetime import datetime
 
+from shared.cache import RedisCache
 from shared.models.article import IngestionRecord
 from shared.supabase_news import check_supabase_rest_reachable, fetch_news_articles_from_supabase
 
@@ -18,8 +19,16 @@ class CrawlerClient:
         base_url: Reserved for a future HTTP crawler API; unused for Supabase reads.
     """
 
-    def __init__(self, base_url: str = "") -> None:
+    def __init__(
+        self,
+        base_url: str = "",
+        *,
+        cache: RedisCache | None = None,
+        news_ttl_seconds: int = 120,
+    ) -> None:
         self._base_url = base_url
+        self._cache = cache
+        self._news_ttl_seconds = news_ttl_seconds
 
     async def health_check(self) -> bool:
         """True when Supabase env is set and PostgREST returns 2xx."""
@@ -49,11 +58,36 @@ class CrawlerClient:
         ``offset`` is paired with ``limit`` when reading without symbol (PostgREST OFFSET).
         With symbol filters, paging is bounded by scanning in ``shared.supabase_news``.
         """
-        return await fetch_news_articles_from_supabase(
+        offset = max(0, offset)
+        should_cache = self._cache is not None and lite and limit <= 50
+        key = None
+        if should_cache:
+            key = self._cache.key(
+                "news",
+                "latest",
+                symbol.upper() or "all",
+                limit,
+                offset,
+                "lite",
+                publish_gte.isoformat() if publish_gte else "none",
+                publish_lte.isoformat() if publish_lte else "none",
+            )
+            cached = await self._cache.get_json(key)
+            if cached is not None:
+                return [IngestionRecord.model_validate(item) for item in cached]
+
+        records = await fetch_news_articles_from_supabase(
             limit=limit,
-            offset=max(0, offset),
+            offset=offset,
             symbol=symbol,
             lite=lite,
             publish_gte=publish_gte,
             publish_lte=publish_lte,
         )
+        if should_cache and key is not None:
+            await self._cache.set_json(
+                key,
+                [record.model_dump(mode="json") for record in records],
+                self._news_ttl_seconds,
+            )
+        return records
