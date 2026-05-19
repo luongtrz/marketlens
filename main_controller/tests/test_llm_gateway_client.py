@@ -164,9 +164,9 @@ def test_rsi_oversold_blocks_sell_at_bottom(sample_stockmem_record):
     """
     # RSI=25 (oversold), 3d return=+2.5% (price already recovering) → bottom formation
     current = _record_with_rsi_and_3d_candles(sample_stockmem_record, rsi=25.0, ret_3d_pct=2.5)
-    # Bearish kNN data confirms SELL from kNN side (avg7=-2.0 < 1.0 → no kNN veto on SELL)
-    # but RSI oversold + recovery should still override to HOLD
-    bearish_case = sample_stockmem_record.model_copy(update={"future_return_7d": -2.0})
+    # avg7=-3.5 passes kNN veto (knn_sell_threshold=-3.0 vetoes SELL when avg7 > -3.0)
+    # RSI oversold + price recovery should still override to HOLD via G6
+    bearish_case = sample_stockmem_record.model_copy(update={"future_return_7d": -3.5})
     similar = [SimilarRecord(record=bearish_case, similarity=0.9)]
     client = LLMGatewayClient(min_directional_confidence=0.0, hold_release_bias=9.9)
     signal, _, notes = client._apply_regime_policy(SignalType.SELL, current, similar)
@@ -214,8 +214,9 @@ def test_dual_momentum_blocks_buy_in_early_correction(sample_stockmem_record):
 
 def test_dual_momentum_blocks_sell_in_bull_recovery(sample_stockmem_record):
     """SELL is blocked when 14d return >= +4% AND 3d momentum positive (recovery phase)."""
-    # 14d=+5%, 3d=+2.5% — strong recovery, SELL should be suppressed
-    bearish_case = sample_stockmem_record.model_copy(update={"future_return_7d": -1.5})
+    # avg7=-3.5 passes kNN veto (knn_sell_threshold=-3.0 vetoes SELL when avg7 > -3.0)
+    # dual-timeframe momentum (14d=+5%, 3d=+2.5%) should still block SELL via G7
+    bearish_case = sample_stockmem_record.model_copy(update={"future_return_7d": -3.5})
     similar = [SimilarRecord(record=bearish_case, similarity=0.9)]
     current = _record_with_multi_candles(sample_stockmem_record, rsi=55.0, ret_3d_pct=2.5, ret_14d_pct=5.0)
     client = LLMGatewayClient(min_directional_confidence=0.0, hold_release_bias=9.9)
