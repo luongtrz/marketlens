@@ -30,7 +30,7 @@ class MainControllerConfig(BaseAppConfig):
 
     # LLM signal post-policy tuning
     llm_min_directional_confidence: float = 0.58
-    llm_hold_release_bias: float = 2.8
+    llm_hold_release_bias: float = 2.0
 
     # kNN confirmation: require similar-case avg 7d return to agree with LLM signal.
     # If LLM says BUY but kNN avg7 < -knn_confirm_threshold → HOLD (and vice versa).

@@ -9,7 +9,7 @@ class LLMGatewayConfig(BaseSettings):
     opencode_go_api_key: str = ""
     opencode_endpoint: str = "https://opencode.ai/zen/go/v1/chat/completions"
     models_endpoint: str = "https://opencode.ai/zen/go/v1/models"
-    default_model: str = "deepseek-v4-flash"
+    default_model: str = "kimi-k2.5"
     fallback_models: str = "qwen3.5-plus"
     request_timeout_seconds: float = 15.0
     max_attempts: int = 1
