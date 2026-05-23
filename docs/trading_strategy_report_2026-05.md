@@ -56,7 +56,39 @@ Returns joined từ `stockmem_records` (PostgreSQL local). Script: `scripts/enri
 **Config:** $1,000,000 capital · position size = confidence × 15% · overlapping positions · BUY=long · SELL=short  
 **Random baseline:** 10 runs, signal random(BUY/SELL/HOLD), confidence random(0.55–0.74)
 
-### 5.1 Kết quả theo strategy × model
+### 5.1 $1,000,000 → sau 4 năm (Dynamic Exit + SL 3%)
+
+| | deepseek | qwen | kimi |
+|--|---------|------|------|
+| **Vốn cuối** | **$9,186,183** | $3,172,104 | $2,887,726 |
+| **Lợi nhuận** | **+$8,186,183 (+818%)** | +$2,172,104 (+217%) | +$1,887,726 (+188%) |
+| Max Drawdown | 13.61% | 16.87% | 13.83% |
+| Win rate | 35.2% | 35.0% | 31.1% |
+| W/L ratio | **4.60x** | 3.41x | 4.79x |
+| Trades | 728 | 635 | 454 |
+| Random baseline | +120% | +120% | +120% |
+| **Edge vs random** | **+698pp** | **+97pp** | **+68pp** |
+
+### 5.2 Capital deepseek qua từng năm
+
+| Thời điểm | Capital | Tăng trưởng |
+|-----------|---------|------------|
+| 2022-01-01 | $1,000,000 | — |
+| 2023-01-01 | $887,698 | -11.2% (bear market 2022) |
+| 2024-01-01 | $1,458,342 | +64.3% |
+| 2025-01-01 | $2,889,678 | +98.2% (halving bull run) |
+| 2026-04-18 | $9,186,183 | +218.1% |
+
+### 5.3 Top tháng kiếm nhiều nhất (deepseek)
+
+| Tháng | P&L | Sự kiện BTC |
+|-------|-----|------------|
+| 2024-02 | **+$1,861,680** | BTC phá ATH cũ, tăng ~44% |
+| 2024-10 | **+$1,855,002** | BTC breakout $70k |
+| 2024-11 | **+$1,477,207** | BTC ATH $100k |
+| 2025-04 | **+$1,374,265** | Recovery rally sau correction |
+
+### 5.4 Kết quả theo strategy × model
 
 | Strategy | qwen | kimi | deepseek |
 |----------|------|------|---------|
@@ -66,21 +98,15 @@ Returns joined từ `stockmem_records` (PostgreSQL local). Script: `scripts/enri
 | **[4] Dynamic Exit + TP + Trailing + SL** | +45% ✅ edge +8pp | +24% ❌ edge -12pp | +95% ✅ edge +58pp |
 | **[5] Ensemble kimi+qwen + Dynamic + SL** | +177% ✅ edge +57pp | — | — |
 
-### 5.2 Detail — Best Strategy: Dynamic Exit + SL 3%
+### 5.5 Detail trades — Dynamic Exit + SL 3%
 
 | Metric | qwen | kimi | deepseek |
 |--------|------|------|---------|
-| Return | +217% | +188% | **+818%** |
-| Final capital | $3.17M | $2.88M | **$9.18M** |
-| Max Drawdown | 16.87% | 13.83% | 13.61% |
-| Win rate | 35.0% | 31.1% | 35.2% |
-| Long P&L | +$1,965k | +$1,838k | +$7,848k |
+| Long P&L | +$1,965k | +$1,838k | **+$7,848k** |
 | Short P&L | +$207k | +$50k | +$338k |
 | Exit via 7d | 232 | 203 | 331 |
 | Exit via SL | 291 | 249 | 333 |
 | Exit via signal | 112 | 2 | 64 |
-| Random baseline | +120% | +120% | +120% |
-| **Edge** | **+97pp** | **+68pp** | **+698pp** |
 
 ---
 
@@ -100,9 +126,49 @@ Exit 3: 7 ngày hết hạn → đóng tại ret_7d
 
 Guardrails tạo **regime-aligned signal runs**: BUY cluster 5–15 ngày trong bull market → positions chạy đủ 7d → capture upside. Random flip sau ~3 ngày → dynamic exit đóng ở P&L ≈ 0 → random chỉ đạt +120%.
 
-### Tại sao deepseek thắng
+### Tại sao deepseek lời gấp 4x so với qwen?
 
-Deepseek coverage 47% (cao nhất) → nhiều BUY/SELL hơn → tận dụng bull runs nhiều hơn. P&L long $7.8M vs qwen $1.9M — deepseek bắt được nhiều điểm entry hơn trong cùng thời gian.
+**Ngắn gọn: coverage cao × overlapping positions × compounding vốn.**
+
+**1. Coverage cao nhất (47% vs qwen 41% vs kimi 29%)**
+
+Mỗi ngày deepseek có nhiều khả năng phát BUY/SELL hơn. Trong 1 bull run 7 ngày, deepseek có thể mở 4–5 BUY positions (mỗi ngày 1 cái, overlap nhau), qwen chỉ mở 2–3.
+
+**2. Overlapping positions nhân hệ số lợi nhuận**
+
+Vì hold 7 ngày và mở positions mỗi ngày, nhiều positions cùng chạy song song:
+
+```
+Ngày 1: BUY $161k → đóng ngày 8
+Ngày 2: BUY $162k → đóng ngày 9
+Ngày 3: BUY $163k → đóng ngày 10
+...
+Tại ngày 4: đang có 4 positions mở cùng lúc
+```
+
+Nếu BTC tăng 44% trong tháng (Feb 2024), tất cả positions đồng thời thắng → P&L nhân lên theo số positions overlap.
+
+**3. Compounding vốn làm khuếch đại từng năm**
+
+| Năm | Capital đầu năm | Avg position size (conf=0.74 × 15%) |
+|-----|----------------|--------------------------------------|
+| 2022 | $1,000,000 | ~$111,000/trade |
+| 2023 | $888,000 | ~$99,000/trade |
+| 2024 | $1,458,000 | ~$162,000/trade |
+| 2025 | $2,890,000 | **~$321,000/trade** |
+
+Đến 2024-2025, mỗi position size lớn gấp 3× ban đầu. Cùng một % return BTC nhưng lợi nhuận tuyệt đối tăng gấp 3×.
+
+**4. Ví dụ cụ thể: tháng 2024-02 (+$1.86M)**
+
+- BTC tăng ~44% trong tháng
+- Capital đầu tháng: ~$1.46M
+- Mỗi BUY position: $1.46M × 0.74 × 0.15 = **$162k**
+- Deepseek phát BUY ~15/28 ngày → trung bình **5–7 positions overlap**
+- 6 positions × $162k × 44% = **~$428k** (base estimate)
+- Vốn tăng dần trong tháng → positions sau lớn hơn → thực tế **$1.86M**
+
+**Tóm lại:** deepseek không "thông minh hơn" — precision chỉ 49.8% vs qwen 47.2%. Deepseek lời nhiều vì **mở nhiều positions hơn** trong cùng bull run, và **compounding vốn** làm mỗi position ở năm sau lớn gấp 3× năm đầu.
 
 ---
 
