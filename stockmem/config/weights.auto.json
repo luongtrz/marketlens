@@ -1,24 +1,31 @@
 {
-  "optimized_at": "2026-05-23T01:24:41.953899+00:00",
+  "optimized_at": "2026-05-26T16:55:58.374416+00:00",
+  "optimizer": "knn_returns_specific",
   "horizon": "7d",
-  "n_records": 1568,
+  "signal": "multi-horizon-weighted-avg",
+  "return_weights": {
+    "1d": 0.4,
+    "3d": 0.3,
+    "7d": 0.15,
+    "15d": 0.1,
+    "30d": 0.05
+  },
+  "buy_threshold": 2.0,
+  "sell_threshold": 2.0,
+  "n_records": 1576,
   "warmup": 250,
   "k": 5,
-  "trials": 80,
-  "stable_selection": {
-    "selection_mode": "median_top_trials",
-    "top_k_requested": 10,
-    "top_k_used": 10
-  },
+  "trials": 150,
+  "stable_top_n": 15,
   "weights": {
-    "w1_factor": 0.628599914771111,
-    "w2_indicator": 0.10946628951652322,
-    "w3_price": 0.26193379571236586
+    "w1_factor": 0.544392055430515,
+    "w2_indicator": 0.30908053253948164,
+    "w3_price": 0.14156627274414413
   },
   "metrics": {
-    "da": 0.5553869499241275,
-    "sharpe": 0.19053937531324217,
-    "combined": 0.371340045017125
+    "da": 0.5838926174496645,
+    "coverage": 0.5618401206636501
   },
-  "best_score": 0.37176633537416476
+  "best_trial_score": 0.5893089960886571,
+  "default_weights_da": 0.5677339901477833
 }
