@@ -1,188 +1,191 @@
-# kNN-Returns Strategy Report
-**Generated:** 2026-05-26 | **Symbol:** BTC | **Dataset:** 2022-01-01 → 2026-05-24 | **Records:** 1576
+# kNN-Returns Signal Strategy — Evaluation Report
+
+**Symbol:** BTC · **Period:** 2022-01-01 → 2026-05-24 · **N:** 1,576 records · **Generated:** 2026-05-26
 
 ---
 
-## 1. Motivation
+## Abstract
 
-LLM-based signal generation (qwen, kimi, deepseek) có vấn đề cơ bản: **non-deterministic**. Cùng một input, mỗi lần gọi có thể trả ra kết quả khác nhau, khiến signal không đáng tin cho systematic trading.
-
-Giải pháp: thay LLM bằng **weighted average of future returns của top-k similar historical days** từ StockMem. Hoàn toàn deterministic, không cần API call, và dựa trên data thực tế đã xảy ra.
+Báo cáo này đánh giá chiến lược **kNN-Returns**: thay thế LLM-based signal bằng weighted average future returns của top-k similar historical days từ StockMem. Kết quả: Directional Accuracy (DA) D+7d đạt **59.6–60.6%** tùy threshold, vượt tất cả LLM models (~52%) với coverage tương đương. Signal hoàn toàn deterministic, không phụ thuộc API call.
 
 ---
 
-## 2. Cơ Chế Hoạt Động
+## 1. Phương Pháp
+
+### 1.1 Thuật toán
 
 ```
-StockMem kNN search (k=5, before_date)
-        ↓
-Top-5 similar days → future_return_1d / 3d / 7d / 15d / 30d
-        ↓
-Weighted average per record (normalize nếu thiếu horizon):
-  w1d=0.40  w3d=0.30  w7d=0.15  w15d=0.10  w30d=0.05
-        ↓
-Overall avg = mean across 5 records
-        ↓
-Signal:  avg > +2%  → BUY
-         avg < -2%  → SELL
-         otherwise  → HOLD
-        ↓
-Confidence = 0.55 + min(distance_from_thr / 15, 0.35) + consensus_bonus
-  consensus_bonus = (fraction agreeing − 0.5) × 0.10
-  clamp → [0.50, 0.95]
+Input: ngày hiện tại t
+  1. Tìm top-k=5 ngày tương tự nhất trong lịch sử (t' < t)
+     similarity = 0.35·cos(factor_vec) + 0.20·cos(indicator_vec) + 0.45·cos(price_vec)
+
+  2. Với mỗi ngày tương tự, tính weighted average future return:
+     avg_i = Σ(w_h · ret_h) / Σ(w_h)   [normalize nếu thiếu horizon]
+     weights: 1d=0.40, 3d=0.30, 7d=0.15, 15d=0.10, 30d=0.05
+
+  3. overall_avg = mean(avg_i for i in top-k)
+
+  4. Signal:  overall_avg > +θ  → BUY
+              overall_avg < −θ  → SELL
+              otherwise         → HOLD
+
+  5. Confidence = 0.55 + min(|distance_from_θ| / 15, 0.35) + consensus_bonus
+     consensus_bonus = (fraction_agreeing − 0.5) × 0.10  ∈ [−0.05, +0.05]
+     clamp → [0.50, 0.95]
 ```
 
-**Similarity weights (kNN search):** factor_vec·0.35 + indicator_vec·0.20 + price_vec·0.45
+### 1.2 Dữ liệu & Embedding
+
+| Thành phần | Chiều | Nguồn |
+|-----------|-------|-------|
+| `factor_vec` | 75d | Taxonomy type bits (62d) + group bits (13d) |
+| `indicator_vec` | 5d | z-score [msi, rsi, sentiment, fear_greed, price_change_pct] |
+| `price_vec` | 60d | close_returns(20) · intraday_ranges(20) · volume_changes(20) |
+
+Embedding được tính tại query time từ payload stockmem_records. 29/1,605 records bị skip do thiếu `factor_vector`.
+
+### 1.3 Định nghĩa Directional Accuracy (DA)
+
+| Signal | Đúng khi |
+|--------|---------|
+| BUY | actual_return > 0% |
+| SELL | actual_return < 0% |
+| HOLD | actual_return ∈ [−θ%, +θ%] |
+
+> **Lưu ý:** HOLD DA bị ảnh hưởng mạnh bởi θ và horizon. BTC di chuyển >2% trong 7 ngày là bình thường, nên HOLD DA @ D+7d luôn thấp với threshold nhỏ. Metric quan trọng nhất cho trading là **BUY DA** và **SELL DA**.
 
 ---
 
-## 3. Directional Accuracy (DA) — Full Backtest
+## 2. Kết Quả
 
-### 3.1 D+7d (primary trading horizon)
+### 2.1 So Sánh Threshold tại D+7d
 
-| Signal | Count | Share | DA | Avg actual D+7d |
-|--------|-------|-------|----|----------------|
-| BUY | 656 | 42.2% | **59.6%** | +3.77% |
-| SELL | 316 | 20.3% | **54.1%** | −1.33% |
-| HOLD | 584 | 37.5% | 11.8% | +3.39% |
-| **ALL** | **1556** | **100%** | **40.6%** | |
+| Threshold | BUY (n) | BUY DA | SELL (n) | SELL DA | HOLD (n) | HOLD DA | Coverage | BUY avg | SELL avg |
+|-----------|---------|--------|----------|---------|----------|---------|----------|---------|---------|
+| ±3% | 477 (30.7%) | **60.6%** | 222 (14.3%) | **56.8%** | 857 (55.1%) | 20.3% | 44.9% | +3.63% | −2.61% |
+| ±2.5% | 562 (36.1%) | **60.3%** | 270 (17.4%) | **55.9%** | 724 (46.5%) | 15.6% | 53.5% | +3.94% | −2.23% |
+| **±2%** ✓ | **656 (42.2%)** | 59.6% | **316 (20.3%)** | 54.1% | **584 (37.5%)** | 11.8% | **62.5%** | +3.77% | −1.33% |
 
-**Coverage (BUY+SELL): 62.5%**
+**Quan sát:**
+- DA giảm nhẹ khi threshold giảm (−1pp BUY, −2.7pp SELL từ 3% → 2%) vì thêm các ngày borderline ít chắc chắn hơn
+- Coverage tăng mạnh: 44.9% → 53.5% → 62.5%
+- `BUY avg actual` ở ±2.5% cao nhất (+3.94%) — các BUY signal chọn lọc hơn nhưng vẫn đủ nhiều
+- **±2% được chọn làm default** vì đánh đổi DA/coverage tốt nhất cho systematic trading
 
-> Note: HOLD "đúng" được định nghĩa là actual return nằm trong [−2%, +2%]. BTC thường di chuyển >2% trong 7 ngày nên HOLD DA thấp — điều này cho thấy model đang bỏ lỡ nhiều ngày tốt (HOLD avg = +3.39%).
+### 2.2 DA Theo Horizon (threshold ±2%, k=5)
 
-### 3.2 D+7d — Threshold ±3% (để so sánh)
+| Horizon | BUY n | BUY DA | SELL n | SELL DA | HOLD DA | Overall DA | Coverage |
+|---------|-------|--------|--------|---------|---------|-----------|----------|
+| D+1d | 657 | 52.1% | 318 | 49.4% | 59.4% | 54.3% | 62.5% |
+| D+3d | 657 | 53.7% | 316 | 51.9% | 29.4% | 44.2% | 62.4% |
+| **D+7d** | **656** | **59.6%** | **316** | **54.1%** | 11.8% | 40.6% | **62.5%** |
+| D+15d | 651 | 55.3% | 315 | 54.6% | 20.4% | 42.0% | 62.3% |
 
-| Signal | Count | Share | DA | Avg actual D+7d |
-|--------|-------|-------|----|----------------|
-| BUY | 477 | 30.7% | **60.6%** | +3.63% |
-| SELL | 222 | 14.3% | **56.8%** | −2.61% |
-| HOLD | 857 | 55.1% | 20.3% | +3.36% |
-| **ALL** | **1556** | **100%** | **37.9%** | |
+**Quan sát:**
+- D+7d là horizon tốt nhất cho cả BUY (59.6%) và SELL (54.1%)
+- D+1d DA thấp (52.1%) vì noise quá nhiều ở ngắn hạn — BTC có thể đảo chiều trong 24h
+- D+7d vượt trội dù weights bias về ngắn hạn (w1d=40%) → xác nhận BTC regime persistence: trend 1–3 ngày thường kéo dài 7+ ngày
+- HOLD DA giảm dần khi horizon tăng (59.4% → 11.8% ở D+7d) vì BTC càng để lâu càng ít flat
 
-**Coverage (BUY+SELL): 44.9%**
+### 2.3 Multi-horizon tại D+7d — Avg Actual Return theo Signal
 
-> HOLD DA (20.3%) thấp vì threshold ±3% nhưng BTC thường di chuyển >3% trong 7 ngày. Điểm mạnh: BUY DA cao nhất (60.6%) vì chỉ chọn những ngày kNN avg rất rõ ràng.
+| Threshold | BUY avg D+7d | SELL avg D+7d | HOLD avg D+7d | HOLD-free edge* |
+|-----------|-------------|--------------|--------------|----------------|
+| ±3% | +3.63% | −2.61% | +3.36% | BUY edge = +0.27pp |
+| ±2.5% | +3.94% | −2.23% | +3.34% | BUY edge = +0.60pp |
+| ±2% | +3.77% | −1.33% | +3.39% | BUY edge = +0.38pp |
 
-### 3.3 DA theo horizon (threshold ±2%)
+> \*HOLD-free edge = BUY avg − HOLD avg. HOLD avg dương (+3.34–3.39%) do BTC bullish bias 2022–2026. BUY signals chọn đúng nhưng edge thực không lớn.
 
-| Horizon | BUY DA | SELL DA | HOLD DA | Overall DA | Coverage |
-|---------|--------|---------|---------|-----------|----------|
-| D+1d | 52.8% | 50.7% | 72.8% | 63.5% | 44.8% |
-| D+3d | 52.8% | 54.5% | — | 53.4% | 44.8% |
-| **D+7d** | **59.6%** | **54.1%** | 11.8% | 40.6% | **62.5%** |
-| D+15d | 55.5% | 55.0% | — | 55.3% | 44.9% |
+### 2.4 Benchmark vs LLM Models (D+7d, threshold ±3%)
 
-> D+7d là horizon tốt nhất cho BUY/SELL signals, dù weights bias về ngắn hạn (w1d=40%). Điều này phản ánh BTC regime persistence: xu hướng ngắn hạn thường kéo dài 7+ ngày.
+| Model | BUY DA | SELL DA | Coverage | Deterministic |
+|-------|--------|---------|----------|--------------|
+| kimi-k2.5 | ~51% | ~42% | 29% | ✗ |
+| qwen3.5-plus | 52.9% | 37.4% | 41% | ✗ |
+| deepseek-v4-flash | 52.4% | 41.8% | 47% | ✗ |
+| **kNN-returns ±3%** | **60.6%** | **56.8%** | 44.9% | ✓ |
+| **kNN-returns ±2%** | 59.6% | 54.1% | **62.5%** | ✓ |
 
-### 3.4 So sánh với LLM models (D+7d, threshold ±3%)
-
-| Model | BUY DA | SELL DA | Coverage |
-|-------|--------|---------|----------|
-| qwen3.5-plus | 52.9% | 37.4% | 41% |
-| deepseek-v4-flash | 52.4% | 41.8% | 47% |
-| kimi-k2.5 | ~51% | ~42% | 29% |
-| **kNN-returns (3%)** | **60.6%** | **56.8%** | 44.9% |
-| **kNN-returns (2%)** | **59.6%** | **54.1%** | **62.5%** |
-
-**kNN-returns vượt LLM ~7–10pp trên BUY DA và ~12–19pp trên SELL DA**, đồng thời không cần gọi LLM API.
-
----
-
-## 4. Threshold Analysis: 3% vs 2%
-
-| Config | BUY | SELL | HOLD | Coverage | BUY DA | SELL DA |
-|--------|-----|------|------|----------|--------|---------|
-| thr = 3% | 477 (30.7%) | 222 (14.3%) | 857 (55.1%) | 44.9% | 60.6% | 56.8% |
-| **thr = 2%** | **656 (42.2%)** | **316 (20.3%)** | **584 (37.5%)** | **62.5%** | **59.6%** | **54.1%** |
-
-- **Threshold 2%** được chọn làm default: HOLD giảm từ 55% → 37.5%, coverage tăng từ 45% → 62.5%
-- DA giảm nhẹ (−1pp BUY, −2.7pp SELL) vì các ngày borderline 2–3% avg ít chắc chắn hơn
-- Đánh đổi được chấp nhận: nhiều signals hơn mà không mất đáng kể độ chính xác
+kNN-returns vượt LLM **+7–10pp BUY DA** và **+12–19pp SELL DA**. SELL accuracy của LLM thấp vì Guardrail G8 suppress SELL trong bull market — kNN không có constraint này.
 
 ---
 
-## 5. Cấu Hình Production
+## 3. Phân Tích
+
+### 3.1 Tại sao D+7d tốt hơn D+1d?
+
+Signal được tính từ weights bias ngắn hạn (w1d=40%, w3d=30%) nhưng accuracy lại cao nhất ở D+7d. Lý do:
+
+- **BTC regime persistence**: khi top-5 similar days đều có 1d/3d return mạnh theo một hướng, xu hướng đó thường kéo dài 7 ngày chứ không đảo chiều ngay
+- **D+1d noise**: tín hiệu ngắn hạn bị nhiễu bởi microstructure (funding rate, liquidation cascade, news spike)
+- **D+7d smoothing**: return 7 ngày phản ánh macro trend tốt hơn
+
+### 3.2 Tại sao SELL accuracy tốt hơn LLM?
+
+LLM models bị **Guardrail G8** suppress SELL trong bull market (yêu cầu `bear_regime=True`: 30d down >10% AND 3d down >3%). kNN-returns không có constraint này, nên SELL fires tự nhiên hơn dựa trên historical patterns.
+
+Kết quả: SELL DA 54–57% vs LLM 37–42% — cải thiện lớn nhất trong tất cả metrics.
+
+### 3.3 HOLD avg return gần bằng BUY avg — vấn đề hay không?
+
+HOLD avg D+7d = +3.34–3.39%, BUY avg = +3.63–3.94%. Gap nhỏ (0.27–0.60pp) do:
+- BTC có positive drift mạnh trong 2022–2026 (kể cả 2022 bear market)
+- Nhiều ngày HOLD thực ra là uptrend nhưng kNN avg chưa đủ mạnh để vượt threshold
+- Đây là chi phí của việc dùng threshold cứng — một số upside bị bỏ lỡ
+
+Giải pháp tiềm năng: asymmetric threshold (BUY_thr < SELL_thr để bắt được nhiều upside hơn).
+
+---
+
+## 4. Cấu Hình Production
 
 ```python
-# main_controller/src/config.py
-predict_provider: str = "knn_returns"   # default
-knn_buy_threshold: float = 2.0          # avg > +2% → BUY
-knn_sell_threshold: float = -2.0        # avg < -2% → SELL
-knn_return_w1d: float = 0.40
-knn_return_w3d: float = 0.30
-knn_return_w7d: float = 0.15
-knn_return_w15d: float = 0.10
-knn_return_w30d: float = 0.05
+# main_controller/src/config.py — giá trị hiện tại
+predict_provider:   "knn_returns"   # default
+knn_buy_threshold:  2.0             # BUY nếu avg > +2%
+knn_sell_threshold: -2.0            # SELL nếu avg < -2%
+knn_return_w1d:     0.40
+knn_return_w3d:     0.30
+knn_return_w7d:     0.15
+knn_return_w15d:    0.10
+knn_return_w30d:    0.05
+k_similar:          5
 ```
 
-Env vars để override:
+Override qua env vars:
 ```bash
-MAIN_CONTROLLER_PREDICT_PROVIDER=knn_returns
-MAIN_CONTROLLER_KNN_BUY_THRESHOLD=2.0
-MAIN_CONTROLLER_KNN_SELL_THRESHOLD=-2.0
-MAIN_CONTROLLER_KNN_RETURN_W1D=0.40
-# ... etc
+MAIN_CONTROLLER_KNN_BUY_THRESHOLD=2.5     # thử 2.5% nếu muốn DA cao hơn, ít trade hơn
+MAIN_CONTROLLER_PREDICT_PROVIDER=aihub   # fallback về LLM
 ```
 
-Fallback về LLM:
+---
+
+## 5. Hạn Chế & Hướng Cải Thiện
+
+| # | Hạn chế | Hướng cải thiện |
+|---|---------|----------------|
+| 1 | Weights (w1d=40%) là heuristic, chưa optimize | Grid search / Bayesian optimization trên weights |
+| 2 | Threshold cứng, symmetric | Asymmetric threshold: BUY_thr=1.5%, SELL_thr=2.5% |
+| 3 | HOLD bỏ lỡ nhiều upside (edge chỉ +0.3–0.6pp) | Ensemble với news sentiment để filter HOLD |
+| 4 | Không capture breaking news / macro events | Hybrid: kNN-returns + LLM chỉ khi news sentiment cực đoan |
+| 5 | Coverage stockmem phụ thuộc vào số records trước đó | Backfill đủ records trước khi deploy |
+
+---
+
+## 6. Reproducing Results
+
 ```bash
-MAIN_CONTROLLER_PREDICT_PROVIDER=llm_gateway   # hoặc aihub
+# Clone evaluation
+python scripts/eval_knn_returns.py --horizon 7d --buy-thr 2   --sell-thr 2
+python scripts/eval_knn_returns.py --horizon 7d --buy-thr 2.5 --sell-thr 2.5
+python scripts/eval_knn_returns.py --horizon 7d --buy-thr 3   --sell-thr 3
+
+# All horizons at default threshold
+for h in 1d 3d 7d 15d; do
+  python scripts/eval_knn_returns.py --horizon $h --buy-thr 2 --sell-thr 2
+done
 ```
 
----
-
-## 6. Điểm Mạnh và Hạn Chế
-
-### Điểm mạnh
-- **Deterministic**: cùng input → cùng output, không có variance từ LLM sampling
-- **Không cần API call**: giảm latency ~500ms–2s, không có API cost
-- **Interpretable**: explanation trả ra "top 5 similar days → avg +4.2% → BUY"
-- **SELL accuracy cao hơn LLM**: 54.1% vs 37–42% — LLM thường bị G8 guardrail suppress SELL
-
-### Hạn chế
-- **HOLD nhiều ngày tốt bị bỏ qua**: HOLD avg return = +3.39% ≈ BUY avg +3.77% → model "bỏ lỡ" nhiều upside
-- **Phụ thuộc vào stockmem coverage**: cần ≥k records trước ngày cần predict
-- **Weights chưa được optimize**: w1d=40% là heuristic, chưa qua hyperparameter tuning
-- **Không capture context news**: LLM có thể đọc sentiment bài viết, kNN chỉ dựa vào historical pattern
-
----
-
-## 7. Recommendations
-
-### Ngắn hạn (deploy ngay)
-1. **Giữ threshold ±2%** — coverage 62.5% tốt hơn đáng kể so với 44.9% ở ±3%
-2. **Monitor SELL signals** trong live — không có G8 guardrail suppress nên SELL sẽ fire nhiều hơn trước
-
-### Cải thiện tiếp theo
-3. **Weight optimization**: grid search w1d/w3d/w7d để maximize D+7d BUY DA
-4. **Asymmetric thresholds**: test BUY_thr=1.5%, SELL_thr=2.5% (BTC bullish bias → easier BUY)
-5. **Ensemble**: kNN-returns signal + news sentiment score → tránh BUY khi news rất bearish
-6. **Confidence calibration**: kiểm tra correlation giữa confidence và actual accuracy
-
-### Dài hạn
-7. **Adaptive weights**: điều chỉnh w1d/w7d theo regime (bear/bull market)
-8. **Return prediction** thay vì chỉ direction: dùng weighted avg return trực tiếp cho position sizing
-
----
-
-## 8. Files
-
-| File | Mô tả |
-|------|-------|
-| `main_controller/src/orchestrator/steps.py` | `_knn_returns_signal()` implementation |
-| `main_controller/src/config.py` | Thresholds + weights config |
-| `main_controller/src/orchestrator/pipeline.py` | `PipelineConfig` với knn params |
-| `main_controller/src/api.py` | Wire config → PipelineConfig |
-| `scripts/eval_knn_returns.py` | Offline DA evaluation script |
-
-**Eval command:**
-```bash
-python scripts/eval_knn_returns.py --horizon 7d --buy-thr 2 --sell-thr 2
-python scripts/eval_knn_returns.py --horizon 7d --buy-thr 3 --sell-thr 3   # compare
-```
-
----
-
-*Data source: `stockmem_records` PostgreSQL (1603 records, BTC 2022–2026)*
-*Embedding: factor_vec(75d)·0.35 + indicator_vec(5d)·0.20 + price_vec(60d)·0.45*
+*Data: `stockmem_records` PostgreSQL local (1,576 BTC records 2022–2026)*
+*Script: `scripts/eval_knn_returns.py`*
