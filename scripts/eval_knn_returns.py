@@ -18,12 +18,23 @@ import asyncio
 import json
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 import asyncpg
 import numpy as np
 
 
 DB_URL = "postgresql://postgres:pass@localhost:5432/postgres"
+WEIGHTS_FILE = Path(__file__).parent.parent / "stockmem" / "config" / "weights.auto.json"
+
+
+def _load_search_weights() -> tuple[float, float, float]:
+    """Load Bayesian-optimized kNN search weights from weights.auto.json."""
+    if WEIGHTS_FILE.exists():
+        data = json.loads(WEIGHTS_FILE.read_text())
+        w = data["weights"]
+        return w["w1_factor"], w["w2_indicator"], w["w3_price"]
+    return 0.35, 0.20, 0.45  # fallback to defaults
 
 
 @dataclass
@@ -104,7 +115,14 @@ def _signal(avg: float, buy_thr: float, sell_thr: float) -> str:
     return "HOLD"
 
 
-async def load_records() -> list[Record]:
+async def load_records(use_default_search_weights: bool = False) -> list[Record]:
+    if use_default_search_weights:
+        sw1, sw2, sw3 = 0.35, 0.20, 0.45
+        print("  Search weights: hardcoded defaults (0.35 / 0.20 / 0.45)")
+    else:
+        sw1, sw2, sw3 = _load_search_weights()
+        print(f"  Search weights: Bayesian-optimized ({sw1:.4f} / {sw2:.4f} / {sw3:.4f})")
+
     conn = await asyncpg.connect(DB_URL)
     rows = await conn.fetch(
         "SELECT record_date, payload FROM stockmem_records WHERE symbol='BTC' ORDER BY record_date"
@@ -126,7 +144,8 @@ async def load_records() -> list[Record]:
         candles = ms.get("recent_candles") or ms.get("candles") or []
         iv = _compute_indicator_vec(ms, float(p.get("sentiment_score", 0.0)))
         pv = _compute_price_vec(candles)
-        joint = _build_joint(fv, iv, pv)
+        # Use actual search weights (not hardcoded 0.35/0.20/0.45)
+        joint = np.concatenate([fv, iv * sw2, pv * sw3]).astype(np.float32)
 
         records.append(Record(
             date=str(row["record_date"]),
@@ -157,9 +176,9 @@ def evaluate(
     eval_horizon: str,
 ) -> None:
     n = len(records)
-    # Use component-wise weighted similarity like the real searcher
-    # score = 0.35*sim(factor) + 0.20*sim(indicator) + 0.45*sim(price)
-    W_F, W_I, W_P = 0.35, 0.20, 0.45
+    # Search weights are already baked into record.joint via load_records()
+    # Component weights still needed for per-component cosine calculation
+    W_F, W_I, W_P = _load_search_weights()
 
     total = skipped_no_neighbors = skipped_no_return = 0
     results: list[dict] = []
@@ -262,9 +281,11 @@ async def main() -> None:
     ap.add_argument("--w7d",  type=float, default=0.15)
     ap.add_argument("--w15d", type=float, default=0.10)
     ap.add_argument("--w30d", type=float, default=0.05)
-    ap.add_argument("--buy-thr",  type=float, default=3.0, help="BUY threshold %%")
-    ap.add_argument("--sell-thr", type=float, default=3.0, help="SELL threshold %% (symmetric)")
+    ap.add_argument("--buy-thr",  type=float, default=2.0, help="BUY threshold %%")
+    ap.add_argument("--sell-thr", type=float, default=2.0, help="SELL threshold %% (symmetric)")
     ap.add_argument("--horizon",  default="7d", choices=["1d","3d","7d","15d","30d"])
+    ap.add_argument("--default-search-weights", action="store_true",
+                    help="Force hardcoded search weights (0.35/0.20/0.45) instead of weights.auto.json")
     args = ap.parse_args()
 
     weights = {
@@ -273,10 +294,10 @@ async def main() -> None:
     }
     total_w = sum(weights.values())
     if abs(total_w - 1.0) > 0.01:
-        print(f"Warning: weights sum to {total_w:.2f}, not 1.0")
+        print(f"Warning: return weights sum to {total_w:.2f}, not 1.0")
 
     print("Loading records from PostgreSQL...", flush=True)
-    records = await load_records()
+    records = await load_records(use_default_search_weights=args.default_search_weights)
     print(f"Loaded {len(records)} records ({records[0].date} → {records[-1].date})")
 
     evaluate(records, args.k, weights, args.buy_thr, args.sell_thr, args.horizon)

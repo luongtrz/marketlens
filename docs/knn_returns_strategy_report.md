@@ -44,6 +44,19 @@ Input: ngày hiện tại t
 
 Embedding được tính tại query time từ payload stockmem_records. 29/1,605 records bị skip do thiếu `factor_vector`.
 
+### 1.3 Search Weights: Default vs Bayesian-Optimized
+
+Search weights (w_factor, w_indicator, w_price) quyết định similar days nào được chọn. Có hai bộ:
+
+| Bộ weights | w_factor | w_indicator | w_price | Nguồn |
+|-----------|----------|-------------|---------|-------|
+| Default | 0.35 | 0.20 | 0.45 | Heuristic |
+| **Bayesian** ✓ | **0.4746** | **0.3085** | **0.2169** | Optuna/TPE, 80 trials, 2026-05-25 |
+
+Bayesian optimizer (trong `stockmem/src/weights_retrainer.py`) chạy periodic trên toàn bộ historical records, tối ưu hóa DA@D+7d. Kết quả: factor similarity được ưu tiên hơn price similarity so với default — tìm được ngày tương tự về macro context thay vì chỉ price pattern.
+
+> Hai bộ weights này là search weights (chọn similar days), **khác** với return weights (w1d/w3d/w7d/w15d/w30d dùng để tính avg future return).
+
 ### 1.3 Định nghĩa Directional Accuracy (DA)
 
 | Signal | Đúng khi |
@@ -60,17 +73,29 @@ Embedding được tính tại query time từ payload stockmem_records. 29/1,60
 
 ### 2.1 So Sánh Threshold tại D+7d
 
-| Threshold | BUY (n) | BUY DA | SELL (n) | SELL DA | HOLD (n) | HOLD DA | Coverage | BUY avg | SELL avg |
-|-----------|---------|--------|----------|---------|----------|---------|----------|---------|---------|
-| ±3% | 477 (30.7%) | **60.6%** | 222 (14.3%) | **56.8%** | 857 (55.1%) | 20.3% | 44.9% | +3.63% | −2.61% |
-| ±2.5% | 562 (36.1%) | **60.3%** | 270 (17.4%) | **55.9%** | 724 (46.5%) | 15.6% | 53.5% | +3.94% | −2.23% |
-| **±2%** ✓ | **656 (42.2%)** | 59.6% | **316 (20.3%)** | 54.1% | **584 (37.5%)** | 11.8% | **62.5%** | +3.77% | −1.33% |
+Hai bộ search weights được đánh giá riêng để thấy tác động của Bayesian optimization:
+
+**Search weights mặc định** (w_factor=0.35, w_indicator=0.20, w_price=0.45):
+
+| Threshold | BUY (n) | BUY DA | BUY avg | SELL (n) | SELL DA | SELL avg | HOLD (n) | HOLD DA | Coverage |
+|-----------|---------|--------|---------|----------|---------|----------|----------|---------|----------|
+| ±3% | 477 (30.7%) | **60.6%** | +3.63% | 222 (14.3%) | **56.8%** | −2.61% | 857 (55.1%) | 20.3% | 44.9% |
+| ±2.5% | 562 (36.1%) | **60.3%** | +3.94% | 270 (17.4%) | **55.9%** | −2.23% | 724 (46.5%) | 15.6% | 53.5% |
+| **±2%** ✓ | **656 (42.2%)** | 59.6% | +3.77% | **316 (20.3%)** | 54.1% | −1.33% | **584 (37.5%)** | 11.8% | **62.5%** |
+
+**Search weights Bayesian-optimized** (w_factor=0.4746, w_indicator=0.3085, w_price=0.2169 — từ Optuna/TPE, 80 trials):
+
+| Threshold | BUY (n) | BUY DA | BUY avg | SELL (n) | SELL DA | SELL avg | HOLD (n) | HOLD DA | Coverage |
+|-----------|---------|--------|---------|----------|---------|----------|----------|---------|----------|
+| ±3% | 481 (30.9%) | 58.4% | +4.36% | 192 (12.3%) | **56.8%** | −4.03% | 883 (56.7%) | 21.2% | 43.3% |
+| ±2.5% | 567 (36.4%) | 58.7% | +4.39% | 240 (15.4%) | 55.4% | −2.83% | 749 (48.1%) | 16.6% | 51.9% |
+| **±2%** ✓ | **653 (42.0%)** | 58.5% | +4.11% | **275 (17.7%)** | 54.9% | −2.23% | **628 (40.4%)** | 12.9% | **59.6%** |
 
 **Quan sát:**
-- DA giảm nhẹ khi threshold giảm (−1pp BUY, −2.7pp SELL từ 3% → 2%) vì thêm các ngày borderline ít chắc chắn hơn
-- Coverage tăng mạnh: 44.9% → 53.5% → 62.5%
-- `BUY avg actual` ở ±2.5% cao nhất (+3.94%) — các BUY signal chọn lọc hơn nhưng vẫn đủ nhiều
-- **±2% được chọn làm default** vì đánh đổi DA/coverage tốt nhất cho systematic trading
+- **Default weights** cho BUY DA cao hơn (~1–2pp) nhưng **Bayesian weights** cho SELL avg thấp hơn đáng kể (−4.03% vs −2.61% ở ±3%) — Bayesian chọn được những SELL ngày xấu hơn
+- Bayesian weights ưu tiên factor (0.47) hơn price (0.22) — ngược với default (price 0.45) — tìm được similar days có cùng macro context tốt hơn
+- Coverage Bayesian nhỉnh hơn (43.3% vs 44.9% ở ±3% — ít SELL signal hơn do filter chặt hơn)
+- **±2% được chọn làm default** ở cả hai bộ weights vì đánh đổi DA/coverage tốt nhất cho systematic trading
 
 ### 2.2 DA Theo Horizon (threshold ±2%, k=5)
 
