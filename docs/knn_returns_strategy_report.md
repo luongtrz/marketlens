@@ -88,9 +88,9 @@ Hai bộ search weights được đánh giá riêng để thấy tác động c�
 
 | Threshold | BUY (n) | BUY DA | BUY avg | SELL (n) | SELL DA | SELL avg | HOLD (n) | Coverage |
 |-----------|---------|--------|---------|----------|---------|----------|----------|----------|
-| ±3% | — | — | — | — | — | — | — | — |
-| ±2.5% | — | — | — | — | — | — | — | — |
-| **±2%** ✓ | **658 (42.3%)** | **59.7%** | **+4.46%** | **247 (15.9%)** | **57.5%** | **−3.38%** | **651 (41.8%)** | **58.2%** |
+| ±3% | 489 (31.4%) | **61.3%** | +4.91% | 177 (11.4%) | **57.1%** | −4.28% | 890 (57.2%) | 42.8% |
+| ±2.5% | 571 (36.7%) | 60.1% | +4.77% | 207 (13.3%) | **58.0%** | −4.08% | 778 (50.0%) | 50.0% |
+| **±2%** ✓ | **658 (42.3%)** | 59.7% | +4.46% | **247 (15.9%)** | 57.5% | −3.38% | **651 (41.8%)** | **58.2%** |
 
 **Tổng hợp so sánh 3 bộ weights tại threshold ±2%, D+7d:**
 
@@ -100,12 +100,26 @@ Hai bộ search weights được đánh giá riêng để thấy tác động c�
 | Old Bayesian (0.47/0.31/0.22) | 58.5% | 54.9% | +4.11% | −2.23% | 59.6% |
 | **New Bayesian (0.54/0.31/0.14)** ✓ | **59.7%** | **57.5%** | **+4.46%** | **−3.38%** | 58.2% |
 
+**Tổng hợp so sánh 3 bộ weights × 3 threshold tại D+7d:**
+
+| Bộ weights | Threshold | BUY DA | SELL DA | BUY avg | SELL avg | Coverage |
+|-----------|-----------|--------|---------|---------|---------|----------|
+| Default (0.35/0.20/0.45) | ±3% | 60.6% | 56.8% | +3.63% | −2.61% | 44.9% |
+| Default | ±2.5% | 60.3% | 55.9% | +3.94% | −2.23% | 53.5% |
+| Default | **±2%** | 59.6% | 54.1% | +3.77% | −1.33% | 62.5% |
+| Old Bayesian (0.47/0.31/0.22) | ±3% | 58.4% | 56.8% | +4.36% | −4.03% | 43.3% |
+| Old Bayesian | ±2.5% | 58.7% | 55.4% | +4.39% | −2.83% | 51.9% |
+| Old Bayesian | **±2%** | 58.5% | 54.9% | +4.11% | −2.23% | 59.6% |
+| **New Bayesian (0.54/0.31/0.14)** | ±3% | **61.3%** | 57.1% | **+4.91%** | **−4.28%** | 42.8% |
+| **New Bayesian** | ±2.5% | 60.1% | **58.0%** | +4.77% | −4.08% | 50.0% |
+| **New Bayesian** | **±2% ✓** | 59.7% | **57.5%** | +4.46% | −3.38% | **58.2%** |
+
 **Quan sát:**
-- New Bayesian weights vượt Default: SELL DA **+3.4pp** (57.5% vs 54.1%), SELL avg tốt hơn 2.5× (−3.38% vs −1.33%)
-- BUY avg cũng tốt hơn đáng kể (+4.46% vs +3.77%) — BUY signals chọn được ngày upside mạnh hơn
-- Đánh đổi: coverage giảm 4pp (58.2% vs 62.5%) — ít ngày borderline được classify là BUY/SELL
-- **New Bayesian được chọn** vì quality signal tốt hơn rõ rệt, đặc biệt SELL accuracy
-- Pattern rõ: tất cả 3 bộ đều giảm w_price dần → macro factors + indicators quan trọng hơn price patterns cho DA
+- New Bayesian cho **BUY avg và SELL avg tốt nhất** ở mọi threshold — chọn được những ngày upside/downside mạnh hơn
+- New Bayesian ±3% có BUY DA cao nhất (61.3%) nhưng coverage thấp (42.8%) — chỉ trade những ngày rất chắc chắn
+- New Bayesian ±2.5% có SELL DA cao nhất trong toàn bảng (58.0%)
+- **New Bayesian ±2%** được chọn làm default: cân bằng giữa DA cao, SELL avg tốt, và coverage đủ rộng (58.2%)
+- Pattern rõ: w_price giảm dần (0.45 → 0.22 → 0.14) — macro factors + indicators quan trọng hơn price patterns cho DA
 
 ### 2.2 DA Theo Horizon (threshold ±2%, k=5)
 
