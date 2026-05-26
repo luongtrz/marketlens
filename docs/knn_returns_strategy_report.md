@@ -51,7 +51,20 @@ Confidence = 0.55 + min(distance_from_thr / 15, 0.35) + consensus_bonus
 
 > Note: HOLD "đúng" được định nghĩa là actual return nằm trong [−2%, +2%]. BTC thường di chuyển >2% trong 7 ngày nên HOLD DA thấp — điều này cho thấy model đang bỏ lỡ nhiều ngày tốt (HOLD avg = +3.39%).
 
-### 3.2 DA theo horizon (threshold ±2%)
+### 3.2 D+7d — Threshold ±3% (để so sánh)
+
+| Signal | Count | Share | DA | Avg actual D+7d |
+|--------|-------|-------|----|----------------|
+| BUY | 477 | 30.7% | **60.6%** | +3.63% |
+| SELL | 222 | 14.3% | **56.8%** | −2.61% |
+| HOLD | 857 | 55.1% | 20.3% | +3.36% |
+| **ALL** | **1556** | **100%** | **37.9%** | |
+
+**Coverage (BUY+SELL): 44.9%**
+
+> HOLD DA (20.3%) thấp vì threshold ±3% nhưng BTC thường di chuyển >3% trong 7 ngày. Điểm mạnh: BUY DA cao nhất (60.6%) vì chỉ chọn những ngày kNN avg rất rõ ràng.
+
+### 3.3 DA theo horizon (threshold ±2%)
 
 | Horizon | BUY DA | SELL DA | HOLD DA | Overall DA | Coverage |
 |---------|--------|---------|---------|-----------|----------|
@@ -62,7 +75,7 @@ Confidence = 0.55 + min(distance_from_thr / 15, 0.35) + consensus_bonus
 
 > D+7d là horizon tốt nhất cho BUY/SELL signals, dù weights bias về ngắn hạn (w1d=40%). Điều này phản ánh BTC regime persistence: xu hướng ngắn hạn thường kéo dài 7+ ngày.
 
-### 3.3 So sánh với LLM models (D+7d, threshold ±3%)
+### 3.4 So sánh với LLM models (D+7d, threshold ±3%)
 
 | Model | BUY DA | SELL DA | Coverage |
 |-------|--------|---------|----------|
