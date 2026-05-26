@@ -77,6 +77,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         PipelineConfig(
             k_similar=config.k_similar,
             predict_provider=config.predict_provider,
+            knn_weights={
+                "1d": config.knn_return_w1d,
+                "3d": config.knn_return_w3d,
+                "7d": config.knn_return_w7d,
+                "15d": config.knn_return_w15d,
+                "30d": config.knn_return_w30d,
+            },
+            knn_buy_threshold=config.knn_buy_threshold,
+            knn_sell_threshold=config.knn_sell_threshold,
         ),
     )
     app.state.clients = clients
