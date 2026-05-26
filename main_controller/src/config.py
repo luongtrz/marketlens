@@ -18,8 +18,8 @@ class MainControllerConfig(BaseAppConfig):
     predict_provider: str = "knn_returns"  # "knn_returns" | "aihub" | "llm_gateway"
 
     # kNN-returns signal thresholds (%)
-    knn_buy_threshold: float = 3.0
-    knn_sell_threshold: float = -3.0
+    knn_buy_threshold: float = 2.0
+    knn_sell_threshold: float = -2.0
 
     # kNN-returns horizon weights (must sum ≤ 1; normalized per-record if horizons missing)
     knn_return_w1d: float = 0.40
