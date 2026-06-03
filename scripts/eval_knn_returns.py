@@ -272,6 +272,19 @@ def evaluate(
     print(f"  Coverage (BUY+SELL): {coverage:.1f}%")
     print(f"  Note: HOLD correct = actual in [-{buy_thr}%, +{buy_thr}%]")
 
+    return {
+        "results": results,
+        "summary": {
+            "total": total, "buy": len(buy_res), "sell": len(sell_res), "hold": len(hold_res),
+            "da_buy": round(da_buy, 4), "da_sell": round(da_sell, 4),
+            "da_hold": round(da_hold, 4), "da_all": round(da_all, 4),
+            "coverage_pct": round(coverage, 4),
+            "avg_ret_buy": round(avg_ret_buy, 4),
+            "avg_ret_sell": round(avg_ret_sell, 4),
+            "avg_ret_hold": round(avg_ret_hold, 4),
+        },
+    }
+
 
 async def main() -> None:
     ap = argparse.ArgumentParser()
@@ -286,6 +299,7 @@ async def main() -> None:
     ap.add_argument("--horizon",  default="7d", choices=["1d","3d","7d","15d","30d"])
     ap.add_argument("--default-search-weights", action="store_true",
                     help="Force hardcoded search weights (0.35/0.20/0.45) instead of weights.auto.json")
+    ap.add_argument("--out", default=None, help="Save full backtest JSON to this path")
     args = ap.parse_args()
 
     weights = {
@@ -300,7 +314,36 @@ async def main() -> None:
     records = await load_records(use_default_search_weights=args.default_search_weights)
     print(f"Loaded {len(records)} records ({records[0].date} → {records[-1].date})")
 
-    evaluate(records, args.k, weights, args.buy_thr, args.sell_thr, args.horizon)
+    sw1, sw2, sw3 = _load_search_weights() if not args.default_search_weights else (0.35, 0.20, 0.45)
+    output = evaluate(records, args.k, weights, args.buy_thr, args.sell_thr, args.horizon)
+
+    if args.out and output:
+        export = {
+            "config": {
+                "symbol": "BTC",
+                "period": f"{records[0].date} → {records[-1].date}",
+                "n_records": len(records),
+                "k": args.k,
+                "eval_horizon": args.horizon,
+                "buy_threshold_pct": args.buy_thr,
+                "sell_threshold_pct": args.sell_thr,
+                "search_weights": {"w_factor": sw1, "w_indicator": sw2, "w_price": sw3},
+                "return_weights": weights,
+            },
+            "summary": output["summary"],
+            "predictions": [
+                {
+                    "date": r["date"],
+                    "signal": r["signal"],
+                    "knn_avg_pct": round(r["avg"], 4),
+                    f"actual_ret_{args.horizon}_pct": round(r["actual"], 4),
+                    "correct": r["correct"],
+                }
+                for r in output["results"]
+            ],
+        }
+        Path(args.out).write_text(json.dumps(export, indent=2))
+        print(f"\nExported {len(export['predictions'])} predictions → {args.out}")
 
 
 if __name__ == "__main__":
