@@ -13,6 +13,12 @@ export default defineConfig(({ mode }) => {
           target: env.MAIN_CONTROLLER_PUBLIC_URL || 'http://127.0.0.1:8005',
           changeOrigin: true,
         },
+        '/market': {
+          target: env.MARKET_DATA_PUBLIC_URL || 'http://127.0.0.1:8002',
+          changeOrigin: true,
+          ws: true,
+          rewrite: (path) => path.replace(/^\/market/, ''),
+        },
       },
     },
     plugins: [react()],

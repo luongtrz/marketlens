@@ -105,6 +105,7 @@ services:
       MAIN_CONTROLLER_PREDICT_PROVIDER: ${MAIN_CONTROLLER_PREDICT_PROVIDER:-aihub}
       MAIN_CONTROLLER_DB_URL: postgresql+asyncpg://postgres:pass@db:5432/postgres
       MAIN_CONTROLLER_LLM_HOLD_RELEASE_BIAS: ${MAIN_CONTROLLER_LLM_HOLD_RELEASE_BIAS:-2.0}
+      MAIN_CONTROLLER_REDIS_URL: redis://redis:6379
       MAIN_CONTROLLER_JWT_SECRET: ${MAIN_CONTROLLER_JWT_SECRET:-change-me}
       SUPABASE_URL: ${SUPABASE_URL:-}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
@@ -117,6 +118,7 @@ services:
       - stockmem
       - factor_ledge
       - llm_gateway
+      - redis
 
   llm_gateway:
     build:

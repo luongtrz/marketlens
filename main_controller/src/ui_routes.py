@@ -255,14 +255,27 @@ async def api_latest_news(
 
     pair = _symbol_to_pair(tag.strip()) if tag and tag.strip() else ""
     if SupabaseReadService.from_env() is None:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Supabase is not configured on MainController: set SUPABASE_URL and "
-                "SUPABASE_SERVICE_ROLE_KEY (recommended) or SUPABASE_ANON_KEY with RLS "
-                "allowing SELECT on news_articles. For Docker, add them to the project root .env."
-            ),
+        logger.warning("latest-news requested but Supabase is not configured")
+        if page is not None:
+            return LatestNewsPageResponse(items=[], page=page, page_size=page_size, total=0)
+        return []
+    cache = getattr(request.app.state, "cache", None)
+    config = getattr(request.app.state, "config", None)
+    route_cache_key = None
+    if cache is not None and page == 1 and page_size <= 20:
+        route_cache_key = cache.key(
+            "ui",
+            "latest-news",
+            pair or "all",
+            page,
+            page_size,
+            start_dt.isoformat() if start_dt else "none",
+            end_dt.isoformat() if end_dt else "none",
         )
+        cached = await cache.get_json(route_cache_key)
+        if cached is not None:
+            return LatestNewsPageResponse.model_validate(cached)
+
     try:
         if page is not None:
             offset = (page - 1) * page_size
@@ -288,12 +301,20 @@ async def api_latest_news(
                 )
                 total = int(total_val or 0)
             items = _records_to_news_payload(raw, start_dt=start_dt, end_dt=end_dt)
-            return LatestNewsPageResponse(
+            response = LatestNewsPageResponse(
                 items=items,
                 page=page,
                 page_size=page_size,
                 total=max(total, 0),
             )
+            if cache is not None and route_cache_key is not None:
+                ttl = getattr(config, "cache_news_first_page_ttl_seconds", 120)
+                await cache.set_json(
+                    route_cache_key,
+                    response.model_dump(mode="json"),
+                    ttl,
+                )
+            return response
 
         raw = await clients.crawler.get_latest(
             pair,

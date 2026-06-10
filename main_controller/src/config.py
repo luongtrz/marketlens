@@ -21,7 +21,7 @@ class MainControllerConfig(BaseAppConfig):
     knn_buy_threshold: float = 2.0
     knn_sell_threshold: float = -2.0
 
-    # kNN-returns horizon weights (must sum ≤ 1; normalized per-record if horizons missing)
+    # kNN-returns horizon weights (must sum <= 1; normalized per-record if horizons missing)
     knn_return_w1d: float = 0.40
     knn_return_w3d: float = 0.30
     knn_return_w7d: float = 0.15
@@ -44,9 +44,16 @@ class MainControllerConfig(BaseAppConfig):
     llm_hold_release_bias: float = 2.0
 
     # kNN confirmation: require similar-case avg 7d return to agree with LLM signal.
-    # If LLM says BUY but kNN avg7 < -knn_confirm_threshold → HOLD (and vice versa).
+    # If LLM says BUY but kNN avg7 < -knn_confirm_threshold -> HOLD (and vice versa).
     # Set to 0.0 to disable.
     llm_knn_confirm_threshold: float = 1.0
+
+    cache_enabled: bool = True
+    cache_market_snapshot_ttl_seconds: int = 45
+    cache_market_history_ttl_seconds: int = 300
+    cache_market_historical_history_ttl_seconds: int = 86400
+    cache_news_first_page_ttl_seconds: int = 120
+    cache_ai_predict_ttl_seconds: int = 90000
 
     model_config = SettingsConfigDict(
         env_prefix="MAIN_CONTROLLER_",

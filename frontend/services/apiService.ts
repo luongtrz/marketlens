@@ -1,4 +1,5 @@
 import { CoinData, HistoryPoint, LatestNewsPage, NewsArticle, ForecastResult, ChatMessage } from '../types';
+import { getCached, getOrFetchCached } from './memoryCache';
 
 /** Same-origin ``/api`` when using Vite proxy (dev) or nginx (Docker). Override with VITE_API_URL if needed. */
 const API_BASE_URL =
@@ -7,6 +8,14 @@ const API_BASE_URL =
         : '/api');
 
 const MOCK_MODE = String(import.meta.env.VITE_MOCK_MODE || '').toLowerCase() === 'true';
+const NEWS_TTL_MS = 2 * 60 * 1000;
+const FORECAST_TTL_MS = 25 * 60 * 60 * 1000;
+
+const latestNewsCacheKey = (start?: string, end?: string, tag?: string) =>
+    `news:latest:${start || 'none'}:${end || 'none'}:${tag || 'all'}`;
+
+export const getCachedLatestNews = (start?: string, end?: string, tag?: string): NewsArticle[] | null =>
+    getCached<NewsArticle[]>(latestNewsCacheKey(start, end, tag));
 
 const mockUnitSentiment = () => Math.round((Math.random() * 2 - 1) * 100) / 100;
 const AUTH_BASE = `${API_BASE_URL.replace(/\/$/, '')}/auth`;
@@ -84,6 +93,8 @@ export {
     fetchHistoricalData,
     fetchSnapshot,
     fetchTopCoins,
+    getCachedHistoricalData,
+    getCachedTopCoins,
     MarketWebSocket,
 } from './marketService';
 export type { MarketWebSocketOptions } from './marketService';
@@ -191,7 +202,8 @@ export const generateMarketForecast = async (coinName: string, recentTrend: stri
             recommendation: { action: isBull ? 'Buy' : 'Hold', entryZone: '-', targetPrice: '-', stopLoss: '-' }
         };
     }
-    try {
+    const cacheKey = `ai:forecast:${coinName}:${recentTrend}:${Math.round(currentPrice * 100) / 100}`;
+    return getOrFetchCached(cacheKey, FORECAST_TTL_MS, async () => {
         const res = await fetch(`${API_BASE_URL}/ai/forecast`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -199,7 +211,7 @@ export const generateMarketForecast = async (coinName: string, recentTrend: stri
         });
         if (!res.ok) throw new Error('API Error');
         return await res.json();
-    } catch (e) {
+    }).catch((e) => {
         console.error('generateMarketForecast failed', e);
         return {
             predictedPrices: [currentPrice, currentPrice, currentPrice, currentPrice, currentPrice],
@@ -208,7 +220,7 @@ export const generateMarketForecast = async (coinName: string, recentTrend: stri
             trend: "Neutral",
             recommendation: { action: "Hold", entryZone: "-", targetPrice: "-", stopLoss: "-" }
         };
-    }
+    });
 };
 
 export const askChartAnalyst = async (coinSymbol: string, chartData: any[], question: string): Promise<string> => {
@@ -271,7 +283,8 @@ export const fetchLatestNews = async (start?: string, end?: string, tag?: string
             return true;
         });
     }
-    try {
+    const cacheKey = latestNewsCacheKey(start, end, tag);
+    return getOrFetchCached(cacheKey, NEWS_TTL_MS, async () => {
         const params = new URLSearchParams();
         if (start) params.append('start', start);
         if (end) params.append('end', end);
@@ -285,10 +298,10 @@ export const fetchLatestNews = async (start?: string, end?: string, tag?: string
             return [];
         }
         return await res.json();
-    } catch (e) {
+    }).catch((e) => {
         console.error('fetchLatestNews failed', e);
         return [];
-    }
+    });
 };
 
 /** Server-side Supabase pagination via MainController (News Intelligence). */
@@ -299,7 +312,8 @@ export const fetchLatestNewsPaged = async (
     end?: string,
     tag?: string,
 ): Promise<LatestNewsPage | null> => {
-    try {
+    const cacheKey = `news:paged:${page}:${pageSize}:${start || 'none'}:${end || 'none'}:${tag || 'all'}`;
+    return getOrFetchCached(cacheKey, NEWS_TTL_MS, async () => {
         const params = new URLSearchParams();
         params.append('page', String(page));
         params.append('page_size', String(pageSize));
@@ -314,10 +328,10 @@ export const fetchLatestNewsPaged = async (
             return null;
         }
         return (await res.json()) as LatestNewsPage;
-    } catch (e) {
+    }).catch((e) => {
         console.error('fetchLatestNewsPaged failed', e);
         return null;
-    }
+    });
 };
 
 // Chat Session Adapter
