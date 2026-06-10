@@ -49,7 +49,7 @@ async def test_pipeline_full_run_with_mocks(
         sample_article, sample_market_snapshot, sample_normalized_factor,
         sample_similar_record, sample_predict_response,
     )
-    pipeline = Pipeline(clients, PipelineConfig(k_similar=5))
+    pipeline = Pipeline(clients, PipelineConfig(k_similar=5, predict_provider="aihub"))
     result = await pipeline.run("BTCUSDT")
 
     assert result.signal == SignalType.BUY

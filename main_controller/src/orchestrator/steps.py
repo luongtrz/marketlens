@@ -349,19 +349,115 @@ async def step_stockmem(
         raise PipelineError(f"StockMem failed: {exc}") from exc
 
 
+_DEFAULT_KNN_WEIGHTS: dict[str, float] = {
+    "1d": 0.40, "3d": 0.30, "7d": 0.15, "15d": 0.10, "30d": 0.05
+}
+
+
+def _knn_returns_signal(
+    similar_records: list,
+    weights: dict[str, float],
+    buy_threshold: float,
+    sell_threshold: float,
+) -> "PredictResponse":
+    """Derive signal from weighted average future returns of k similar records.
+
+    Weights are normalized per-record so missing horizons don't bias the result.
+    """
+    from shared.models.prediction import PredictResponse, SignalType
+
+    per_record_avgs: list[float] = []
+    for sr in similar_records:
+        rec = sr.record
+        total_w = total_v = 0.0
+        for h, w in weights.items():
+            val = getattr(rec, f"future_return_{h}", None)
+            if val is not None:
+                total_v += val * w
+                total_w += w
+        if total_w > 0:
+            per_record_avgs.append(total_v / total_w)
+
+    if not per_record_avgs:
+        return PredictResponse(
+            signal=SignalType.HOLD,
+            confidence=0.50,
+            explanation="kNN-returns: no future return data in similar records; defaulting to HOLD.",
+            reasoning_steps=["knn_returns: no data available"],
+        )
+
+    overall_avg = sum(per_record_avgs) / len(per_record_avgs)
+
+    if overall_avg > buy_threshold:
+        signal = SignalType.BUY
+        distance = overall_avg - buy_threshold
+    elif overall_avg < sell_threshold:
+        signal = SignalType.SELL
+        distance = sell_threshold - overall_avg  # positive
+    else:
+        signal = SignalType.HOLD
+        distance = 0.0
+
+    # Consensus: fraction of individual records that agree with signal
+    def _rec_signal(v: float) -> str:
+        if v > buy_threshold:
+            return "BUY"
+        if v < sell_threshold:
+            return "SELL"
+        return "HOLD"
+
+    consensus = sum(1 for v in per_record_avgs if _rec_signal(v) == signal.value)
+    consensus_bonus = round((consensus / len(per_record_avgs) - 0.5) * 0.10, 3)
+
+    confidence = round(min(max(0.55 + min(distance / 15.0, 0.35) + consensus_bonus, 0.50), 0.95), 3)
+
+    w_str = " | ".join(f"{h}={w:.0%}" for h, w in weights.items())
+    explanation = (
+        f"kNN-returns: {len(per_record_avgs)} similar days → "
+        f"weighted avg = {overall_avg:+.2f}% "
+        f"(weights: {w_str}). "
+        f"Consensus {consensus}/{len(per_record_avgs)} → {signal.value}."
+    )
+    reasoning_steps = [
+        f"Similar records with return data: {len(per_record_avgs)}/{len(similar_records)}",
+        f"Per-record averages: {[f'{v:+.2f}%' for v in per_record_avgs]}",
+        f"Overall weighted avg: {overall_avg:+.2f}%",
+        f"Thresholds: BUY > {buy_threshold}%, SELL < {sell_threshold}%",
+        f"Signal: {signal.value}  |  distance from threshold: {distance:.2f}%",
+        f"Consensus: {consensus}/{len(per_record_avgs)}  |  confidence: {confidence:.3f}",
+    ]
+
+    return PredictResponse(
+        signal=signal,
+        confidence=confidence,
+        explanation=explanation,
+        reasoning_steps=reasoning_steps,
+    )
+
+
 async def step_predict(
     ctx: PipelineContext,
     clients: ModuleClients,
-    predict_provider: str = "aihub",
+    predict_provider: str = "knn_returns",
     llm_model: str | None = None,
+    knn_weights: dict[str, float] | None = None,
+    knn_buy_threshold: float = 3.0,
+    knn_sell_threshold: float = -3.0,
 ) -> None:
     """STEP 4: Predict signal using selected provider."""
     if ctx.current_record is None or ctx.market_snapshot is None:
         raise PipelineError("current_record or market_snapshot is None — cannot predict")
 
     try:
-        provider = (predict_provider or "aihub").strip().lower()
-        if provider == "llm_gateway":
+        provider = (predict_provider or "knn_returns").strip().lower()
+        if provider == "knn_returns":
+            ctx.prediction = _knn_returns_signal(
+                similar_records=ctx.similar_records,
+                weights=knn_weights or _DEFAULT_KNN_WEIGHTS,
+                buy_threshold=knn_buy_threshold,
+                sell_threshold=knn_sell_threshold,
+            )
+        elif provider == "llm_gateway":
             if clients.llm_gateway is None:
                 raise PipelineError("LLM Gateway client is not configured")
             ctx.prediction = await clients.llm_gateway.predict(

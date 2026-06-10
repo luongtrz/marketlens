@@ -29,9 +29,19 @@ logger = logging.getLogger(__name__)
 class PipelineConfig:
     """Configuration for the pipeline orchestrator."""
 
-    def __init__(self, k_similar: int = 5, predict_provider: str = "aihub") -> None:
+    def __init__(
+        self,
+        k_similar: int = 5,
+        predict_provider: str = "knn_returns",
+        knn_weights: dict | None = None,
+        knn_buy_threshold: float = 3.0,
+        knn_sell_threshold: float = -3.0,
+    ) -> None:
         self.k_similar = k_similar
         self.predict_provider = predict_provider
+        self.knn_weights = knn_weights
+        self.knn_buy_threshold = knn_buy_threshold
+        self.knn_sell_threshold = knn_sell_threshold
 
 
 class Pipeline:
@@ -95,6 +105,9 @@ class Pipeline:
                 self._clients,
                 predict_provider=self._config.predict_provider,
                 llm_model=llm_model,
+                knn_weights=self._config.knn_weights,
+                knn_buy_threshold=self._config.knn_buy_threshold,
+                knn_sell_threshold=self._config.knn_sell_threshold,
             )
         except PipelineError as exc:
             logger.error("step_predict PipelineError: %s", exc)

@@ -222,7 +222,7 @@ async def test_step_predict_happy(sample_market_snapshot, sample_stockmem_record
     aihub.predict = AsyncMock(return_value=sample_predict_response)
     clients = _clients(aihub=aihub)
 
-    await step_predict(ctx, clients)
+    await step_predict(ctx, clients, predict_provider="aihub")
 
     assert ctx.prediction == sample_predict_response
     assert ctx.prediction.signal == SignalType.BUY
@@ -239,7 +239,7 @@ async def test_step_predict_aihub_fail_raises_pipeline_error(sample_market_snaps
     clients = _clients(aihub=aihub)
 
     with pytest.raises(PipelineError, match="predict"):
-        await step_predict(ctx, clients)
+        await step_predict(ctx, clients, predict_provider="aihub")
 
 
 async def test_step_predict_llm_gateway_happy(sample_market_snapshot, sample_stockmem_record, sample_predict_response):
