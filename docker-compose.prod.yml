@@ -1,0 +1,34 @@
+# Production override — pulls prebuilt images from ghcr.io instead of building locally.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+services:
+  crawler:
+    image: ghcr.io/luongtrz/marketlens-crawler:latest
+    build: !reset null
+
+  aihub:
+    image: ghcr.io/luongtrz/marketlens-aihub:latest
+    build: !reset null
+
+  market_data:
+    image: ghcr.io/luongtrz/marketlens-market_data:latest
+    build: !reset null
+
+  stockmem:
+    image: ghcr.io/luongtrz/marketlens-stockmem:latest
+    build: !reset null
+
+  factor_ledge:
+    image: ghcr.io/luongtrz/marketlens-factor_ledge:latest
+    build: !reset null
+
+  main_controller:
+    image: ghcr.io/luongtrz/marketlens-main_controller:latest
+    build: !reset null
+
+  llm_gateway:
+    image: ghcr.io/luongtrz/marketlens-llm_gateway:latest
+    build: !reset null
+
+  frontend:
+    image: ghcr.io/luongtrz/marketlens-frontend:latest
+    build: !reset null

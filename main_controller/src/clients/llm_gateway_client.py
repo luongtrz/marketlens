@@ -77,6 +77,35 @@ class LLMGatewayClient(BaseHTTPClient):
         )
 
     @staticmethod
+    def _compute_ret_14d(current: StockMemRecord) -> float | None:
+        """Compute 14-day price return from recent_candles for trend context."""
+        candles = list(getattr(current.market_snapshot, "recent_candles", None) or [])
+        if len(candles) < 15:
+            return None
+        try:
+            close_now = float(getattr(candles[-1], "close", 0) or 0)
+            close_14d = float(getattr(candles[-15], "close", 0) or 0)
+            if close_14d > 0:
+                return (close_now - close_14d) / close_14d * 100.0
+        except (TypeError, ValueError):
+            pass
+        return None
+
+    @staticmethod
+    def _trend_label(ret_14d: float | None) -> str:
+        if ret_14d is None:
+            return "UNKNOWN"
+        if ret_14d >= 8.0:
+            return "STRONG_BULL"
+        if ret_14d >= 4.0:
+            return "BULL"
+        if ret_14d <= -8.0:
+            return "STRONG_BEAR"
+        if ret_14d <= -4.0:
+            return "BEAR"
+        return "NEUTRAL"
+
+    @staticmethod
     def _build_prompt(current: StockMemRecord, similar: list[SimilarRecord]) -> str:
         current_close = getattr(current.market_snapshot.ohlcv, "close", None)
         current_rsi = (current.market_snapshot.indicators or {}).get("rsi")
@@ -84,11 +113,27 @@ class LLMGatewayClient(BaseHTTPClient):
         current_msi = (current.market_snapshot.indicators or {}).get("msi")
         current_fng = (current.market_snapshot.indicators or {}).get("fear_greed_index")
         current_pchg = (current.market_snapshot.indicators or {}).get("price_change_pct")
+
+        # Compute 14d trend context explicitly for the LLM
+        candles = list(getattr(current.market_snapshot, "recent_candles", None) or [])
+        ret_14d: float | None = None
+        if len(candles) >= 15:
+            try:
+                c_now = float(getattr(candles[-1], "close", 0) or 0)
+                c_14d = float(getattr(candles[-15], "close", 0) or 0)
+                if c_14d > 0:
+                    ret_14d = (c_now - c_14d) / c_14d * 100.0
+            except (TypeError, ValueError):
+                pass
+        trend = LLMGatewayClient._trend_label(ret_14d)
+        ret_14d_str = f"{ret_14d:+.2f}%" if ret_14d is not None else "n/a"
+
         lines = [
             f"date={current.date}",
             f"symbol={current.symbol}",
             f"sentiment_score={current.sentiment_score}",
             f"close={current_close}",
+            f"ret_14d={ret_14d_str}  trend={trend}",
             f"rsi={current_rsi}",
             f"macd_hist={current_macd}",
             f"msi={current_msi}",
@@ -99,14 +144,18 @@ class LLMGatewayClient(BaseHTTPClient):
         today_record = "\n".join(lines)
 
         similar_lines = []
+        knn_avg: float | None = None
+        knn_pos = 0
+        knn_total = 0
         if similar:
             ret7_vals = [c.record.future_return_7d for c in similar[:5] if c.record.future_return_7d is not None]
             if ret7_vals:
                 knn_avg = sum(ret7_vals) / len(ret7_vals)
                 knn_pos = sum(1 for r in ret7_vals if r > 0)
+                knn_total = len(ret7_vals)
                 similar_lines.append(
                     f"[knn_summary] knn_avg_7d={knn_avg:+.2f}%, "
-                    f"knn_bullish_count={knn_pos}/{len(ret7_vals)}"
+                    f"knn_bullish_count={knn_pos}/{knn_total}"
                 )
             for i, case in enumerate(similar[:3], start=1):
                 rec = case.record
@@ -119,12 +168,25 @@ class LLMGatewayClient(BaseHTTPClient):
                 )
         else:
             similar_lines.append("No similar cases available.")
+
+        # Add explicit SELL warning when kNN evidence is bullish
+        sell_warning = ""
+        if knn_avg is not None and knn_avg > 0:
+            strength = "STRONG " if knn_avg > 1.5 or knn_pos >= 4 else ""
+            sell_warning = (
+                f"\n⚠ {strength}SELL WARNING: kNN evidence is BULLISH "
+                f"(avg_7d={knn_avg:+.2f}%, {knn_pos}/{knn_total} bullish). "
+                "Emitting SELL here contradicts historical evidence — output HOLD unless "
+                "you can identify a specific technical breakdown."
+            )
+
         similar_records = "\n".join(similar_lines)
         return (
             "=== Current Situation ===\n"
             f"{today_record}\n\n"
             "=== Similar Historical Cases (from StockMem) ===\n"
             f"{similar_records}"
+            f"{sell_warning}"
         )
 
     @classmethod

@@ -21,8 +21,10 @@ from .taxonomy import (
     NUM_GROUPS,
     NUM_TYPES,
     build_group_vector,
+    build_group_vector_dense,
     build_group_vector_from_types,
     build_type_vector,
+    build_type_vector_dense,
 )
 
 
@@ -197,26 +199,26 @@ class RecordEmbedder:
         return np.clip(z, -Z_SCORE_CLIP, Z_SCORE_CLIP)
 
     def embed_split(self, record: StockMemRecord) -> SplitEmbedding:
-        # ── Factor vector ───────────────────────────────────────────────────
-        if record.factor_vector and len(record.factor_vector) == 75:
-            factor_vec = _l2_normalize(
-                np.array(record.factor_vector, dtype=np.float32)
+        # ── Factor vector (dense) ────────────────────────────────────────────
+        # Always recompute from factor phrases using group-propagated dense encoding.
+        # Dense: active type=1.0, same-group inactive types=0.3, group intensity ∈ [0.6, 1.0].
+        # This gives meaningful cosine similarity between days sharing the same thematic
+        # group even when exact phrases differ — fixing the sparse binary problem.
+        type_vec = np.array(build_type_vector_dense(record.factors), dtype=np.float32)
+        group_vec = np.array(build_group_vector_dense(record.factors), dtype=np.float32)
+
+        # Fallback: if no factors matched taxonomy, try FactorType from normalized_factors
+        if not any(type_vec) and record.normalized_factors:
+            factor_types = [
+                nf.get("type") if isinstance(nf, dict) else getattr(nf, "type", None)
+                for nf in record.normalized_factors
+            ]
+            fallback_groups = np.array(
+                build_group_vector_from_types(factor_types), dtype=np.float32
             )
-        else:
-            type_vec = np.array(build_type_vector(record.factors), dtype=np.float32)
-            group_vec = np.array(build_group_vector(record.factors), dtype=np.float32)
+            group_vec = np.maximum(group_vec, fallback_groups * 0.6)
 
-            # When factor names don't match the taxonomy (free-form AIHub output),
-            # fall back to using FactorType from normalized_factors to populate group bits.
-            if not any(group_vec) and record.normalized_factors:
-                factor_types = [
-                    nf.get("type") if isinstance(nf, dict) else getattr(nf, "type", None)
-                    for nf in record.normalized_factors
-                ]
-                fallback = np.array(build_group_vector_from_types(factor_types), dtype=np.float32)
-                group_vec = np.maximum(group_vec, fallback)
-
-            factor_vec = _l2_normalize(np.concatenate([type_vec, group_vec]))
+        factor_vec = _l2_normalize(np.concatenate([type_vec, group_vec]))
 
         raw = _extract_raw_numerical(record)
         z = self._z_score(raw)

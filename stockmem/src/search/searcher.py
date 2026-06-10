@@ -8,6 +8,40 @@ from ..models import SimilarRecord, StockMemRecord
 from .embedder import RecordEmbedder, SplitEmbedding
 from .index import MemoryVectorIndex
 
+# Regime bonus added to the weighted score when query and candidate are in the
+# same market regime. Opposite regimes get a symmetric penalty.
+# With max weighted score = 1.0, ±0.15 shifts priority meaningfully without dominating.
+_REGIME_SAME_BONUS: float = 0.15
+_REGIME_OPP_PENALTY: float = -0.15
+
+
+def _get_regime(record: StockMemRecord) -> str:
+    """Classify record's market regime as 'bull', 'bear', or 'neutral'.
+
+    Uses 14-day price return from recent_candles and RSI as secondary signal.
+    Regime-aware search prevents matching 2022 bear cases with 2024 bull cases.
+    """
+    candles = list(
+        getattr(record.market_snapshot, "recent_candles", None)
+        or getattr(record.market_snapshot, "candles", None)
+        or []
+    )
+    ret_14d = 0.0
+    if len(candles) >= 15:
+        close_now = getattr(candles[-1], "close", None)
+        close_14d = getattr(candles[-15], "close", None)
+        if close_now and close_14d and float(close_14d) > 0:
+            ret_14d = (float(close_now) - float(close_14d)) / float(close_14d) * 100.0
+
+    indicators = getattr(record.market_snapshot, "indicators", None) or {}
+    rsi = float(indicators.get("rsi") or getattr(record.market_snapshot, "rsi", None) or 50)
+
+    if ret_14d < -5.0 or (ret_14d < -2.0 and rsi < 45):
+        return "bear"
+    if ret_14d > 5.0 or (ret_14d > 2.0 and rsi > 55):
+        return "bull"
+    return "neutral"
+
 
 class RecordSearcher:
     """
@@ -75,6 +109,8 @@ class RecordSearcher:
                 if rid in self._record_cache
             ]
 
+        query_regime = _get_regime(query)
+
         for rec in candidate_records:
             if rec.symbol.upper() != query.symbol.upper():
                 continue
@@ -82,6 +118,11 @@ class RecordSearcher:
                 continue
             cand_split = self._embedder.embed_split(rec)
             score = self._weighted_score(query_split, cand_split)
+            cand_regime = _get_regime(rec)
+            if cand_regime == query_regime:
+                score += _REGIME_SAME_BONUS
+            elif query_regime != "neutral" and cand_regime != "neutral":
+                score += _REGIME_OPP_PENALTY
             scored.append((score, rec))
 
         if len(scored) < k:
@@ -95,6 +136,11 @@ class RecordSearcher:
                     continue
                 cand_split = self._embedder.embed_split(rec)
                 score = self._weighted_score(query_split, cand_split)
+                cand_regime = _get_regime(rec)
+                if cand_regime == query_regime:
+                    score += _REGIME_SAME_BONUS
+                elif query_regime != "neutral" and cand_regime != "neutral":
+                    score += _REGIME_OPP_PENALTY
                 scored.append((score, rec))
 
         scored.sort(key=lambda x: x[0], reverse=True)

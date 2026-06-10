@@ -389,6 +389,57 @@ def build_group_vector(factors: list[str]) -> list[int]:
     return vec
 
 
+# Pre-computed inverse: group → list of type indices (built once at module load)
+_GROUP_TO_TYPE_INDICES: dict[str, list[int]] = {}
+for _group, _types in EVENT_TAXONOMY.items():
+    _GROUP_TO_TYPE_INDICES[_group] = [TYPE_INDEX[t] for t in _types if t in TYPE_INDEX]
+
+
+def build_type_vector_dense(factors: list[str]) -> list[float]:
+    """Dense factor type vector with group propagation.
+
+    Active type: 1.0. Inactive types in the same group as any active type: 0.3.
+    This creates a meaningful cosine similarity between days sharing the same
+    thematic group (e.g., two Macroeconomic events) even if the exact phrases differ.
+    """
+    vec = [0.0] * NUM_TYPES
+    active_groups: set[str] = set()
+    for f in factors:
+        event_type = _resolve_event_type(f)
+        if event_type is None:
+            continue
+        idx = TYPE_INDEX.get(event_type)
+        if idx is not None:
+            vec[idx] = 1.0
+        group = TYPE_TO_GROUP.get(event_type)
+        if group is not None:
+            active_groups.add(group)
+    for group in active_groups:
+        for idx in _GROUP_TO_TYPE_INDICES.get(group, []):
+            if vec[idx] == 0.0:
+                vec[idx] = 0.3
+    return vec
+
+
+def build_group_vector_dense(factors: list[str]) -> list[float]:
+    """Dense group vector with intensity based on factor count per group.
+
+    1 factor in group → 0.6; 2+ factors → 1.0. Partial activation distinguishes
+    strongly active groups from weakly active ones.
+    """
+    group_counts: dict[str, int] = {}
+    for f in factors:
+        group = get_factor_group(f)
+        if group is not None:
+            group_counts[group] = group_counts.get(group, 0) + 1
+    vec = [0.0] * NUM_GROUPS
+    for group, count in group_counts.items():
+        idx = GROUP_INDEX.get(group)
+        if idx is not None:
+            vec[idx] = min(1.0, 0.6 + (count - 1) * 0.4)
+    return vec
+
+
 def build_group_vector_from_types(factor_types: list[str | None]) -> list[int]:
     """Build group vector from FactorType enum values (e.g. 'macro', 'regulatory').
 
