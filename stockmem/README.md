@@ -42,7 +42,8 @@ StockMem là memory/retrieval layer của hệ thống: lưu record thị trư�
 
 ### Config
 - `stockmem/src/config.py`
-  - Runtime config cho DB/vector backend/weights.
+  - Runtime config cho DB/vector backend/weights và learned retriever artifact.
+  - `LEARNED_RETRIEVER_FILE`: đường dẫn artifact JSON; file thiếu/rỗng sẽ fallback về fixed kNN.
   - Config auto-optimize daily:
     - `AUTO_OPTIMIZE_ENABLED`
     - `AUTO_OPTIMIZE_HOUR_UTC`
@@ -57,14 +58,19 @@ StockMem là memory/retrieval layer của hệ thống: lưu record thị trư�
 ### Search/Embedding
 - `stockmem/src/search/embedder.py`
   - Split embedding:
+    - `event_vec` (85 dims)
     - `factor_vec` (75 dims)
     - `indicator_vec` (5 dims)
     - `price_vec` (60 dims)
 - `stockmem/src/search/searcher.py`
-  - Weighted cosine:
+  - `fixed_knn` dùng weighted cosine:
     - `score = w1*sim(factor) + w2*sim(indicator) + w3*sim(price)`
+  - `learned_linear` dùng learned per-feature diagonal metric và exact scan để đồng nhất với offline evaluation.
+  - Nếu artifact không tồn tại, `learned_linear` fallback về `fixed_knn`.
   - Chỉ search trong cùng `symbol` với query.
   - Hỗ trợ `before_date` để tránh look-ahead trong backtest.
+- `stockmem/src/search/event_memory.py`
+  - Xây `DailyEventState`, novelty point-in-time, source diversity và vector event 85 chiều.
 - `stockmem/src/search/index.py`
   - In-memory index (FAISS nếu available, fallback numpy).
 - `stockmem/src/search/taxonomy.py`
@@ -92,7 +98,7 @@ StockMem là memory/retrieval layer của hệ thống: lưu record thị trư�
 - Identity: `id`, `date`, `symbol`
 - Sentiment/factors: `sentiment_score`, `sentiment_label`, `factors`, `normalized_factors`, `factor_vector`
 - Market snapshot: RSI/MACD/MSI/FGI/price-change/candles
-- Metadata: `summary`, `article_ids`
+- Metadata/event memory: `summary`, `article_ids`, `article_sources`, `article_published_at`, `event_state`, `event_vector`
 - Labels: `future_return_1d`, `future_return_7d`, `future_return_30d`
 
 ---
@@ -106,7 +112,8 @@ Upsert record theo `(date, symbol)`.
 Lấy record theo id.
 
 ### `POST /search`
-Truy vấn tương đồng, có thể set `before_date` cho walk-forward.
+Truy vấn tương đồng, có thể set `before_date` cho walk-forward và chọn
+`retriever_type` là `fixed_knn` (mặc định) hoặc `learned_linear`.
 
 ### `GET /records/missing-returns`
 Lấy records thiếu nhãn return (nếu thiếu bất kỳ trường nào trong `future_return_1d/7d/30d`).
@@ -163,8 +170,14 @@ Việc tính return theo giá tương lai đang được orchestrate bởi Main 
 - `stockmem/scripts/optimize_weights.py`: Bayesian/grid optimization offline.
 - `stockmem/scripts/benchmark_weights.py`: compare baseline vs candidate.
 - `stockmem/scripts/regen_optimizer_data.py`: tái tạo dataset optimizer từ DB.
+- `stockmem/scripts/build_cem_dataset.py`: kiểm tra split, label và maturity guard cho CEM dataset.
+- `stockmem/scripts/train_learned_retriever.py`: train learned diagonal metric bằng numpy/Adam.
+- `stockmem/scripts/evaluate_retriever.py`: so sánh guarded/leaky fixed baseline với learned retriever.
 - `stockmem/scripts/generate_mock_data.py`: tạo mock dataset.
 - `stockmem/scripts/patch_factors.py`: utility patch factors.
+
+Optimizer và evaluator mặc định yêu cầu outcome của candidate đã mature theo ngày lịch.
+Chỉ dùng `--no-maturity-guard` để tái tạo kết quả legacy có look-ahead.
 
 ### Data
 - `stockmem/data/mock_3y_records.json`
@@ -177,6 +190,8 @@ Việc tính return theo giá tương lai đang được orchestrate bởi Main 
 
 - `stockmem/tests/test_store.py`
 - `stockmem/tests/test_search.py`
+- `stockmem/tests/test_event_memory.py`
+- `stockmem/tests/test_learned_retriever.py`
 - `stockmem/tests/test_vectorize.py`
 - `stockmem/tests/test_pg_repository.py`
 - `stockmem/tests/test_taxonomy.py`

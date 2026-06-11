@@ -1,7 +1,8 @@
 """
 StockMem + History Rhymes split-vector embedder.
 
-Produces three L2-normalized vectors per record:
+Produces four L2-normalized vectors per record:
+  - event_vec     (85d)  = type/group occurrences + dissemination/novelty
   - factor_vec    (75d)  = typeVec(62) + groupVec(13)
   - indicator_vec (5d)   = z-scored [msi, rsi, sentiment_score, fgi, price_change_pct]
   - price_vec     (60d)  = OHLCV features [close_returns(20) | ranges(20) | volumes(20)]
@@ -17,13 +18,12 @@ from typing import Iterable
 import numpy as np
 
 from ..models import CandleData, StockMemRecord
+from .event_memory import EVENT_DIM, build_event_vector
 from .taxonomy import (
     NUM_GROUPS,
     NUM_TYPES,
-    build_group_vector,
     build_group_vector_dense,
     build_group_vector_from_types,
-    build_type_vector,
     build_type_vector_dense,
 )
 
@@ -43,6 +43,7 @@ ALPHA_NUMERIC = 0.5  # scales indicator block when packed into joint vector
 
 @dataclass(frozen=True)
 class SplitEmbedding:
+    event_vec: np.ndarray
     factor_vec: np.ndarray
     indicator_vec: np.ndarray
     price_vec: np.ndarray
@@ -139,7 +140,7 @@ def compute_price_features(candles: list[CandleData], window: int = RETURNS_WIND
 
 class RecordEmbedder:
     """
-    Produces SplitEmbedding(factor=75d, indicator=5d, price=60d).
+    Produces SplitEmbedding(event=85d, factor=75d, indicator=5d, price=60d).
 
     Indicator z-score stats come from the corpus; call rebuild_corpus() before
     embedding queries so query indicators use the same normalization.
@@ -199,6 +200,12 @@ class RecordEmbedder:
         return np.clip(z, -Z_SCORE_CLIP, Z_SCORE_CLIP)
 
     def embed_split(self, record: StockMemRecord) -> SplitEmbedding:
+        raw_event_vec = np.asarray(record.event_vector, dtype=np.float32)
+        if raw_event_vec.size == EVENT_DIM:
+            event_vec = _l2_normalize(raw_event_vec)
+        else:
+            event_vec = _l2_normalize(build_event_vector(record.event_state))
+
         # ── Factor vector (dense) ────────────────────────────────────────────
         # Always recompute from factor phrases using group-propagated dense encoding.
         # Dense: active type=1.0, same-group inactive types=0.3, group intensity ∈ [0.6, 1.0].
@@ -228,13 +235,14 @@ class RecordEmbedder:
         price_vec = _l2_normalize(price_features)
 
         return SplitEmbedding(
+            event_vec=event_vec,
             factor_vec=factor_vec,
             indicator_vec=indicator_vec,
             price_vec=price_vec,
         )
 
     def embed(self, record: StockMemRecord) -> np.ndarray:
-        """Legacy concat embedding for FAISS index fallback. Not used for weighted search."""
+        """Legacy 140d embedding; event features remain learned-retriever only."""
         split = self.embed_split(record)
         indicator_scaled = split.indicator_vec.astype(np.float32) * np.float32(ALPHA_NUMERIC)
         joint = np.concatenate([split.factor_vec, indicator_scaled, split.price_vec])

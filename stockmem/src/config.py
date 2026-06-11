@@ -4,9 +4,12 @@ import os
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
 
+if TYPE_CHECKING:
+    from .search.learned_metric import LearnedDiagonalMetric
 
 def _as_float(value: object, fallback: float) -> float:
     try:
@@ -86,6 +89,14 @@ def load_weights_from_config(
     return _normalize_weights(w1, w2, w3)
 
 
+def load_learned_retriever_from_config(
+    artifact_file: str | None = None,
+) -> LearnedDiagonalMetric | None:
+    from .search.learned_metric import load_learned_metric
+
+    return load_learned_metric(artifact_file)
+
+
 @dataclass(frozen=True)
 class Settings:
     vector_backend: str = os.getenv("VECTOR_BACKEND", "memory")
@@ -105,6 +116,10 @@ class Settings:
     weights: SearchWeights = load_weights_from_config(
         os.getenv("STOCKMEM_CONFIG"),
         os.getenv("WEIGHTS_FILE"),
+    )
+    learned_retriever_file: str = os.getenv(
+        "LEARNED_RETRIEVER_FILE",
+        str(Path(__file__).resolve().parents[1] / "config" / "learned_retriever.json"),
     )
 
 

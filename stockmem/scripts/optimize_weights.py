@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime
-from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +25,7 @@ HORIZON_STEP = {
     "7d": 7,
     "30d": 30,
 }
+EVALUATION_PROTOCOL_VERSION = "maturity_guard_v1"
 
 
 @dataclass
@@ -36,6 +37,9 @@ class Row:
     future_return_1d: float
     future_return_7d: float
     future_return_30d: float
+    event_vec: np.ndarray = field(
+        default_factory=lambda: np.zeros(0, dtype=np.float32)
+    )
 
 
 def _cosine(a: np.ndarray, b: np.ndarray) -> float:
@@ -83,7 +87,16 @@ def _evaluate_query_against_pool(
     w3: float,
     k: int,
     horizon: str,
+    maturity_guard: bool = True,
 ) -> tuple[int, float]:
+    if maturity_guard:
+        horizon_days = HORIZON_STEP.get(horizon, 1)
+        query_date = date.fromisoformat(query.date)
+        pool = [
+            candidate
+            for candidate in pool
+            if date.fromisoformat(candidate.date) + timedelta(days=horizon_days) <= query_date
+        ]
     scored = [(weighted_similarity(query, p, w1, w2, w3), p) for p in pool]
     scored.sort(key=lambda x: x[0], reverse=True)
     top = scored[:k]
@@ -111,9 +124,15 @@ def load_rows(path: Path) -> list[Row]:
                 future_return_1d=float(item.get("future_return_1d", 0.0)),
                 future_return_7d=float(item.get("future_return_7d", 0.0)),
                 future_return_30d=float(item.get("future_return_30d", 0.0)),
+                event_vec=np.array(item.get("event_vec", []), dtype=np.float32),
             )
         )
     rows.sort(key=lambda x: x.date)
+    if rows and rows[0].event_vec.size and not any(
+        np.any(row.event_vec) for row in rows
+    ):
+        for row in rows:
+            row.event_vec = np.zeros(0, dtype=np.float32)
     return rows
 
 
@@ -124,6 +143,7 @@ def validate_rows(rows: list[Row]) -> None:
     factor_dim = rows[0].factor_vec.shape[0]
     indicator_dim = rows[0].indicator_vec.shape[0]
     price_dim = rows[0].price_vec.shape[0]
+    event_dim = rows[0].event_vec.shape[0]
     if factor_dim == 0 or indicator_dim == 0 or price_dim == 0:
         raise ValueError("Vectors must be non-empty for all groups")
 
@@ -140,6 +160,10 @@ def validate_rows(rows: list[Row]) -> None:
             raise ValueError(
                 f"Row {i} has inconsistent price_vec dim: {row.price_vec.shape[0]} vs {price_dim}"
             )
+        if row.event_vec.shape[0] != event_dim:
+            raise ValueError(
+                f"Row {i} has inconsistent event_vec dim: {row.event_vec.shape[0]} vs {event_dim}"
+            )
 
 
 def walk_forward_evaluate(
@@ -151,6 +175,7 @@ def walk_forward_evaluate(
     warmup: int,
     horizon: str = "7d",
     sharpe_mode: str = "nonoverlap",
+    maturity_guard: bool = True,
 ) -> dict[str, float]:
     correct = 0
     total = 0
@@ -170,6 +195,7 @@ def walk_forward_evaluate(
             w3=w3,
             k=k,
             horizon=horizon,
+            maturity_guard=maturity_guard,
         )
 
         correct += is_correct
@@ -185,9 +211,25 @@ def walk_forward_evaluate(
     return {"da": da, "sharpe": sharpe, "combined": combined}
 
 
-def evaluate(rows: list[Row], w1: float, w2: float, w3: float, k: int, warmup: int) -> dict[str, float]:
+def evaluate(
+    rows: list[Row],
+    w1: float,
+    w2: float,
+    w3: float,
+    k: int,
+    warmup: int,
+    maturity_guard: bool = True,
+) -> dict[str, float]:
     # Keep compatibility for benchmark_weights.py
-    return walk_forward_evaluate(rows, w1, w2, w3, k=k, warmup=warmup)
+    return walk_forward_evaluate(
+        rows,
+        w1,
+        w2,
+        w3,
+        k=k,
+        warmup=warmup,
+        maturity_guard=maturity_guard,
+    )
 
 
 def evaluate_holdout(
@@ -199,6 +241,7 @@ def evaluate_holdout(
     k: int,
     horizon: str,
     sharpe_mode: str,
+    maturity_guard: bool = True,
 ) -> dict[str, float]:
     if not holdout_rows:
         return {"da": 0.0, "sharpe": 0.0, "combined": 0.0}
@@ -219,6 +262,7 @@ def evaluate_holdout(
             w3=w3,
             k=k,
             horizon=horizon,
+            maturity_guard=maturity_guard,
         )
         correct += is_correct
         total += 1
@@ -368,6 +412,7 @@ def make_objective(
     cv_folds: int,
     cv_holdout_ratio: float,
     cv_min_holdout: int,
+    maturity_guard: bool,
 ):
     cv_splits = (
         build_temporal_cv_folds(rows, warmup, cv_folds, cv_holdout_ratio, cv_min_holdout)
@@ -386,7 +431,15 @@ def make_objective(
 
         if cv_folds <= 1:
             metrics = walk_forward_evaluate(
-                rows, w1, w2, w3, k=k, warmup=warmup, horizon=horizon, sharpe_mode=sharpe_mode
+                rows,
+                w1,
+                w2,
+                w3,
+                k=k,
+                warmup=warmup,
+                horizon=horizon,
+                sharpe_mode=sharpe_mode,
+                maturity_guard=maturity_guard,
             )
             trial.set_user_attr("da", round(metrics["da"], 4))
             trial.set_user_attr("sharpe", round(metrics["sharpe"], 4))
@@ -405,6 +458,7 @@ def make_objective(
                     k=k,
                     horizon=horizon,
                     sharpe_mode=sharpe_mode,
+                    maturity_guard=maturity_guard,
                 )
             )
 
@@ -430,6 +484,7 @@ def grid_search(
     k: int,
     warmup: int,
     sharpe_mode: str,
+    maturity_guard: bool,
 ) -> list[dict[str, float]]:
     results: list[dict[str, float]] = []
     w1_range = np.arange(0.20, 0.71, step)
@@ -450,6 +505,7 @@ def grid_search(
                 warmup=warmup,
                 horizon=horizon,
                 sharpe_mode=sharpe_mode,
+                maturity_guard=maturity_guard,
             )
             results.append(
                 {
@@ -481,6 +537,15 @@ def main() -> None:
     parser.add_argument("--cv-holdout-ratio", type=float, default=None)
     parser.add_argument("--cv-min-holdout", type=int, default=None)
     parser.add_argument("--stable-top-k", type=int, default=10)
+    parser.add_argument(
+        "--maturity-guard",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Require candidate outcomes to mature before each query. "
+            "Use --no-maturity-guard only to reproduce legacy leaky results."
+        ),
+    )
     parser.add_argument("--ablation", action="store_true")
     parser.add_argument("--grid", action="store_true")
     parser.add_argument("--output", default="stockmem/config/weights.optimized.json")
@@ -518,6 +583,7 @@ def main() -> None:
         cv_folds=args.cv_folds,
         cv_holdout_ratio=cv_holdout_ratio,
         cv_min_holdout=cv_min_holdout,
+        maturity_guard=args.maturity_guard,
     )
     study.optimize(objective, n_trials=max(1, args.trials), show_progress_bar=False)
 
@@ -542,6 +608,7 @@ def main() -> None:
         warmup=args.warmup,
         horizon=args.horizon,
         sharpe_mode=args.sharpe_mode,
+        maturity_guard=args.maturity_guard,
     )
     train_metrics_stable = walk_forward_evaluate(
         train_rows,
@@ -552,6 +619,7 @@ def main() -> None:
         warmup=args.warmup,
         horizon=args.horizon,
         sharpe_mode=args.sharpe_mode,
+        maturity_guard=args.maturity_guard,
     )
 
     holdout_metrics_best = evaluate_holdout(
@@ -563,6 +631,7 @@ def main() -> None:
         args.k,
         args.horizon,
         args.sharpe_mode,
+        args.maturity_guard,
     )
     holdout_metrics_stable = evaluate_holdout(
         stable_w1,
@@ -573,6 +642,7 @@ def main() -> None:
         args.k,
         args.horizon,
         args.sharpe_mode,
+        args.maturity_guard,
     )
     holdout_metrics_baseline = evaluate_holdout(
         baseline[0],
@@ -583,6 +653,7 @@ def main() -> None:
         args.k,
         args.horizon,
         args.sharpe_mode,
+        args.maturity_guard,
     )
 
     output = {
@@ -604,6 +675,10 @@ def main() -> None:
         "warmup": args.warmup,
         "sharpe_mode": args.sharpe_mode,
         "seed": args.seed,
+        "evaluation_protocol": {
+            "version": EVALUATION_PROTOCOL_VERSION,
+            "maturity_guard": args.maturity_guard,
+        },
         "cv": {
             "folds_requested": args.cv_folds,
             "holdout_ratio": cv_holdout_ratio,
@@ -661,6 +736,7 @@ def main() -> None:
                 args.k,
                 args.horizon,
                 args.sharpe_mode,
+                args.maturity_guard,
             )
             output["holdout_metrics_ablation_w3_zero"] = {
                 "da": round(ablation["da"], 4),
@@ -676,6 +752,7 @@ def main() -> None:
             k=args.k,
             warmup=args.warmup,
             sharpe_mode=args.sharpe_mode,
+            maturity_guard=args.maturity_guard,
         )
         grid_path = Path(args.output).parent / "grid_results.json"
         grid_path.parent.mkdir(parents=True, exist_ok=True)

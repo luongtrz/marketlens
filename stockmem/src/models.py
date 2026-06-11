@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from datetime import date
-from typing import Any, Optional
+from datetime import date, datetime
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from shared.models.event import DailyEventState
 
 
 class CandleData(BaseModel):
@@ -75,6 +76,10 @@ class StockMemRecord(BaseModel):
     factor_vector: list[float] = Field(default_factory=list)  # Pre-computed 75d factor vector (from FactorLedge)
     summary: Optional[str] = None
     article_ids: list[str] = Field(default_factory=list)
+    article_sources: list[str] = Field(default_factory=list)
+    article_published_at: list[datetime] = Field(default_factory=list)
+    event_state: DailyEventState | None = None
+    event_vector: list[float] = Field(default_factory=list)
     future_return_1d: Optional[float] = None
     future_return_3d: Optional[float] = None
     future_return_7d: Optional[float] = None
@@ -86,6 +91,8 @@ class SimilarRecord(BaseModel):
     record: StockMemRecord
     similarity: float
     outcome: Optional[str] = None
+    event_match: dict[str, float] = Field(default_factory=dict)
+    retriever_version: str = "fixed_knn_v1"
 
 
 class RecordCreateRequest(BaseModel):
@@ -100,6 +107,7 @@ class SearchRequest(BaseModel):
     query: StockMemRecord
     k: int = 5
     before_date: date | None = None  # Exclude records on/after this date (backtest look-ahead guard)
+    retriever_type: Literal["fixed_knn", "learned_linear"] = "fixed_knn"
 
 
 class SearchResponse(BaseModel):

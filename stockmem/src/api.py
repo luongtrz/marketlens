@@ -34,6 +34,7 @@ service = StockMemService(
     db_url=settings.db_url,
     vector_backend=settings.vector_backend,
     weights=settings.weights,
+    learned_retriever_file=settings.learned_retriever_file,
 )
 _auto_task: asyncio.Task | None = None
 _retrain_lock = asyncio.Lock()
@@ -125,7 +126,12 @@ async def get_record(record_id: str) -> StockMemRecord:
 @app.post("/search", response_model=SearchResponse)
 async def search(payload: SearchRequest) -> SearchResponse:
     k = max(1, payload.k)
-    results = await service.search(payload.query, k=k, before_date=payload.before_date)
+    results = await service.search(
+        payload.query,
+        k=k,
+        before_date=payload.before_date,
+        retriever_type=payload.retriever_type,
+    )
     return SearchResponse(results=results)
 
 

@@ -25,6 +25,7 @@ from main_controller.src.orchestrator.exceptions import PipelineError
 from shared.models.factor import Factor
 from shared.models.market import MarketSnapshot
 from shared.models.memory import StockMemRecord
+from shared.models.prediction import PredictResponse
 
 
 def _best_text(article) -> str:
@@ -330,6 +331,8 @@ async def step_stockmem(
         factor_vector=ctx.factor_vector,
         summary=_short_headlines_for_summary(ctx.latest_articles),
         article_ids=[a.id for a in ctx.latest_articles],
+        article_sources=[a.source for a in ctx.latest_articles],
+        article_published_at=[a.date_published for a in ctx.latest_articles],
         run_id=str(ctx.run_id),
     )
     ctx.current_record = current_record

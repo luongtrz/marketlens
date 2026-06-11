@@ -3,10 +3,12 @@ from __future__ import annotations
 from datetime import date
 import logging
 
-from .config import SearchWeights
+from .config import SearchWeights, load_learned_retriever_from_config
 from .models import SimilarRecord, StockMemRecord
 from .search.embedder import RecordEmbedder
+from .search.event_memory import build_daily_event_state
 from .search.index import MemoryVectorIndex
+from .search.learned_metric import LearnedDiagonalMetric
 from .search.searcher import RecordSearcher
 from .store.base import Repository
 from .store.pg_repository import PGRepository
@@ -30,9 +32,17 @@ def _build_repository(db_url: str) -> Repository:
 
 
 class StockMemService:
-    def __init__(self, db_url: str, vector_backend: str, weights: SearchWeights) -> None:
+    def __init__(
+        self,
+        db_url: str,
+        vector_backend: str,
+        weights: SearchWeights,
+        learned_retriever_file: str | None = None,
+    ) -> None:
         self.vector_backend = vector_backend
         self.weights = weights
+        self.learned_retriever_file = learned_retriever_file
+        self.learned_metric: LearnedDiagonalMetric | None = None
         self.repository: Repository = _build_repository(db_url)
         self.embedder = RecordEmbedder()
         self.index = MemoryVectorIndex()
@@ -48,10 +58,12 @@ class StockMemService:
             index=self.index,
             record_cache=self.records_by_id,
             weights=self.weights,
+            learned_metric=self.learned_metric,
         )
 
     async def startup(self) -> None:
         await self.repository.init()
+        self.learned_metric = load_learned_retriever_from_config(self.learned_retriever_file)
         records = await self.repository.list_all()
         self.records_by_id = {r.id: r for r in records if r.id is not None}
         self.writer = RecordWriter(
@@ -65,6 +77,7 @@ class StockMemService:
             index=self.index,
             record_cache=self.records_by_id,
             weights=self.weights,
+            learned_metric=self.learned_metric,
         )
 
         self.embedder.rebuild_corpus(self.records_by_id.values())
@@ -88,8 +101,41 @@ class StockMemService:
         query: StockMemRecord,
         k: int = 5,
         before_date: date | None = None,
+        retriever_type: str = "fixed_knn",
     ) -> list[SimilarRecord]:
-        return self.searcher.search(query, k, before_date=before_date)
+        effective_query = query
+        if query.event_state is None:
+            persisted = self.records_by_id.get(query.id) if query.id else None
+            if (
+                persisted is not None
+                and persisted.date == query.date
+                and persisted.symbol.upper() == query.symbol.upper()
+                and persisted.event_state is not None
+            ):
+                event_state = persisted.event_state
+                event_vector = query.event_vector or persisted.event_vector
+            else:
+                normalized_symbol = query.symbol.upper()
+                history = [
+                    record
+                    for record in self.records_by_id.values()
+                    if record.symbol.upper() == normalized_symbol
+                    and record.date < query.date
+                ]
+                event_state = build_daily_event_state(query, history)
+                event_vector = query.event_vector
+            effective_query = query.model_copy(
+                update={
+                    "event_state": event_state,
+                    "event_vector": event_vector,
+                }
+            )
+        return self.searcher.search(
+            effective_query,
+            k,
+            before_date=before_date,
+            retriever_type=retriever_type,
+        )
 
     async def list_missing_returns(self, symbol: str | None = None) -> list[StockMemRecord]:
         return await self.repository.list_missing_returns(symbol)
@@ -122,6 +168,7 @@ class StockMemService:
             index=self.index,
             record_cache=self.records_by_id,
             weights=self.weights,
+            learned_metric=self.learned_metric,
         )
 
     async def auto_retrain_weights(

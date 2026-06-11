@@ -18,6 +18,7 @@ from stockmem.src.search.embedder import (
     Z_SCORE_CLIP,
     compute_price_features,
 )
+from stockmem.src.search.event_memory import EVENT_DIM
 
 
 def _make_candles(n: int, base: float = 100.0) -> list[CandleData]:
@@ -61,6 +62,7 @@ def _make_record(
 
 
 def test_dimensions_are_fixed_75_5_60() -> None:
+    assert EVENT_DIM == 85
     assert FACTOR_DIM == 75
     assert INDICATOR_DIM == 5
     assert PRICE_DIM == 60
@@ -72,6 +74,7 @@ def test_embed_split_produces_l2_unit_vectors() -> None:
     embedder.rebuild_corpus([rec])
 
     split = embedder.embed_split(rec)
+    assert split.event_vec.shape[0] == 85
     assert split.factor_vec.shape[0] == 75
     assert split.indicator_vec.shape[0] == 5
     assert split.price_vec.shape[0] == 60

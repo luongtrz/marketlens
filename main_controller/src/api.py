@@ -357,7 +357,6 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
 
     logger.info("backfill: %d articles across %d dates", len(all_articles), len(articles_by_date))
 
-    from collections import defaultdict as _dd
     from urllib.parse import urlparse
     from shared.supabase_service import SupabaseReadService
 
@@ -526,6 +525,8 @@ async def backfill(symbol: str, days: int = 30, offset: int = 0) -> dict:
             factor_vector=factor_vector_by_date.get(target_date, []),
             market_snapshot=snapshot, summary=" ".join(summary_parts),
             article_ids=[a.id for a in articles],
+            article_sources=[a.source for a in articles],
+            article_published_at=[a.date_published for a in articles],
         )
         try:
             await clients.stockmem.save(record)

@@ -62,6 +62,8 @@ def test_store_save_and_read_roundtrip() -> None:
         assert by_date.future_return_1d == 1.11
         assert by_date.future_return_7d == 2.22
         assert by_date.future_return_30d == 3.33
+        assert by_date.event_state is not None
+        assert by_date.event_state.article_count == 1
         assert count == 1
 
     asyncio.run(scenario())

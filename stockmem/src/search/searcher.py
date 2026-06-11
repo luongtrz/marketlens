@@ -7,6 +7,7 @@ from ..config import SearchWeights
 from ..models import SimilarRecord, StockMemRecord
 from .embedder import RecordEmbedder, SplitEmbedding
 from .index import MemoryVectorIndex
+from .learned_metric import LearnedDiagonalMetric
 
 # Regime bonus added to the weighted score when query and candidate are in the
 # same market regime. Opposite regimes get a symmetric penalty.
@@ -58,11 +59,13 @@ class RecordSearcher:
         index: MemoryVectorIndex,
         record_cache: dict[str, StockMemRecord],
         weights: SearchWeights,
+        learned_metric: LearnedDiagonalMetric | None = None,
     ) -> None:
         self._embedder = embedder
         self._index = index
         self._record_cache = record_cache
         self._weights = weights
+        self._learned_metric = learned_metric
 
     @staticmethod
     def _cosine(a: np.ndarray, b: np.ndarray) -> float:
@@ -86,28 +89,50 @@ class RecordSearcher:
             + self._weights.w3_price * sim_price
         )
 
+    def _score(
+        self,
+        query: SplitEmbedding,
+        candidate: SplitEmbedding,
+        retriever_type: str,
+    ) -> float:
+        if retriever_type == "learned_linear" and self._learned_metric is not None:
+            return self._learned_metric.score_split(query, candidate)
+        return self._weighted_score(query, candidate)
+
+    @staticmethod
+    def _event_match(query: SplitEmbedding, candidate: SplitEmbedding) -> float:
+        if np.linalg.norm(query.event_vec) <= 1e-12:
+            return 0.0
+        if np.linalg.norm(candidate.event_vec) <= 1e-12:
+            return 0.0
+        return float(np.dot(query.event_vec, candidate.event_vec))
+
     def search(
         self,
         query: StockMemRecord,
         k: int = 5,
         before_date: date | None = None,
+        retriever_type: str = "fixed_knn",
     ) -> list[SimilarRecord]:
-        scored: list[tuple[float, StockMemRecord]] = []
+        scored: list[tuple[float, StockMemRecord, float]] = []
         query_split = self._embedder.embed_split(query)
-        query_joint = self._embedder.embed(query)
-
-        # ANN prefilter via joint vector index, then weighted rerank.
-        pre_k = max(k * 30, 300)
-        pre_candidates = self._index.search(query_joint, pre_k)
-        candidate_ids = [c.record_id for c in pre_candidates]
-        if not candidate_ids:
+        use_learned = retriever_type == "learned_linear" and self._learned_metric is not None
+        if use_learned:
+            # Exact scan keeps production behavior aligned with the offline learned-metric evaluation.
             candidate_records = list(self._record_cache.values())
         else:
-            candidate_records = [
-                self._record_cache[rid]
-                for rid in candidate_ids
-                if rid in self._record_cache
-            ]
+            query_joint = self._embedder.embed(query)
+            pre_k = max(k * 30, 300)
+            pre_candidates = self._index.search(query_joint, pre_k)
+            candidate_ids = [c.record_id for c in pre_candidates]
+            if not candidate_ids:
+                candidate_records = list(self._record_cache.values())
+            else:
+                candidate_records = [
+                    self._record_cache[rid]
+                    for rid in candidate_ids
+                    if rid in self._record_cache
+                ]
 
         query_regime = _get_regime(query)
 
@@ -117,16 +142,16 @@ class RecordSearcher:
             if before_date is not None and rec.date >= before_date:
                 continue
             cand_split = self._embedder.embed_split(rec)
-            score = self._weighted_score(query_split, cand_split)
+            score = self._score(query_split, cand_split, retriever_type)
             cand_regime = _get_regime(rec)
             if cand_regime == query_regime:
                 score += _REGIME_SAME_BONUS
             elif query_regime != "neutral" and cand_regime != "neutral":
                 score += _REGIME_OPP_PENALTY
-            scored.append((score, rec))
+            scored.append((score, rec, self._event_match(query_split, cand_split)))
 
         if len(scored) < k:
-            seen_ids = {rec.id for _, rec in scored}
+            seen_ids = {rec.id for _, rec, _ in scored}
             for rec in self._record_cache.values():
                 if rec.id in seen_ids:
                     continue
@@ -135,25 +160,34 @@ class RecordSearcher:
                 if before_date is not None and rec.date >= before_date:
                     continue
                 cand_split = self._embedder.embed_split(rec)
-                score = self._weighted_score(query_split, cand_split)
+                score = self._score(query_split, cand_split, retriever_type)
                 cand_regime = _get_regime(rec)
                 if cand_regime == query_regime:
                     score += _REGIME_SAME_BONUS
                 elif query_regime != "neutral" and cand_regime != "neutral":
                     score += _REGIME_OPP_PENALTY
-                scored.append((score, rec))
+                scored.append((score, rec, self._event_match(query_split, cand_split)))
 
         scored.sort(key=lambda x: x[0], reverse=True)
         k_eff = max(1, min(k, len(scored)))
 
         results: list[SimilarRecord] = []
-        for score, rec in scored[:k_eff]:
+        retriever_version = (
+            self._learned_metric.version
+            if use_learned and self._learned_metric is not None
+            else "fixed_knn_v1"
+        )
+        for score, rec, event_similarity in scored[:k_eff]:
             similarity = max(0.0, min(1.0, (score + 1.0) / 2.0))
             results.append(
                 SimilarRecord(
                     record=rec,
                     similarity=round(similarity, 6),
                     outcome=None,
+                    event_match={
+                        "event_vector_cosine": round(event_similarity, 6),
+                    },
+                    retriever_version=retriever_version,
                 )
             )
         return results

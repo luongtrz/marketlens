@@ -3,8 +3,6 @@
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
-import pytest
-
 from main_controller.src.orchestrator.pipeline import Pipeline, PipelineConfig
 from main_controller.src.orchestrator.steps import ModuleClients
 from shared.models.prediction import SignalType
@@ -56,6 +54,9 @@ async def test_pipeline_full_run_with_mocks(
     assert result.confidence == 0.85
     assert result.symbol == "BTCUSDT"
     assert len(result.similar_cases) == 1
+    saved_record = clients.stockmem.save.await_args.args[0]
+    assert saved_record.article_sources == [sample_article.source]
+    assert saved_record.article_published_at == [sample_article.date_published]
 
 
 async def test_pipeline_market_fail_returns_hold(

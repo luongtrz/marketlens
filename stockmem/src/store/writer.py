@@ -4,6 +4,7 @@ import uuid
 
 from ..models import StockMemRecord
 from ..search.embedder import RecordEmbedder
+from ..search.event_memory import build_daily_event_state
 from ..search.index import MemoryVectorIndex
 from .base import Repository
 
@@ -33,7 +34,14 @@ class RecordWriter:
         )
         rid = record.id or existing_id or str(uuid.uuid4())
         normalized_symbol = record.symbol.upper()
-        to_save = record.model_copy(update={"id": rid, "symbol": normalized_symbol})
+        history = [
+            cached
+            for cached in self._record_cache.values()
+            if cached.symbol.upper() == normalized_symbol and cached.date < record.date
+        ]
+        base_record = record.model_copy(update={"id": rid, "symbol": normalized_symbol})
+        event_state = build_daily_event_state(base_record, history)
+        to_save = base_record.model_copy(update={"event_state": event_state})
 
         # Keep cache aligned with one-record-per-day/symbol semantics.
         removed_ids: list[str] = []

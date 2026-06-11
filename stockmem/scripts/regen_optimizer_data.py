@@ -77,6 +77,7 @@ async def main(output: Path) -> None:
 
         out_rows.append({
             "date": str(rec.date),
+            "event_vec": split.event_vec.tolist(),
             "factor_vec": split.factor_vec.tolist(),
             "indicator_vec": split.indicator_vec.tolist(),
             "price_vec": split.price_vec.tolist(),
@@ -93,8 +94,10 @@ async def main(output: Path) -> None:
 
     # Quick stats
     zero_factor = sum(1 for r in out_rows if all(v == 0 for v in r["factor_vec"]))
+    zero_event = sum(1 for r in out_rows if all(v == 0 for v in r["event_vec"]))
     zero_ind = sum(1 for r in out_rows if all(v == 0 for v in r["indicator_vec"]))
     zero_price = sum(1 for r in out_rows if all(v == 0 for v in r["price_vec"]))
+    print(f"  zero event_vec  : {zero_event}/{len(out_rows)}")
     print(f"  zero factor_vec : {zero_factor}/{len(out_rows)}")
     print(f"  zero indicator_vec: {zero_ind}/{len(out_rows)}")
     print(f"  zero price_vec    : {zero_price}/{len(out_rows)}")

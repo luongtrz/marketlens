@@ -80,6 +80,7 @@ def retrain_weights(
         cv_folds=1,
         cv_holdout_ratio=0.2,
         cv_min_holdout=120,
+        maturity_guard=True,
     )
     study.optimize(objective, n_trials=max(1, trials), show_progress_bar=False)
 
@@ -97,6 +98,7 @@ def retrain_weights(
         warmup=warmup,
         horizon=horizon,
         sharpe_mode="nonoverlap",
+        maturity_guard=True,
     )
     payload = {
         "optimized_at": datetime.now(timezone.utc).isoformat(),
@@ -105,6 +107,10 @@ def retrain_weights(
         "warmup": warmup,
         "k": k,
         "trials": trials,
+        "evaluation_protocol": {
+            "version": ow.EVALUATION_PROTOCOL_VERSION,
+            "maturity_guard": True,
+        },
         "stable_selection": stable_meta,
         "weights": asdict(weights),
         "metrics": metrics,
@@ -117,4 +123,3 @@ def write_weights_snapshot(path: str, payload: dict[str, Any]) -> None:
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
-
