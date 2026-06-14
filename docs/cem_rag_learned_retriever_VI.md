@@ -1,36 +1,58 @@
-# CEM-RAG — Learned Event-Memory Retriever: Train & Cấu trúc Event
+# CEM-RAG — Train & Cấu trúc Event
 
-> Tài liệu mô tả chi tiết PR `feat(stockmem): add learned event-memory retriever`,
-> tập trung vào **bên cấu trúc event** (event memory) và **bên train** (learned retriever).
-> Phần fix kèm trong PR: đóng repo trong `stockmem/tests/test_store.py` để hết treo full test suite.
-
-## 0. PR này làm gì (tóm tắt)
-
-Thay **fixed weighted-cosine kNN** (3 trọng số `w1·factor + w2·indicator + w3·price` do Optuna chỉnh)
-bằng một **learned retriever**: học một **metric tương đồng** từ *outcome* (hướng `future_return_7d`),
-đồng thời bổ sung một **tầng event-memory point-in-time** (cấu trúc hoá tin tức thành event + đặc trưng
-lan toả/novelty) làm **block đặc trưng thứ 4** cho retriever.
-
-Định hướng học thuật (xem `docs/upgrade/CaiTien.md`, `MoTa.md`):
-- **FinSeer** → retriever học bằng distillation từ "relevance" (ở đây thay reward LLM bằng outcome thực tế).
-- **StockMem** → event memory + **Δinfo** (incremental information / độ lệch kỳ vọng).
-- **FinGPT dissemination** → đặc trưng độ lan toả (số nguồn, đa dạng nguồn, novelty).
-
-Tất cả thay đổi **cộng thêm, tương thích ngược**: mặc định `retriever_type="fixed_knn"` ⇒ hành vi cũ giữ nguyên.
+> Tài liệu mô tả **ý nghĩa và thiết kế** của PR `feat(stockmem): add learned event-memory retriever`.
+> Hai trục chính: **(A) Cấu trúc Event** (biến tin tức thành event-memory point-in-time) và
+> **(B) Train** (học retriever từ outcome thay cho cosine cố định).
+>
+> Đây là tài liệu thiết kế/ý nghĩa — không mô tả chi tiết vận hành (deploy) hay các chỉnh sửa lặt vặt.
 
 ---
 
-## 1. Bên cấu trúc event (event memory)
+## 0. Ý nghĩa tổng thể của PR
 
-### 1.1. Schema — `shared/models/event.py`
+MarketLens cũ truy hồi "ngày lịch sử tương tự" bằng **cosine có trọng số cố định**:
+`score = w1·cos(factor) + w2·cos(indicator) + w3·cos(price)` (3 trọng số do Optuna chỉnh).
+Hạn chế cốt lõi:
+
+1. **Không học từ kết quả tương lai.** Ba trọng số chỉ phản ánh "độ giống bề mặt", không biết
+   ngày nào *thực sự* có giá trị dự báo. Crypto thường có hiện tượng **"cùng tin, ngược kết quả"**
+   (vd: "ETF approval" nhưng RSI 85 → sell-the-news) mà cosine bề mặt không phân biệt được.
+2. **Tin tức bị bỏ phí.** Factor rời rạc chưa được cấu trúc hoá thành *event* có nhóm/loại, chưa đo
+   được **độ lan toả** (bao nhiêu nguồn đưa tin) và **độ mới** (tin shock hay tin lặp lại).
+
+PR này giải quyết cả hai bằng cách, theo đúng tinh thần 3 paper nền tảng:
+
+| Trục | Lấy ý tưởng từ | Hiện thực trong PR |
+|---|---|---|
+| Event memory + Δinfo | **StockMem** (event-reflection memory) | `DailyEventState`, novelty, `incremental_information` |
+| Độ lan toả tin tức | **FinGPT dissemination-aware** | `source_count`, `source_diversity`, `temporal_span` |
+| Retriever học từ outcome | **FinSeer** (financial time-series RAG) | `teacher_relevance` + InfoNCE distillation |
+
+**Nguyên tắc xuyên suốt:** mọi thay đổi đều **cộng thêm, tương thích ngược**. Mặc định
+`retriever_type="fixed_knn"` ⇒ hệ thống chạy y hệt như trước; learned retriever chỉ bật khi có
+artifact và yêu cầu tường minh.
+
+---
+
+# PHẦN A — CẤU TRÚC EVENT
+
+## A.1. Vì sao cần "event memory" thay vì factor rời rạc
+
+Giá crypto vận động theo **sự kiện**. Nhưng một headline đơn lẻ thì yếu; điều có giá trị dự báo là
+một **cụm sự kiện** có nhiều nguồn độc lập đưa tin (lan toả cao), có **tính mới** (chưa bị thị trường
+hấp thụ), và **giống các cụm sự kiện lịch sử** từng dẫn tới biến động. Vì vậy ta cần biến tin tức
+thành một **trạng thái sự kiện theo ngày** (`DailyEventState`) có thể đo lường và truy hồi được,
+thay vì danh sách factor thô.
+
+## A.2. Schema — `shared/models/event.py`
 
 ```python
 class EventRecord(BaseModel):
-    event_group: str          # nhóm sự kiện (13 nhóm trong taxonomy)
-    event_type: str           # loại sự kiện (62 loại)
+    event_group: str          # 1 trong 13 nhóm taxonomy
+    event_type: str           # 1 trong 62 loại
     entities: list[str]
-    polarity: float           # [-1, 1]
-    confidence: float         # [0, 1]
+    polarity: float           # cực tính [-1, 1]
+    confidence: float         # độ tin cậy [0, 1]
     observed_at: datetime | None
     description: str | None
 
@@ -38,173 +60,202 @@ class DailyEventState(BaseModel):
     date: date
     symbol: str
     events: list[EventRecord]
-    article_count: int
-    source_count: int
-    source_diversity: float        # entropy chuẩn hoá theo nguồn
-    temporal_span_hours: float     # độ trải thời gian của các bài trong ngày
-    novelty_7d: float              # 1 - max Jaccard với 7 ngày trước
-    novelty_30d: float             # 1 - max Jaccard với 30 ngày trước
-    incremental_information: float # ≈ Δinfo của StockMem (novelty_30d × breadth)
+    article_count: int             # số bài trong ngày
+    source_count: int              # số nguồn DUY NHẤT  → độ lan toả
+    source_diversity: float        # entropy chuẩn hoá của nguồn → độ đa dạng
+    temporal_span_hours: float     # độ trải thời gian các bài → "dồn dập" hay "rải rác"
+    novelty_7d: float              # độ mới so với 7 ngày trước
+    novelty_30d: float             # độ mới so với 30 ngày trước
+    incremental_information: float # ≈ Δinfo: thông tin mới có trọng số lan toả
     dominant_event_groups: list[str]
 ```
 
-`StockMemRecord` (`stockmem/src/models.py`) được mở rộng các field:
-`event_state: DailyEventState | None`, `event_vector: list[float]`,
-`article_sources: list[str]`, `article_published_at: list[datetime]`.
-`model_config` vẫn `extra="ignore"` nên các service khác không vỡ.
+`StockMemRecord` (`stockmem/src/models.py`) được mở rộng để mang event đi xuyên pipeline:
+`event_state`, `event_vector`, `article_sources`, `article_published_at`. `extra="ignore"` giữ cho
+các service khác không vỡ khi gặp field mới.
 
-### 1.2. Xây event state & event vector — `stockmem/src/search/event_memory.py`
+## A.3. Dựng event state — `stockmem/src/search/event_memory.py::build_daily_event_state`
 
-`build_daily_event_state(record, history)`:
-1. **Trích event** từ `record.factors`: dùng taxonomy (`get_factor_type` / `get_factor_group`),
-   dedup theo `(event_group, event_type)`; `polarity`/`confidence`/`observed_at` lấy từ
+Quy trình và **ý nghĩa từng bước**:
+
+1. **Trích & gộp event từ factor.** Duyệt `record.factors`, ánh xạ qua taxonomy
+   (`get_factor_type` / `get_factor_group`), **dedup theo `(event_group, event_type)`** để 20 bài
+   cùng nói "ETF inflow" không thành 20 event độc lập. `polarity`/`confidence`/`observed_at` lấy từ
    `normalized_factors`.
-2. **Lan toả (dissemination)**: `source_count` = số nguồn duy nhất (lowercase),
-   `source_diversity` = entropy chuẩn hoá của danh sách nguồn,
-   `temporal_span_hours` từ `article_published_at`.
-3. **Novelty (StockMem-style)**:
-   `novelty_w = 1 − max_{record ∈ [T−w, T−1]} Jaccard(current_types, historical_types)`
-   cho `w ∈ {7, 30}` ngày — phân biệt "tin shock mới" vs "tin lặp lại".
-4. **Δinfo**: `incremental_information = novelty_30d × breadth`, với
-   `breadth = log1p(source_count) / log(21)`.
+2. **Độ lan toả (dissemination — ý tưởng FinGPT).**
+   - `source_count` = số nguồn duy nhất (lowercase). Nhiều nguồn độc lập ⇒ event quan trọng hơn.
+   - `source_diversity` = **entropy chuẩn hoá** của phân bố nguồn (1 = trải đều nhiều nguồn,
+     0 = dồn vào 1 nguồn). Phân biệt "30 bài từ 12 nguồn" vs "30 bài từ 1 nguồn".
+   - `temporal_span_hours` = khoảng cách bài sớm nhất → muộn nhất, từ `article_published_at`.
+3. **Độ mới (novelty — ý tưởng StockMem).**
+   `novelty_w = 1 − max_{ngày ∈ [T−w, T−1]} Jaccard(loại_event_hôm_nay, loại_event_ngày_đó)`,
+   với `w ∈ {7, 30}`. Tin lặp lại nhiều ngày ⇒ novelty thấp; tin shock mới ⇒ novelty cao.
+4. **Δinfo (incremental information).** `incremental_information = novelty_30d × breadth`, với
+   `breadth = log1p(source_count) / log(21)`. Đây là điểm cốt lõi của StockMem: thứ dự báo giá
+   không phải cực tính thô của tin, mà là **lượng thông tin MỚI** (lệch khỏi kỳ vọng) **có trọng số
+   lan toả**. Tin tốt nhưng đã được "priced-in" sẽ có Δinfo thấp.
+5. `dominant_event_groups` = top-3 nhóm theo tần suất — để giải thích/trace.
 
-`build_event_vector(state) → 85 chiều` (`EVENT_DIM = 62 type + 13 group + 10 scalar`):
-- 62 bit type multi-hot + 13 bit group multi-hot (giống biểu diễn nhị phân của StockMem).
-- 10 scalar: `mean_polarity, max_abs_polarity, log(article_count), log(source_count),
-  source_diversity, novelty_7d, novelty_30d, mean_confidence, temporal_span/168h,
-  incremental_information` (đều được nén về ~[0,1]).
+## A.4. Event vector 85 chiều — `build_event_vector`
 
-### 1.3. Event vào embedder — `stockmem/src/search/embedder.py`
+`EVENT_DIM = 62 (type) + 13 (group) + 10 (scalar) = 85`:
 
-`embed_split()` giờ trả **4 block** `SplitEmbedding(event_vec(85), factor_vec(75),
-indicator_vec(5), price_vec(60))`, mỗi block **L2-normalize riêng**:
-- `event_vec` = chuẩn hoá `record.event_vector` nếu đủ 85 chiều, ngược lại dựng từ `record.event_state`.
+- **62 bit type multi-hot + 13 bit group multi-hot**: biểu diễn nhị phân loại/nhóm sự kiện
+  (giống biểu diễn của StockMem, dùng cho tương đồng Jaccard về bản chất).
+- **10 scalar** (đều nén về ~[0,1]): `mean_polarity`, `max_abs_polarity`,
+  `log(article_count)`, `log(source_count)`, `source_diversity`, `novelty_7d`, `novelty_30d`,
+  `mean_confidence`, `temporal_span/168h`, `incremental_information`.
 
-> **Lưu ý nhất quán train/serve:** `embed()` (joint 140d cho ANN index của fixed kNN) **không**
-> chứa event — event chỉ phục vụ learned retriever. Learned path **quét toàn bộ** (không qua ANN
-> prefilter) nên không lệch giữa offline và online.
+Vector này là **biểu diễn định lượng, kiểm định được** của tin tức trong ngày — thay vì để LLM
+"đọc và quyết định", ta có một feature có thể đưa vào retriever và đo đạc.
+
+## A.5. Event vào embedder — `stockmem/src/search/embedder.py::embed_split`
+
+`embed_split()` nay trả **4 block** L2-normalize riêng từng block:
+`SplitEmbedding(event_vec(85), factor_vec(75), indicator_vec(5), price_vec(60))`.
+`event_vec` lấy từ `record.event_vector` nếu đủ 85 chiều, ngược lại dựng tại chỗ từ `event_state`.
+
+> **Quan trọng:** vector joint 140d (`embed()`) dùng cho ANN index của fixed kNN **không** chứa
+> event — event là đặc trưng **chỉ dành cho learned retriever**. Điều này giữ fixed kNN bất biến và
+> tránh lệch khi so sánh.
 
 ---
 
-## 2. Bên train (learned retriever)
+# PHẦN B — TRAIN (LEARNED RETRIEVER)
 
-### 2.1. Dataset point-in-time, chống rò rỉ — `stockmem/scripts/cem_dataset.py`
+## B.1. Vì sao "học" retriever, và học từ tín hiệu gì
 
-- **Split theo thời gian** (có embargo 7 ngày): Train ≤ `2024-12-24`, Val `2025-01-01..06-23`,
-  Test `2025-07-01..2026-05-01`. Không shuffle.
-- **Maturity guard (sửa rò rỉ then chốt):** ứng viên `c` chỉ dùng được cho query `q` khi
-  `c.date + 7 ngày ≤ q.date` — so theo **ngày lịch** (`is_mature`), áp dụng cả khi tạo cặp huấn
-  luyện lẫn khi đánh giá (`matured_pool`). Tránh dùng `future_return_7d` của ngày lịch sử **chưa
-  đáo hạn** tại thời điểm dự báo.
-- **Nhãn hướng** (`label_rows`): band `0.5·σ` với `σ` = độ lệch chuẩn **nhân quả** (chỉ từ các
-  ngày đã đáo hạn trước đó, `_causal_sigma`); UP/DOWN/FLAT.
-- **Teacher relevance** (thay reward LLM của FinSeer bằng outcome):
-  `teacher_relevance = 0.45·outcome_sim + 0.35·regime_sim + 0.20·surface_sim`,
-  chỉ > 0 khi ứng viên **cùng hướng** anchor.
-- **mine_candidates**: positives = top theo teacher_relevance (mặc định 3);
-  **hard negatives** = ngày **ngược hướng nhưng nhìn rất giống** (top theo cosine cũ rồi theo
-  metric đang học); thêm vài **flat negatives**. Đây là điểm mấu chốt: học phân biệt
-  *"same news, opposite outcome"*.
+FinSeer huấn luyện retriever bằng cách **chưng cất (distill)** "độ liên quan" do mô hình dự báo
+cung cấp. Ở đây **không có LLM forecaster trong vòng lặp offline**, nên ta thay reward LLM bằng
+**kết quả thực tế** (hướng `future_return_7d`): một ngày lịch sử "đáng truy hồi" nếu nó **cùng
+hướng tương lai** với query, **cùng regime biến động**, và **giống về bề mặt**.
 
-### 2.2. Metric & loss — `stockmem/scripts/train_learned_retriever.py` + `learned_metric.py`
+Mục tiêu là học một **metric tương đồng** sao cho hàng xóm được lấy ra **cùng hướng** với query, và
+**đẩy xa** các "hard negative" — ngày nhìn rất giống nhưng kết quả ngược.
 
-- **Mô hình**: `LearnedDiagonalMetric` — diagonal per-feature `d ≥ 0` + `block_scales`,
-  tính `score = Σ_block scale · cos(d_block ⊙ q, d_block ⊙ c)` (chuẩn hoá **theo từng block**).
-  Khi `d = 1` ⇒ **trùng đúng** weighted-cosine kNN cũ (có test
-  `test_identity_diagonal_reproduces_weighted_block_cosine`). Tự nhận **3 hoặc 4 block** theo data.
-- **Loss = InfoNCE + distillation mềm + ridge**:
-  - target = `softmax(positive_rewards / teacher_temperature)` (nhiều positive), hoặc one-hot nếu 1 positive;
-  - `coefficients = probabilities − targets`, gradient closed-form qua Jacobian chuẩn hoá (numpy thuần, không torch);
-  - `+ λ·‖d − 1‖²` kéo metric **về phía baseline** (vừa là chống overfit vừa là "lan can an toàn").
-- **Huấn luyện**: Adam, clip `d ∈ [0.05, 20]`, `scales` chuẩn hoá tổng = 1, **re-mine mỗi 3 epoch**,
-  **early stop theo val hit@5** (patience 10), **trung bình 5 seed** + báo `seed_std`.
+## B.2. Dữ liệu point-in-time, chống rò rỉ — `stockmem/scripts/cem_dataset.py`
+
+- **Chia theo thời gian, có embargo 7 ngày** (không shuffle):
+  Train ≤ `2024-12-24` · Val `2025-01-01 → 2025-06-23` · Test `2025-07-01 → 2026-05-01`.
+  Val chỉ để chỉnh siêu tham số; Test chỉ đánh giá một lần.
+- **Point-in-time / maturity (nguyên tắc thiết kế then chốt).** Ứng viên `c` chỉ dùng được cho
+  query `q` khi `c.date + 7 ngày ≤ q.date` — so theo **ngày lịch** (`is_mature`). Lý do: tại thời
+  điểm dự báo `q`, `future_return_7d` của một ngày lịch sử `c` **chỉ biết được** nếu cửa sổ 7 ngày
+  của `c` đã đóng trước `q`. Áp dụng cả khi tạo cặp huấn luyện lẫn khi đánh giá (`matured_pool`).
+- **Nhãn hướng (`label_rows`).** UP/DOWN/FLAT theo một **band**:
+  - `0.5σ` (mặc định): ngưỡng = `0.5 × σ`, với `σ` là độ lệch chuẩn **nhân quả** của 7d-return
+    (chỉ tính từ các ngày đã đáo hạn trước đó — `_causal_sigma`). Band thích nghi theo độ biến động.
+  - `fixed`: band cố định ±1% (đơn vị phần trăm, nhất quán với return %). Dùng làm ablation.
+- **Teacher relevance** (proxy cho reward không-có-LLM):
+  `teacher_relevance = 0.45·outcome_sim + 0.35·regime_sim + 0.20·surface_sim`, **chỉ > 0** khi ứng
+  viên cùng hướng anchor. Trong đó `outcome_sim` ~ độ gần về biên độ return, `regime_sim` ~ độ gần
+  về biến động (log-ratio), `surface_sim` ~ cosine cũ. Đây là "điểm số giáo viên" để chọn positive.
+- **Khai thác cặp (`mine_candidates`):**
+  - **Positives**: top theo `teacher_relevance` (mặc định 3).
+  - **Hard negatives**: ngày **ngược hướng** nhưng **nhìn rất giống** (lọc theo cosine cũ rồi theo
+    chính metric đang học). Đây là linh hồn của thiết kế: bắt model phân biệt "cùng tin, ngược kết quả".
+  - **Flat negatives**: vài ngày đi ngang, để model không nhầm "động" với "đứng yên".
+
+## B.3. Metric học được — `stockmem/src/search/learned_metric.py`
+
+`LearnedDiagonalMetric`: mỗi feature một trọng số `d ≥ 0` (diagonal) + trọng số khối `block_scales`:
+
+```
+score = Σ_block  scale_block · cos( d_block ⊙ q_block ,  d_block ⊙ c_block )   # chuẩn hoá theo từng block
+```
+
+- Khi `d = 1` ⇒ **trùng đúng** weighted-cosine kNN cũ (có unit test bảo chứng). Tức metric học
+  **tổng quát hoá baseline**: học `d` chỉ mở rộng năng lực (trọng số theo từng chiều), không phá baseline.
+- **Tự nhận 3 hoặc 4 block** theo dữ liệu: chưa có event ⇒ 3 block `(factor, indicator, price)`;
+  có event ⇒ 4 block `(event, factor, indicator, price)`.
+
+## B.4. Hàm mất mát & tối ưu — `stockmem/scripts/train_learned_retriever.py`
+
+- **Loss = InfoNCE + distillation mềm + ridge:**
+  - Với mỗi anchor, ứng viên gồm `[positives, hard_negs, flat_negs, in-batch negatives]`.
+  - **Target mềm**: `softmax(positive_rewards / teacher_temperature)` trên các positive (chưng cất
+    "ý kiến giáo viên"), thay vì one-hot cứng.
+  - `loss = −Σ targets·log(softmax(score/temperature))`, `coefficients = probs − targets`,
+    gradient **dạng đóng** qua Jacobian của phép chuẩn hoá (numpy thuần, **không cần torch**).
+  - `+ λ·‖d − 1‖²`: kéo metric **về phía baseline** — vừa chống overfit (chỉ ~600 ngày train,
+    1 tài sản), vừa là "lan can an toàn" để không tệ hơn baseline một cách vô lý.
+- **Huấn luyện:** Adam; clip `d ∈ [0.05, 20]`; `block_scales` chuẩn hoá tổng = 1; **re-mine mỗi 3
+  epoch** (vì metric đổi thì "hard negative" cũng đổi); **early stop theo `val hit@5`** (patience 10);
+  **trung bình 5 seed** + báo `seed_std` (đo độ ổn định).
 - **Optuna** chỉnh `temperature, teacher_temperature, ridge, hard_negs, positive_count,
   learning_rate, k, band` — **chỉ trên validation**.
-- **Artifact** `stockmem/config/learned_retriever.json`: `version=learned_cem_v2`, `block_dims`,
-  `d`, `block_scales`, `band`, `splits`, `hyperparameters`, `val_hit_at_5`, `seed_std`, `mining_protocol`.
+- **Artifact** `stockmem/config/learned_retriever.json`: `version`, `block_dims`, `d`,
+  `block_scales`, `band`, `splits`, `hyperparameters`, `val_hit_at_5`, `seed_std`, `mining_protocol`.
 
-### 2.3. Đánh giá & cổng nghiệm thu — `stockmem/scripts/evaluate_retriever.py`
+## B.5. Đánh giá & cổng nghiệm thu — `stockmem/scripts/evaluate_retriever.py`
 
-- So sánh **công bằng trên cùng 962 dòng / cùng split / cùng 7d / cùng maturity guard**:
-  `baseline_fixed_guarded`, `baseline_fixed_leaky` (đo mức rò rỉ), `learned_diagonal`,
-  cùng các **ablation**: `learned_factor_zeroed`, `learned_event_zeroed` (khi có event), `learned_fixed_band`.
-- **Chỉ số retriever**: `hit@5` (cùng hướng, độc lập với `k` downstream), `hard_negative_gap`.
-- **Chỉ số giao dịch**: tín hiệu BUY/SELL/HOLD theo ngưỡng (mặc định ±2%), `coverage` thực,
+So sánh **công bằng tuyệt đối** (cùng dữ liệu / cùng split / cùng horizon 7d / cùng maturity guard /
+cùng k):
+
+- **Đối tượng**: `baseline_fixed_guarded`, `baseline_fixed_leaky` (đo mức rò rỉ nếu bỏ maturity),
+  `learned_diagonal`, cùng các **ablation**: `learned_factor_zeroed`, `learned_event_zeroed`
+  (khi có event), `learned_fixed_band`.
+- **Chỉ số retriever**: `hit@5` (top-5 cùng hướng query, độc lập với `k` giao dịch),
+  `hard_negative_gap` (khoảng cách điểm giữa positive và hard-negative — đo khả năng phân biệt).
+- **Chỉ số giao dịch**: tín hiệu BUY/SELL/HOLD theo ngưỡng (±2%), `coverage` thực,
   `buy_da/sell_da/hold_da`, `Sharpe`, `combined = 0.6·DA + 0.4·Sharpe`.
-- **Ý nghĩa thống kê**: McNemar (exact) + bootstrap CI (vector hoá).
-- **Acceptance gate** (chốt trước khi xem test): combined ≥ baseline + 0.01; (buy_da+sell_da)/2 ≥ +1pp;
-  McNemar p < 0.10; `seed_std` < 0.03; dấu delta val & test giống nhau.
+- **Ý nghĩa thống kê**: McNemar (exact) trên đúng/sai theo từng ngày + bootstrap CI cho delta DA.
+- **Acceptance gate** (chốt trước khi mở test): `combined ≥ baseline + 0.01`;
+  `(buy_da+sell_da)/2 ≥ +1pp`; McNemar `p < 0.10`; `seed_std < 0.03`; delta val & test cùng dấu.
 
-### 2.4. Tích hợp serving (cộng thêm, tương thích ngược)
+## B.6. Tích hợp serving (cộng thêm, tương thích ngược)
 
-- `SearchRequest.retriever_type: "fixed_knn" | "learned_linear"` (mặc định `fixed_knn`).
-- `RecordSearcher`: nhánh `learned_linear` **quét toàn bộ** cache (khớp offline), giữ nguyên
-  **regime bonus ±0.15**, gắn `event_match` + `retriever_version` vào kết quả.
-- `StockMemService.startup()` nạp artifact (`LEARNED_RETRIEVER_FILE`), `set_weights()` **vẫn truyền lại**
-  learned metric (auto-retrain không làm mất). API `/search` truyền `retriever_type`.
-- `optimize_weights.py`: thêm `maturity_guard` (mặc định True) xuyên suốt + cờ CLI
-  `--maturity-guard/--no-maturity-guard`, ghi `evaluation_protocol.version = "maturity_guard_v1"`
-  vào output; `weights_retrainer.py` (auto-retrain) dùng `maturity_guard=True` và ghi rõ.
+- `SearchRequest.retriever_type ∈ {"fixed_knn", "learned_linear"}` (mặc định `fixed_knn`).
+- `RecordSearcher`: nhánh `learned_linear` **quét toàn bộ** (không qua ANN prefilter) để khớp đúng
+  đánh giá offline; giữ nguyên **regime bonus ±0.15**; gắn `event_match` (cosine event) +
+  `retriever_version` vào mỗi kết quả để trace.
+- `StockMemService.startup()` nạp artifact (`LEARNED_RETRIEVER_FILE`); `set_weights()` vẫn truyền
+  lại metric đã học (auto-retrain trọng số không làm mất nó); `/search` truyền `retriever_type`.
 
 ---
 
-## 3. Train ↔ Event kết nối ra sao
+# PHẦN C — TRAIN ↔ EVENT KẾT NỐI RA SAO
 
-`event_vec` (mục 1) là **block thứ 4** mà learned metric (mục 2) học trọng số `d`/`scale` cho nó,
-**cùng cơ chế** với factor/indicator/price. `cem_dataset.LabeledRow.blocks` tự thêm event block khi
-`Row.event_vec` khác rỗng; `train_one_seed` tự suy `block_dims` (3 hoặc 4) từ data và khởi tạo
-`scales = [0.05, 0.95·weights_cũ]` cho cấu hình 4 block. Nói cách khác: **cùng một trainer/searcher**
-chạy được cả khi chưa có và khi đã có event — không phải viết lại.
+`event_vec` (Phần A) chính là **block đặc trưng thứ 4** mà metric học (Phần B) gán trọng số `d`/`scale`,
+**cùng cơ chế** với factor/indicator/price. `LabeledRow.blocks` tự thêm event block khi có dữ liệu;
+trainer tự suy `block_dims` (3 hoặc 4) và khởi tạo `scales = [0.05, 0.95·trọng_số_cũ]` cho cấu hình
+4 block. Hệ quả: **cùng một trainer/searcher** chạy được cả khi chưa có và khi đã có event — không
+phải viết lại gì khi event-memory được làm dày.
 
----
-
-## 4. Hiện trạng dữ liệu & tính trung thực
-
-- Offline `stockmem/data/real_optimizer.json` (962 dòng BTC, 2023→2026): **88.6% `factor_vec` rỗng**
-  và **chưa có `event_vec`**. `load_rows` tự **strip** event toàn-0 ⇒ hiện trainer chạy **3 block**.
-- Theo quyết định: **đợi data event dày hơn** rồi mới chạy số liệu "headline". Hạ tầng (dataset builder,
-  trainer, searcher, evaluator, artifact) đã sẵn để **re-run nguyên trạng** khi event/factor được
-  làm dày (qua `regen_optimizer_data.py` / backfill để đổ `event_vec`).
-- **Sửa rò rỉ maturity** và **so baseline công bằng** đã có giá trị **ngay bây giờ**, độc lập với việc
-  retriever học có thắng fixed kNN hay không. Nếu chỉ ngang bằng, vẫn còn 3 đóng góp trung thực:
-  (1) sửa look-ahead, (2) framework retriever học từ outcome (numpy), (3) parity + tính giải thích được.
+Nói cách khác: Phần A cung cấp **"tin tức đã cấu trúc hoá + đo lan toả/độ mới"**, Phần B **học cách
+cân nhắc** đặc trưng đó (cùng với giá/chỉ báo) để truy hồi đúng các tiền lệ có giá trị dự báo.
 
 ---
 
-## 5. Lệnh chạy
+# PHẦN D — Ý NGHĨA KHOA HỌC & HIỆN TRẠNG DỮ LIỆU
+
+- Dataset offline `stockmem/data/real_optimizer.json` (962 ngày BTC, 2023→2026) hiện **88.6% factor
+  rỗng** và **chưa có event_vec** ⇒ trainer đang chạy **3 block**; `event_vec` toàn-0 được tự bỏ
+  (`load_rows`). Các con số "headline" sẽ chạy lại **nguyên trạng** khi event/factor được làm dày
+  (qua `regen_optimizer_data.py` / backfill để đổ `event_vec`).
+- **Ý nghĩa độc lập với việc retriever học có thắng fixed kNN hay không** — PR vẫn có 3 đóng góp:
+  1. **Kỷ luật point-in-time**: ràng buộc maturity 7 ngày, đo được mức rò rỉ (`guarded` vs `leaky`).
+  2. **Khung retriever học từ outcome** kiểu FinSeer, thay reward LLM bằng kết quả thực tế, hiện
+     thực bằng numpy thuần — tái lập dễ.
+  3. **Cấu trúc event + đặc trưng lan toả/độ mới** (StockMem + FinGPT) làm tin tức trở thành feature
+     kiểm định được, giảm phụ thuộc vào quyết định LLM, và tạo được **trace** để giải thích.
+
+---
+
+## Lệnh chạy
 
 ```bash
 # 1) Dựng dataset point-in-time (nhãn + split + band)
 python stockmem/scripts/build_cem_dataset.py --data stockmem/data/real_optimizer.json
 
 # 2) Train learned retriever (Optuna + 5 seed) → stockmem/config/learned_retriever.json
-python stockmem/scripts/train_learned_retriever.py \
-  --data stockmem/data/real_optimizer.json --horizon 7d
+python stockmem/scripts/train_learned_retriever.py --data stockmem/data/real_optimizer.json --horizon 7d
 
 # 3) Đánh giá fixed vs learned (guarded/leaky + ablation + McNemar + bootstrap)
 python stockmem/scripts/evaluate_retriever.py \
-  --data stockmem/data/real_optimizer.json \
-  --artifact stockmem/config/learned_retriever.json
+  --data stockmem/data/real_optimizer.json --artifact stockmem/config/learned_retriever.json
 
 # 4) Bật learned ở serving
 export LEARNED_RETRIEVER_FILE=stockmem/config/learned_retriever.json
 # rồi gọi /search với {"retriever_type": "learned_linear"}
 ```
-
----
-
-## 6. Fix kèm trong PR (bug thực tế)
-
-`stockmem/tests/test_store.py` tạo `RecordRepository` (SQLAlchemy + aiosqlite), `init()` nhưng
-**không đóng** ⇒ thread nền của aiosqlite còn sống, làm **treo full test suite** lúc interpreter
-shutdown. Đã bọc thân test trong `try/finally` và gọi `await repo.close()`. Sau fix: bộ test
-stockmem (không cần Postgres) **28 passed**, không treo, ruff sạch.
-
-> Ghi chú minh bạch: các nghi vấn "coverage giả", "ANN prefilter cho learned path", "maturity guard
-> đổi hành vi ngầm" nêu trong review ban đầu **không đúng với code đã commit** — đó là do lần đọc file
-> bị cắt cụt trước đó. Code thật đã xử lý đúng cả ba (đã xác minh + 27/28 test pass). Bug thật duy
-> nhất là rò rỉ kết nối trong `test_store.py` ở trên.
->
-> Quan sát nhỏ (không sửa, chờ xác nhận): `cem_dataset.label_rows(fixed_band=0.01)` — với return
-> đơn vị **phần trăm**, band 0.01% gần như khiến mọi ngày thành "có hướng" ở nhánh band `fixed`
-> (nhánh chính `0.5sigma` không ảnh hưởng). Nếu chủ ý là 1%, nên để `1.0`.
