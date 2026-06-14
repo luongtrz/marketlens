@@ -74,7 +74,7 @@ def label_rows(
     *,
     band: str = "0.5sigma",
     sigma_multiplier: float = 0.5,
-    fixed_band: float = 0.01,
+    fixed_band: float = 1.0,  # percent: ±1% FLAT band (future_return_7d is in %)
 ) -> list[LabeledRow]:
     labeled: list[LabeledRow] = []
     for index, row in enumerate(rows):

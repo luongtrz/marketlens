@@ -16,7 +16,7 @@ def main() -> None:
     parser.add_argument("--data", default="stockmem/data/real_optimizer.json")
     parser.add_argument("--output", default="stockmem/data/cem_dataset.json")
     parser.add_argument("--band", choices=["0.5sigma", "fixed"], default="0.5sigma")
-    parser.add_argument("--fixed-band", type=float, default=0.01)
+    parser.add_argument("--fixed-band", type=float, default=1.0)  # percent (±1%)
     args = parser.parse_args()
 
     rows = load_rows(Path(args.data))
