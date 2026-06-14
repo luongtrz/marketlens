@@ -22,11 +22,11 @@ class MainControllerConfig(BaseAppConfig):
     knn_sell_threshold: float = -2.0
 
     # kNN-returns horizon weights (must sum <= 1; normalized per-record if horizons missing)
-    knn_return_w1d: float = 0.40
-    knn_return_w3d: float = 0.30
-    knn_return_w7d: float = 0.15
-    knn_return_w15d: float = 0.10
-    knn_return_w30d: float = 0.05
+    knn_return_w1d: float = 0.15
+    knn_return_w3d: float = 0.25
+    knn_return_w7d: float = 0.35
+    knn_return_w15d: float = 0.15
+    knn_return_w30d: float = 0.10
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
     jwt_access_ttl_minutes: int = 30

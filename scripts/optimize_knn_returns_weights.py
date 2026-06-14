@@ -37,7 +37,7 @@ except ImportError:
 
 DB_URL     = "postgresql://postgres:pass@localhost:5432/postgres"
 OUT_FILE   = Path(__file__).parent.parent / "stockmem" / "config" / "weights.auto.json"
-RETURN_W   = {"1d": 0.40, "3d": 0.30, "7d": 0.15, "15d": 0.10, "30d": 0.05}
+RETURN_W   = {"1d": 0.15, "3d": 0.25, "7d": 0.35, "15d": 0.15, "30d": 0.10}
 HORIZONS   = list(RETURN_W.keys())
 
 
