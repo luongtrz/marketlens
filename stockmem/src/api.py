@@ -26,7 +26,9 @@ logger = logging.getLogger(__name__)
 
 class UpdateReturnsRequest(BaseModel):
     future_return_1d: Optional[float] = None
+    future_return_3d: Optional[float] = None
     future_return_7d: Optional[float] = None
+    future_return_15d: Optional[float] = None
     future_return_30d: Optional[float] = None
 
 
@@ -145,7 +147,9 @@ async def update_returns(record_id: str, payload: UpdateReturnsRequest) -> dict:
     ok = await service.update_future_returns(
         record_id,
         future_return_1d=payload.future_return_1d,
+        future_return_3d=payload.future_return_3d,
         future_return_7d=payload.future_return_7d,
+        future_return_15d=payload.future_return_15d,
         future_return_30d=payload.future_return_30d,
     )
     if not ok:

@@ -135,18 +135,27 @@ class StockMemService:
         self,
         record_id: str,
         future_return_1d: float | None = None,
+        future_return_3d: float | None = None,
         future_return_7d: float | None = None,
+        future_return_15d: float | None = None,
         future_return_30d: float | None = None,
     ) -> bool:
         ok = await self.repository.update_future_returns(
-            record_id, future_return_1d, future_return_7d, future_return_30d
+            record_id,
+            future_return_1d=future_return_1d,
+            future_return_3d=future_return_3d,
+            future_return_7d=future_return_7d,
+            future_return_15d=future_return_15d,
+            future_return_30d=future_return_30d,
         )
         if ok and record_id in self.records_by_id:
             rec = self.records_by_id[record_id]
             self.records_by_id[record_id] = rec.model_copy(update={
                 k: v for k, v in {
                     "future_return_1d": future_return_1d,
+                    "future_return_3d": future_return_3d,
                     "future_return_7d": future_return_7d,
+                    "future_return_15d": future_return_15d,
                     "future_return_30d": future_return_30d,
                 }.items() if v is not None
             })
