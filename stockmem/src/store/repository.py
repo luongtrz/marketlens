@@ -123,7 +123,7 @@ class RecordRepository:
             if existing_row is not None:
                 existing_payload = json.loads(existing_row[0])
                 keep_updates: dict[str, float] = {}
-                for key in ("future_return_1d", "future_return_7d", "future_return_30d"):
+                for key in ("future_return_1d", "future_return_3d", "future_return_7d", "future_return_15d", "future_return_30d"):
                     if getattr(payload_record, key) is None and existing_payload.get(key) is not None:
                         keep_updates[key] = float(existing_payload[key])
                 if keep_updates:
@@ -185,7 +185,9 @@ class RecordRepository:
         query = (
             "SELECT payload FROM stockmem_records WHERE "
             "json_extract(payload, '$.future_return_1d') IS NULL OR "
+            "json_extract(payload, '$.future_return_3d') IS NULL OR "
             "json_extract(payload, '$.future_return_7d') IS NULL OR "
+            "json_extract(payload, '$.future_return_15d') IS NULL OR "
             "json_extract(payload, '$.future_return_30d') IS NULL"
         )
         params: tuple = ()
@@ -202,7 +204,9 @@ class RecordRepository:
         self,
         record_id: str,
         future_return_1d: float | None = None,
+        future_return_3d: float | None = None,
         future_return_7d: float | None = None,
+        future_return_15d: float | None = None,
         future_return_30d: float | None = None,
     ) -> bool:
         async with aiosqlite.connect(self._db_path) as conn:
@@ -213,12 +217,15 @@ class RecordRepository:
             if row is None:
                 return False
             payload = json.loads(row[0])
-            if future_return_1d is not None:
-                payload["future_return_1d"] = future_return_1d
-            if future_return_7d is not None:
-                payload["future_return_7d"] = future_return_7d
-            if future_return_30d is not None:
-                payload["future_return_30d"] = future_return_30d
+            for key, val in [
+                ("future_return_1d", future_return_1d),
+                ("future_return_3d", future_return_3d),
+                ("future_return_7d", future_return_7d),
+                ("future_return_15d", future_return_15d),
+                ("future_return_30d", future_return_30d),
+            ]:
+                if val is not None:
+                    payload[key] = val
             await conn.execute(
                 "UPDATE stockmem_records SET payload = ? WHERE id = ?",
                 (json.dumps(payload, ensure_ascii=True), record_id),

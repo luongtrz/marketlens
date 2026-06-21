@@ -3,13 +3,13 @@ from __future__ import annotations
 from datetime import date
 
 from ..models import StockMemRecord
-from .repository import RecordRepository
+from .base import Repository
 
 
 class RecordReader:
     """Read records by id or by (date, symbol)."""
 
-    def __init__(self, repository: RecordRepository) -> None:
+    def __init__(self, repository: Repository) -> None:
         self._repository = repository
 
     async def get_by_id(self, record_id: str) -> StockMemRecord | None:

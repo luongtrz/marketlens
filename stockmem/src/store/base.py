@@ -18,9 +18,11 @@ class Repository(Protocol):
     async def update_future_returns(
         self,
         record_id: str,
-        future_return_1d: float | None,
-        future_return_7d: float | None,
-        future_return_30d: float | None,
+        future_return_1d: float | None = None,
+        future_return_3d: float | None = None,
+        future_return_7d: float | None = None,
+        future_return_15d: float | None = None,
+        future_return_30d: float | None = None,
     ) -> bool: ...
     async def acquire_distributed_lock(self, lock_name: str) -> bool: ...
     async def release_distributed_lock(self, lock_name: str) -> None: ...

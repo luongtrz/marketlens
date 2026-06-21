@@ -177,7 +177,7 @@ def test_search_on_empty_cache_returns_empty() -> None:
     assert searcher.search(query, k=5) == []
 
 
-def test_service_search_preserves_same_date_caller_query(tmp_path) -> None:
+def test_service_search_preserves_same_date_caller_query() -> None:
     stored = StockMemRecord(
         id="stored",
         date=date(2026, 4, 14),
@@ -194,7 +194,7 @@ def test_service_search_preserves_same_date_caller_query(tmp_path) -> None:
         market_snapshot=MarketSnapshot(rsi=90.0),
     )
     service = StockMemService(
-        f"sqlite+aiosqlite:///{tmp_path / 'stockmem.db'}",
+        "postgresql+asyncpg://postgres:pass@localhost:5432/postgres",
         "memory",
         SearchWeights(0.35, 0.20, 0.45),
     )

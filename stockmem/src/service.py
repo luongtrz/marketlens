@@ -12,7 +12,6 @@ from .search.learned_metric import LearnedDiagonalMetric
 from .search.searcher import RecordSearcher
 from .store.base import Repository
 from .store.pg_repository import PGRepository
-from .store.repository import RecordRepository
 from .store.writer import RecordWriter
 from .weights_retrainer import retrain_weights, write_weights_snapshot
 
@@ -20,15 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def _build_repository(db_url: str) -> Repository:
-    """Pick a Repository backend by db_url scheme.
-
-    Why: docker-compose ships a postgres URL while local dev defaults to
-    sqlite. RecordRepository.__init__ would reject the postgres URL outright,
-    so the scheme has to drive the selection here.
-    """
-    if db_url.startswith(("postgresql://", "postgresql+asyncpg://")):
-        return PGRepository(db_url)
-    return RecordRepository(db_url)
+    return PGRepository(db_url)
 
 
 class StockMemService:
