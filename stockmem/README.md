@@ -166,23 +166,46 @@ Việc tính return theo giá tương lai đang được orchestrate bởi Main 
 ## 7) Scripts & data
 
 ### Scripts
-- `stockmem/scripts/backtest_api.py`: walk-forward backtest qua API.
-- `stockmem/scripts/optimize_weights.py`: Bayesian/grid optimization offline.
-- `stockmem/scripts/benchmark_weights.py`: compare baseline vs candidate.
+
+**Optimization & weights:**
+- `stockmem/scripts/optimize_weights.py`: Bayesian/grid weight optimization offline.
+- `stockmem/scripts/benchmark_weights.py`: compare baseline vs candidate weights.
+
+**CEM-RAG learned retriever:**
 - `stockmem/scripts/regen_optimizer_data.py`: tái tạo dataset optimizer từ DB.
-- `stockmem/scripts/build_cem_dataset.py`: kiểm tra split, label và maturity guard cho CEM dataset.
-- `stockmem/scripts/train_learned_retriever.py`: train learned diagonal metric bằng numpy/Adam.
-- `stockmem/scripts/evaluate_retriever.py`: so sánh guarded/leaky fixed baseline với learned retriever.
+- `stockmem/scripts/build_cem_dataset.py`: kiểm tra split, label và maturity guard.
+- `stockmem/scripts/cem_dataset.py`: LabeledRow, label_rows(), mine_candidates() — thư viện CEM dataset.
+- `stockmem/scripts/train_learned_retriever.py`: train InfoNCE + ridge diagonal metric (numpy/Adam).
+  - Vectorized re-mining: pre-compute pairwise baseline matrix O(N²) numpy, không O(N²) Python.
+  - Vectorized eval: `score_batch()` cho 1-vs-N, 23× nhanh hơn per-pair Python loop.
+  - Artifact: `stockmem/config/learned_retriever.json` (val_hit=0.9988, seed_std=0.0024).
+- `stockmem/scripts/evaluate_retriever.py`: 3-way comparison (leaky/guarded baseline, learned).
+  - McNemar test trên cả DA và hit@k.
+  - Acceptance gates (5 điều kiện).
+- `stockmem/scripts/calibrate_policy.py`: kNN probability model p_up/p_down/p_hold.
+  - Grid search tau trên VAL only → policy.json (tau=0.22).
+  - Report Brier score, ECE, Sharpe, Sortino, max drawdown.
+
+**Backtest & utilities:**
+- `stockmem/scripts/backtest_api.py`: walk-forward backtest qua API.
 - `stockmem/scripts/generate_mock_data.py`: tạo mock dataset.
 - `stockmem/scripts/patch_factors.py`: utility patch factors.
 
 Optimizer và evaluator mặc định yêu cầu outcome của candidate đã mature theo ngày lịch.
 Chỉ dùng `--no-maturity-guard` để tái tạo kết quả legacy có look-ahead.
 
+### Config artifacts
+- `stockmem/config/weights.auto.json`: weights Bayesian-optimized (w1=0.544/w2=0.309/w3=0.142).
+- `stockmem/config/learned_retriever.json`: learned diagonal metric, 4 blocks (event85+factor75+indicator5+price60=225d).
+- `stockmem/config/policy.json`: calibrated policy (tau=0.22, method=knn_platt_v1).
+
 ### Data
 - `stockmem/data/mock_3y_records.json`
 - `stockmem/data/mock_3y_optimizer.json`
-- `stockmem/data/real_optimizer.json`
+- `stockmem/data/real_optimizer.json`: dataset gốc (~962 rows, 2021-2023).
+- `stockmem/data/real_optimizer_v2.json`: dataset đầy đủ (2885 rows, 2021-2026, có event_vec).
+- `stockmem/data/real_optimizer_v2_2023.json`: subset 2023-2026 (1246 rows, dùng để test nhanh).
+- `stockmem/data/real_optimizer_v2_events.json`: như v2 nhưng thêm event_state field.
 
 ---
 
