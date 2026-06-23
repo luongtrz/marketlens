@@ -1,0 +1,30 @@
+{
+  "tau": 0.22,
+  "val_sharpe": -0.073611,
+  "method": "knn_platt_v1",
+  "retriever": "learned_diagonal",
+  "k": 5,
+  "created_at": "2026-06-24T00:01:49.985866",
+  "test_metrics": {
+    "da": 0.783607,
+    "buy_da": 0.409639,
+    "sell_da": 0.575,
+    "coverage": 0.403279,
+    "sharpe": -0.009055,
+    "sortino": -0.792559,
+    "max_drawdown": -0.96925,
+    "brier": 1.151808,
+    "ece": 0.218708,
+    "n": 305,
+    "n_buy": 83,
+    "n_sell": 40,
+    "n_hold": 182
+  },
+  "val_best_metrics": {
+    "0.22": {
+      "sharpe": -0.073611,
+      "coverage": 0.390805,
+      "da": 0.787356
+    }
+  }
+}
