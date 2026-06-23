@@ -55,3 +55,19 @@ class PredictionResult(BaseModel):
     key_factors: list[NormalizedFactor]
     market_snapshot: MarketSnapshot | None = None
     errors: list[str] = []  # Non-fatal errors encountered during run
+
+
+class CEMRAGPrediction(BaseModel):
+    """Probability-calibrated prediction from the CEM-RAG policy layer."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    horizon: str = "7d"
+    p_up: float
+    p_down: float
+    p_hold: float
+    signal: str  # "BUY" | "SELL" | "HOLD"
+    confidence: float
+    tau: float
+    explanation: str = ""
+    retrieval_count: int = 0

@@ -10,7 +10,7 @@ from typing import Any, Sequence
 import numpy as np
 
 from stockmem.scripts.cem_dataset import LabeledRow, label_rows, matured_pool, mine_candidates
-from stockmem.scripts.optimize_weights import load_rows, validate_rows
+from stockmem.scripts.optimize_weights import _compute_sharpe, load_rows, validate_rows
 from stockmem.src.search.learned_metric import LearnedDiagonalMetric
 
 try:
@@ -35,8 +35,11 @@ class TrainConfig:
     epochs: int = 60
     patience: int = 10
     remine_every: int = 3
+    eval_every: int = 5
     k: int = 5
     batch_size: int = 16
+    buy_threshold: float = 2.0
+    sell_threshold: float = 2.0
 
 
 def _score_and_grad(
@@ -136,22 +139,91 @@ def info_nce_loss_and_grad(
     return loss, grad_d, grad_s
 
 
-def _hit_at_k(
-    labeled: Sequence[LabeledRow],
-    split: str,
+def _prestack_blocks(rows: Sequence[LabeledRow]) -> list[np.ndarray]:
+    """Pre-stack all row blocks into matrices for vectorized scoring."""
+    if not rows:
+        return []
+    n_blocks = len(rows[0].blocks)
+    return [
+        np.stack([r.blocks[b] for r in rows]).astype(np.float64)
+        for b in range(n_blocks)
+    ]
+
+
+def _val_combined_fast(
+    labeled_list: list[LabeledRow],
+    all_stacked: list[np.ndarray],
+    dates_ord: np.ndarray,
     metric: LearnedDiagonalMetric,
     k: int,
+    buy_threshold: float = 2.0,
+    sell_threshold: float = 2.0,
 ) -> float:
-    hits = 0
-    total = 0
-    for query in labeled:
+    """Vectorized combined score (0.6·DA + 0.4·Sharpe) on val split."""
+    correct: list[bool] = []
+    strategy_returns: list[float] = []
+    for i, query in enumerate(labeled_list):
+        if query.split != "val" or query.direction == 0:
+            continue
+        qord = int(dates_ord[i])
+        mask = dates_ord <= qord - 7
+        pool_idx = np.where(mask)[0]
+        if len(pool_idx) == 0:
+            continue
+        pool_stacked = [s[pool_idx] for s in all_stacked]
+        scores = metric.score_batch(query.blocks, pool_stacked)
+        k_eff = min(k, len(pool_idx))
+        top_idx = np.argpartition(scores, -k_eff)[-k_eff:]
+        pred_ret = float(np.mean([labeled_list[pool_idx[j]].row.future_return_7d for j in top_idx]))
+        if pred_ret > buy_threshold:
+            signal = "BUY"
+        elif pred_ret < -sell_threshold:
+            signal = "SELL"
+        else:
+            signal = "HOLD"
+        actual = query.row.future_return_7d
+        is_correct = (
+            (signal == "BUY" and actual > 0)
+            or (signal == "SELL" and actual < 0)
+            or (signal == "HOLD" and -sell_threshold <= actual <= buy_threshold)
+        )
+        correct.append(is_correct)
+        if signal == "BUY":
+            strategy_returns.append(actual)
+        elif signal == "SELL":
+            strategy_returns.append(-actual)
+        else:
+            strategy_returns.append(0.0)
+    if not correct:
+        return 0.0
+    da = float(np.mean(correct))
+    sharpe = _compute_sharpe(strategy_returns, horizon="7d", mode="nonoverlap")
+    return 0.6 * da + 0.4 * min(max(sharpe, -2.0), 2.0) / 2.0
+
+
+def _hit_at_k_fast(
+    labeled_list: list[LabeledRow],
+    all_stacked: list[np.ndarray],
+    dates_ord: np.ndarray,
+    metric: LearnedDiagonalMetric,
+    k: int,
+    split: str = "val",
+) -> float:
+    """Vectorized hit@k evaluation."""
+    hits = total = 0
+    for i, query in enumerate(labeled_list):
         if query.split != split or query.direction == 0:
             continue
-        pool = matured_pool(labeled, query)
-        if not pool:
+        qord = int(dates_ord[i])
+        mask = dates_ord <= qord - 7
+        pool_idx = np.where(mask)[0]
+        if len(pool_idx) == 0:
             continue
-        ranked = sorted(pool, key=lambda row: metric.score(query.blocks, row.blocks), reverse=True)[:k]
-        hits += int(any(row.direction == query.direction for row in ranked))
+        pool_stacked = [s[pool_idx] for s in all_stacked]
+        scores = metric.score_batch(query.blocks, pool_stacked)
+        k_eff = min(k, len(pool_idx))
+        top_idx = np.argpartition(scores, -k_eff)[-k_eff:]
+        hits += int(any(labeled_list[pool_idx[j]].direction == query.direction for j in top_idx))
         total += 1
     return hits / total if total else 0.0
 
@@ -160,9 +232,11 @@ def train_one_seed(
     labeled: Sequence[LabeledRow],
     config: TrainConfig,
     seed: int,
-) -> tuple[np.ndarray, np.ndarray, float, list[float]]:
+) -> tuple[np.ndarray, np.ndarray, float, float, list[float]]:
+    """Returns (best_d, best_s, best_combined, best_hit_at_k, losses)."""
     rng = np.random.default_rng(seed)
-    block_dims = tuple(block.size for block in labeled[0].blocks)
+    labeled_list = list(labeled)
+    block_dims = tuple(block.size for block in labeled_list[0].blocks)
     diagonal = np.ones(sum(block_dims), dtype=np.float64)
     if len(block_dims) == 4:
         scales = np.asarray(
@@ -176,13 +250,29 @@ def train_one_seed(
     m_s = np.zeros_like(scales)
     v_s = np.zeros_like(scales)
     step = 0
-    best_hit = -1.0
+    best_combined = -999.0
     best_d = diagonal.copy()
     best_s = scales.copy()
     stale = 0
     losses: list[float] = []
-    train_anchors = [row for row in labeled if row.split == "train" and row.direction != 0]
-    train_pool = [row for row in labeled if row.split == "train"]
+
+    # Pre-stack all blocks once for fast vectorized eval
+    all_stacked = _prestack_blocks(labeled_list)
+    dates_ord = np.array([r.parsed_date.toordinal() for r in labeled_list])
+
+    train_anchors = [row for row in labeled_list if row.split == "train" and row.direction != 0]
+    train_pool = [row for row in labeled_list if row.split == "train"]
+
+    # Pre-compute pairwise baseline matrix once (vectorized, O(N²) numpy vs O(N²) Python)
+    tp_id_to_idx = {id(r): i for i, r in enumerate(train_pool)}
+    tp_dates_ord = np.array([r.parsed_date.toordinal() for r in train_pool])
+    _f = np.stack([r.row.factor_vec for r in train_pool]).astype(np.float64)
+    _i = np.stack([r.row.indicator_vec for r in train_pool]).astype(np.float64)
+    _p = np.stack([r.row.price_vec for r in train_pool]).astype(np.float64)
+    w1, w2, w3 = DEFAULT_WEIGHTS
+    baseline_full = w1 * (_f @ _f.T) + w2 * (_i @ _i.T) + w3 * (_p @ _p.T)  # (N, N)
+    del _f, _i, _p
+
     mined: list[
         tuple[
             LabeledRow,
@@ -197,9 +287,19 @@ def train_one_seed(
             mined = []
             current_metric = LearnedDiagonalMetric(block_dims, diagonal, scales)
             for anchor in train_anchors:
+                ai = tp_id_to_idx[id(anchor)]
+                ad = int(tp_dates_ord[ai])
+                pool_mask = tp_dates_ord <= ad - 7
+                pool_idx_arr = np.where(pool_mask)[0]
+                if len(pool_idx_arr) == 0:
+                    continue
+                pool_rows = [train_pool[pi] for pi in pool_idx_arr]
+                scores_vec = baseline_full[ai, pool_idx_arr]
+                precomputed = {id(train_pool[pi]): float(scores_vec[j])
+                               for j, pi in enumerate(pool_idx_arr)}
                 pair = mine_candidates(
                     anchor,
-                    matured_pool(train_pool, anchor),
+                    pool_rows,
                     weights=DEFAULT_WEIGHTS,
                     hard_negs=config.hard_negs,
                     positive_count=config.positive_count,
@@ -208,6 +308,7 @@ def train_one_seed(
                         left.blocks,
                         right.blocks,
                     ),
+                    baseline_scores_override=precomputed,
                 )
                 if pair is not None:
                     mined.append(
@@ -258,18 +359,22 @@ def train_one_seed(
             scales /= scales.sum()
             epoch_losses.append(loss)
         losses.append(float(np.mean(epoch_losses)) if epoch_losses else 0.0)
-        metric = LearnedDiagonalMetric(block_dims, diagonal, scales)
-        val_hit = _hit_at_k(labeled, "val", metric, config.k)
-        if val_hit > best_hit + 1e-9:
-            best_hit = val_hit
-            best_d = diagonal.copy()
-            best_s = scales.copy()
-            stale = 0
-        else:
-            stale += 1
-        if stale >= config.patience:
-            break
-    return best_d, best_s, best_hit, losses
+        if (epoch + 1) % config.eval_every == 0 or epoch == config.epochs - 1:
+            metric = LearnedDiagonalMetric(block_dims, diagonal, scales)
+            val_hit = _hit_at_k_fast(labeled_list, all_stacked, dates_ord, metric, config.k)
+            if val_hit > best_combined + 1e-9:
+                best_combined = val_hit
+                best_d = diagonal.copy()
+                best_s = scales.copy()
+                stale = 0
+            else:
+                stale += 1
+            if stale >= config.patience:
+                break
+
+    best_metric = LearnedDiagonalMetric(block_dims, best_d, best_s)
+    best_hit = _hit_at_k_fast(labeled_list, all_stacked, dates_ord, best_metric, config.k)
+    return best_d, best_s, best_combined, best_hit, losses
 
 
 def _require_optuna() -> Any:
@@ -310,8 +415,8 @@ def main() -> None:
             epochs=args.epochs,
             k=trial.suggest_categorical("k", [3, 5, 7]),
         )
-        _, _, val_hit, _ = train_one_seed(labeled, config, args.seed + trial.number)
-        return val_hit
+        _, _, val_combined, _, _ = train_one_seed(labeled, config, args.seed + trial.number)
+        return val_combined
 
     study = o.create_study(
         direction="maximize",
@@ -336,22 +441,15 @@ def main() -> None:
 
     diagonals: list[np.ndarray] = []
     scales_list: list[np.ndarray] = []
-    val_hits: list[float] = []
-    val_hits_at_5: list[float] = []
+    val_combineds: list[float] = []
+    val_hits_at_k: list[float] = []
     for seed in range(args.seed, args.seed + max(1, args.seeds)):
-        diagonal, scales, val_hit, losses = train_one_seed(labeled, config, seed)
+        diagonal, scales, val_combined, val_hit, losses = train_one_seed(labeled, config, seed)
         diagonals.append(diagonal)
         scales_list.append(scales)
-        val_hits.append(val_hit)
-        val_hits_at_5.append(
-            _hit_at_k(
-                labeled,
-                "val",
-                LearnedDiagonalMetric(block_dims, diagonal, scales),
-                5,
-            )
-        )
-        print(f"seed={seed} val_hit@{config.k}={val_hit:.4f} final_loss={losses[-1]:.6f}")
+        val_combineds.append(val_combined)
+        val_hits_at_k.append(val_hit)
+        print(f"seed={seed} val_combined={val_combined:.4f} val_hit@{config.k}={val_hit:.4f} final_loss={losses[-1]:.6f}")
 
     averaged_d = np.mean(np.vstack(diagonals), axis=0)
     averaged_scales = np.mean(np.vstack(scales_list), axis=0)
@@ -382,9 +480,10 @@ def main() -> None:
             "epochs": config.epochs,
             "k": config.k,
         },
-        "val_hit_at_5": float(np.mean(val_hits_at_5)),
-        "val_hit_at_k": float(np.mean(val_hits)),
-        "seed_std": float(np.std(val_hits_at_5)),
+        "val_combined": float(np.mean(val_combineds)),
+        "val_hit_at_k": float(np.mean(val_hits_at_k)),
+        "val_hit_at_5": float(np.mean(val_hits_at_k)),
+        "seed_std": float(np.std(val_hits_at_k)),
         "seeds": list(range(args.seed, args.seed + max(1, args.seeds))),
         "source": args.data,
         "mining_protocol": {
@@ -402,8 +501,9 @@ def main() -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(
-        f"wrote {output} val_hit={np.mean(val_hits):.4f} "
-        f"seed_std_hit@5={np.std(val_hits_at_5):.4f}"
+        f"wrote {output} val_combined={np.mean(val_combineds):.4f} "
+        f"val_hit@k={np.mean(val_hits_at_k):.4f} "
+        f"seed_std={np.std(val_hits_at_k):.4f}"
     )
 
 

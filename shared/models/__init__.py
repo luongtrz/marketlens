@@ -5,7 +5,7 @@ from shared.models.market import OHLCV, Ticker, MarketSnapshot
 from shared.models.factor import FactorType, Factor, NormalizedFactor
 from shared.models.event import DailyEventState, EventRecord
 from shared.models.memory import StockMemRecord, SimilarRecord
-from shared.models.prediction import SignalType, PredictionResult, PredictResponse, ExplainRequest
+from shared.models.prediction import SignalType, PredictionResult, PredictResponse, ExplainRequest, CEMRAGPrediction
 
 __all__ = [
     "IngestionRecord",
@@ -23,4 +23,5 @@ __all__ = [
     "PredictionResult",
     "PredictResponse",
     "ExplainRequest",
+    "CEMRAGPrediction",
 ]

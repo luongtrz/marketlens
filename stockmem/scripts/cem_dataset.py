@@ -175,6 +175,7 @@ def mine_candidates(
     positive_count: int = 3,
     flat_negs: int = 2,
     learned_score: Callable[[LabeledRow, LabeledRow], float] | None = None,
+    baseline_scores_override: dict[int, float] | None = None,
 ) -> MinedCandidates | None:
     if anchor.direction == 0:
         return None
@@ -185,10 +186,13 @@ def mine_candidates(
         return None
 
     w1, w2, w3 = weights
-    baseline_scores = {
-        id(row): weighted_similarity(anchor.row, row.row, w1, w2, w3)
-        for row in pool
-    }
+    if baseline_scores_override is not None:
+        baseline_scores = baseline_scores_override
+    else:
+        baseline_scores = {
+            id(row): weighted_similarity(anchor.row, row.row, w1, w2, w3)
+            for row in pool
+        }
     positives_scored = sorted(
         positives,
         key=lambda row: teacher_relevance(

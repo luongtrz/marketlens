@@ -1,0 +1,591 @@
+%%% -*-BibTeX-*-
+%%% Do NOT edit. File created by BibTeX with style
+%%% ACM-Reference-Format-Journals [18-Jan-2012].
+
+\begin{thebibliography}{33}
+
+%%% ====================================================================
+%%% NOTE TO THE USER: you can override these defaults by providing
+%%% customized versions of any of these macros before the \bibliography
+%%% command.  Each of them MUST provide its own final punctuation,
+%%% except for \shownote{}, \showDOI{}, and \showURL{}.  The latter two
+%%% do not use final punctuation, in order to avoid confusing it with
+%%% the Web address.
+%%%
+%%% To suppress output of a particular field, define its macro to expand
+%%% to an empty string, or better, \unskip, like this:
+%%%
+%%% \newcommand{\showDOI}[1]{\unskip}   % LaTeX syntax
+%%%
+%%% \def \showDOI #1{\unskip}           % plain TeX syntax
+%%%
+%%% ====================================================================
+
+\ifx \showCODEN    \undefined \def \showCODEN     #1{\unskip}     \fi
+\ifx \showDOI      \undefined \def \showDOI       #1{#1}\fi
+\ifx \showISBNx    \undefined \def \showISBNx     #1{\unskip}     \fi
+\ifx \showISBNxiii \undefined \def \showISBNxiii  #1{\unskip}     \fi
+\ifx \showISSN     \undefined \def \showISSN      #1{\unskip}     \fi
+\ifx \showLCCN     \undefined \def \showLCCN      #1{\unskip}     \fi
+\ifx \shownote     \undefined \def \shownote      #1{#1}          \fi
+\ifx \showarticletitle \undefined \def \showarticletitle #1{#1}   \fi
+\ifx \showURL      \undefined \def \showURL       {\relax}        \fi
+% The following commands are used for tagged output and should be
+% invisible to TeX
+\providecommand\bibfield[2]{#2}
+\providecommand\bibinfo[2]{#2}
+\providecommand\natexlab[1]{#1}
+\providecommand\showeprint[2][]{arXiv:#2}
+
+\bibitem[\protect\citeauthoryear{Agarwal and Mittal}{Agarwal and
+  Mittal}{2016}]%
+        {Agarwal2016}
+\bibfield{author}{\bibinfo{person}{Basant Agarwal} {and}
+  \bibinfo{person}{Namita Mittal}.} \bibinfo{year}{2016}\natexlab{}.
+\newblock \bibinfo{booktitle}{\emph{Machine Learning Approach for Sentiment
+  Analysis}}.
+\newblock \bibinfo{publisher}{Springer International Publishing},
+  \bibinfo{address}{Cham}, \bibinfo{pages}{21--45}.
+\newblock
+\showISBNx{978-3-319-25343-5}
+\urldef\tempurl%
+\url{https://doi.org/10.1007/978-3-319-25343-5_3}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Araque, Corcuera-Platas, S{\'{a}}nchez-Rada,
+  and Iglesias}{Araque et~al\mbox{.}}{2017}]%
+        {Araque2017}
+\bibfield{author}{\bibinfo{person}{Oscar Araque}, \bibinfo{person}{Ignacio
+  Corcuera-Platas}, \bibinfo{person}{J.~Fernando S{\'{a}}nchez-Rada}, {and}
+  \bibinfo{person}{Carlos~A. Iglesias}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{Enhancing deep learning sentiment analysis with
+  ensemble techniques in social applications}.
+\newblock \bibinfo{journal}{\emph{Expert Systems with Applications}}
+  \bibinfo{volume}{77} (\bibinfo{date}{jul} \bibinfo{year}{2017}),
+  \bibinfo{pages}{236--246}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1016/j.eswa.2017.02.002}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Devlin, Chang, Lee, and Toutanova}{Devlin
+  et~al\mbox{.}}{2018}]%
+        {Devlin2018}
+\bibfield{author}{\bibinfo{person}{Jacob Devlin}, \bibinfo{person}{Ming-Wei
+  Chang}, \bibinfo{person}{Kenton Lee}, {and} \bibinfo{person}{Kristina
+  Toutanova}.} \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{{BERT: Pre-training of Deep Bidirectional
+  Transformers for Language Understanding}}.
+\newblock  (\bibinfo{year}{2018}).
+\newblock
+\showISBNx{0-674-24915-1 0-674-24917-8}
+\showISSN{0140-525X}
+\urldef\tempurl%
+\url{https://doi.org/arXiv:1811.03600v2}
+\showDOI{\tempurl}
+\showeprint[arxiv]{1810.04805}
+
+
+\bibitem[\protect\citeauthoryear{Guo, Shi, and Tu}{Guo et~al\mbox{.}}{2016}]%
+        {Guo2016}
+\bibfield{author}{\bibinfo{person}{Li Guo}, \bibinfo{person}{Feng Shi}, {and}
+  \bibinfo{person}{Jun Tu}.} \bibinfo{year}{2016}\natexlab{}.
+\newblock \showarticletitle{{Textual analysis and machine leaning: Crack
+  unstructured data in finance and accounting}}.
+\newblock \bibinfo{journal}{\emph{The Journal of Finance and Data Science}}
+  \bibinfo{volume}{2}, \bibinfo{number}{3} (\bibinfo{date}{sep}
+  \bibinfo{year}{2016}), \bibinfo{pages}{153--170}.
+\newblock
+\showISSN{2405-9188}
+\urldef\tempurl%
+\url{https://doi.org/10.1016/J.JFDS.2017.02.001}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Howard and Ruder}{Howard and Ruder}{2018}]%
+        {Howard2018}
+\bibfield{author}{\bibinfo{person}{Jeremy Howard} {and}
+  \bibinfo{person}{Sebastian Ruder}.} \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{{Universal Language Model Fine-tuning for Text
+  Classification}}.
+\newblock  (\bibinfo{date}{jan} \bibinfo{year}{2018}).
+\newblock
+\showeprint[arxiv]{1801.06146}
+\urldef\tempurl%
+\url{http://arxiv.org/abs/1801.06146}
+\showURL{%
+\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Kant, Puri, Yakovenko, and Catanzaro}{Kant
+  et~al\mbox{.}}{2018}]%
+        {Kant2018}
+\bibfield{author}{\bibinfo{person}{Neel Kant}, \bibinfo{person}{Raul Puri},
+  \bibinfo{person}{Nikolai Yakovenko}, {and} \bibinfo{person}{Bryan
+  Catanzaro}.} \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{{Practical Text Classification With Large
+  Pre-Trained Language Models}}.
+\newblock  (\bibinfo{year}{2018}).
+\newblock
+\showISBNx{1812.01207v1}
+\showeprint[arxiv]{1812.01207}
+\urldef\tempurl%
+\url{http://arxiv.org/abs/1812.01207}
+\showURL{%
+\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Kraus and Feuerriegel}{Kraus and
+  Feuerriegel}{2017}]%
+        {Kraus2017}
+\bibfield{author}{\bibinfo{person}{Mathias Kraus} {and} \bibinfo{person}{Stefan
+  Feuerriegel}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{{Decision support from financial disclosures with
+  deep neural networks and transfer learning}}.
+\newblock \bibinfo{journal}{\emph{Decision Support Systems}}
+  \bibinfo{volume}{104} (\bibinfo{year}{2017}), \bibinfo{pages}{38--48}.
+\newblock
+\showISBNx{1664-1078}
+\showISSN{01679236}
+\urldef\tempurl%
+\url{https://doi.org/10.1016/j.dss.2017.10.001}
+\showDOI{\tempurl}
+\showeprint[arxiv]{1710.03954}
+
+
+\bibitem[\protect\citeauthoryear{Krishnamoorthy}{Krishnamoorthy}{2018}]%
+        {Krishnamoorthy2018}
+\bibfield{author}{\bibinfo{person}{Srikumar Krishnamoorthy}.}
+  \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{{Sentiment analysis of financial news articles
+  using performance indicators}}.
+\newblock \bibinfo{journal}{\emph{Knowledge and Information Systems}}
+  \bibinfo{volume}{56}, \bibinfo{number}{2} (\bibinfo{date}{aug}
+  \bibinfo{year}{2018}), \bibinfo{pages}{373--394}.
+\newblock
+\showISSN{02193116}
+\urldef\tempurl%
+\url{https://doi.org/10.1007/s10115-017-1134-1}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Li, Xie, Chen, Wang, and Deng}{Li
+  et~al\mbox{.}}{2014}]%
+        {Li2014}
+\bibfield{author}{\bibinfo{person}{Xiaodong Li}, \bibinfo{person}{Haoran Xie},
+  \bibinfo{person}{Li Chen}, \bibinfo{person}{Jianping Wang}, {and}
+  \bibinfo{person}{Xiaotie Deng}.} \bibinfo{year}{2014}\natexlab{}.
+\newblock \showarticletitle{News impact on stock price return via sentiment
+  analysis}.
+\newblock \bibinfo{journal}{\emph{Knowledge-Based Systems}}
+  \bibinfo{volume}{69} (\bibinfo{date}{oct} \bibinfo{year}{2014}),
+  \bibinfo{pages}{14--23}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1016/j.knosys.2014.04.022}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Liu}{Liu}{2012}]%
+        {Liu2012}
+\bibfield{author}{\bibinfo{person}{Bing Liu}.} \bibinfo{year}{2012}\natexlab{}.
+\newblock \showarticletitle{Sentiment Analysis and Opinion Mining}.
+\newblock \bibinfo{journal}{\emph{Synthesis Lectures on Human Language
+  Technologies}} \bibinfo{volume}{5}, \bibinfo{number}{1} (\bibinfo{date}{may}
+  \bibinfo{year}{2012}), \bibinfo{pages}{1--167}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.2200/s00416ed1v01y201204hlt016}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Loughran and Mcdonald}{Loughran and
+  Mcdonald}{2011}]%
+        {Loughran2011}
+\bibfield{author}{\bibinfo{person}{Tim Loughran} {and} \bibinfo{person}{Bill
+  Mcdonald}.} \bibinfo{year}{2011}\natexlab{}.
+\newblock \showarticletitle{{When Is a Liability Not a Liability? Textual
+  Analysis, Dictionaries, and 10-Ks}}.
+\newblock \bibinfo{journal}{\emph{Journal of Finance}} \bibinfo{volume}{66},
+  \bibinfo{number}{1} (\bibinfo{date}{feb} \bibinfo{year}{2011}),
+  \bibinfo{pages}{35--65}.
+\newblock
+\showISSN{00221082}
+\urldef\tempurl%
+\url{https://doi.org/10.1111/j.1540-6261.2010.01625.x}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Loughran and Mcdonald}{Loughran and
+  Mcdonald}{2016}]%
+        {Loughran2016}
+\bibfield{author}{\bibinfo{person}{Tim Loughran} {and} \bibinfo{person}{Bill
+  Mcdonald}.} \bibinfo{year}{2016}\natexlab{}.
+\newblock \showarticletitle{{Textual Analysis in Accounting and Finance: A
+  Survey}}.
+\newblock \bibinfo{journal}{\emph{Journal of Accounting Research}}
+  \bibinfo{volume}{54}, \bibinfo{number}{4} (\bibinfo{year}{2016}),
+  \bibinfo{pages}{1187--1230}.
+\newblock
+\showISBNx{ID 2504147}
+\showISSN{1475679X}
+\urldef\tempurl%
+\url{https://doi.org/10.1111/1475-679X.12123}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Lutz, Pr{\"{o}}llochs, and Neumann}{Lutz
+  et~al\mbox{.}}{2018}]%
+        {Lutz2018}
+\bibfield{author}{\bibinfo{person}{Bernhard Lutz}, \bibinfo{person}{Nicolas
+  Pr{\"{o}}llochs}, {and} \bibinfo{person}{Dirk Neumann}.}
+  \bibinfo{year}{2018}\natexlab{}.
+\newblock \bibinfo{booktitle}{\emph{{Sentence-Level Sentiment Analysis of
+  Financial News Using Distributed Text Representations and Multi-Instance
+  Learning}}}.
+\newblock \bibinfo{type}{{T}echnical {R}eport}.
+\newblock
+\showeprint[arxiv]{1901.00400}
+\urldef\tempurl%
+\url{http://arxiv.org/abs/1901.00400}
+\showURL{%
+\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Maia, Freitas, and Handschuh}{Maia
+  et~al\mbox{.}}{2018a}]%
+        {Maia20182}
+\bibfield{author}{\bibinfo{person}{Macedo Maia}, \bibinfo{person}{Andr�
+  Freitas}, {and} \bibinfo{person}{Siegfried Handschuh}.}
+  \bibinfo{year}{2018}\natexlab{a}.
+\newblock \showarticletitle{{FinSSLx: A Sentiment Analysis Model for the
+  Financial Domain Using Text Simplification}}. In
+  \bibinfo{booktitle}{\emph{2018 IEEE 12th International Conference on Semantic
+  Computing (ICSC)}}. \bibinfo{publisher}{IEEE}, \bibinfo{pages}{318--319}.
+\newblock
+\showISBNx{978-1-5386-4408-9}
+\urldef\tempurl%
+\url{https://doi.org/10.1109/ICSC.2018.00065}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Maia, Handschuh, Freitas, Davis, Mcdermott,
+  Zarrouk, Balahur, and Mc-Dermott}{Maia et~al\mbox{.}}{2018b}]%
+        {Maia2018}
+\bibfield{author}{\bibinfo{person}{Macedo Maia}, \bibinfo{person}{Siegfried
+  Handschuh}, \bibinfo{person}{Andr{\'{e}} Freitas}, \bibinfo{person}{Brian
+  Davis}, \bibinfo{person}{Ross Mcdermott}, \bibinfo{person}{Manel Zarrouk},
+  \bibinfo{person}{Alexandra Balahur}, {and} \bibinfo{person}{Ross
+  Mc-Dermott}.} \bibinfo{year}{2018}\natexlab{b}.
+\newblock \showarticletitle{{Companion of the The Web Conference 2018 on The
+  Web Conference 2018, {\{}WWW{\}} 2018, Lyon , France, April 23-27, 2018}}.
+  \bibinfo{publisher}{ACM}.
+\newblock
+\showISBNx{9781450356404}
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3184558}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Malkiel}{Malkiel}{2003}]%
+        {Malkiel2003}
+\bibfield{author}{\bibinfo{person}{Burton~G Malkiel}.}
+  \bibinfo{year}{2003}\natexlab{}.
+\newblock \showarticletitle{{The Efficient Market Hypothesis and Its Critics}}.
+\newblock \bibinfo{journal}{\emph{Journal of Economic Perspectives}}
+  \bibinfo{volume}{17}, \bibinfo{number}{1} (\bibinfo{date}{feb}
+  \bibinfo{year}{2003}), \bibinfo{pages}{59--82}.
+\newblock
+\showISSN{0895-3309}
+\urldef\tempurl%
+\url{https://doi.org/10.1257/089533003321164958}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Malo, Sinha, Korhonen, Wallenius, and
+  Takala}{Malo et~al\mbox{.}}{2014}]%
+        {Malo2014}
+\bibfield{author}{\bibinfo{person}{Pekka Malo}, \bibinfo{person}{Ankur Sinha},
+  \bibinfo{person}{Pekka Korhonen}, \bibinfo{person}{Jyrki Wallenius}, {and}
+  \bibinfo{person}{Pyry Takala}.} \bibinfo{year}{2014}\natexlab{}.
+\newblock \showarticletitle{{Good debt or bad debt: Detecting semantic
+  orientations in economic texts}}.
+\newblock \bibinfo{journal}{\emph{Journal of the Association for Information
+  Science and Technology}} \bibinfo{volume}{65}, \bibinfo{number}{4}
+  (\bibinfo{year}{2014}), \bibinfo{pages}{782--796}.
+\newblock
+\showISSN{23301643}
+\urldef\tempurl%
+\url{https://doi.org/10.1002/asi.23062}
+\showDOI{\tempurl}
+\showeprint[arxiv]{arXiv:1307.5336v2}
+
+
+\bibitem[\protect\citeauthoryear{{Marcus}}{{Marcus}}{2018}]%
+        {2018arXiv180100631M}
+\bibfield{author}{\bibinfo{person}{G. {Marcus}}.}
+  \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{{Deep Learning: A Critical Appraisal}}.
+\newblock \bibinfo{journal}{\emph{arXiv e-prints}} (\bibinfo{date}{Jan.}
+  \bibinfo{year}{2018}).
+\newblock
+\showeprint[arxiv]{cs.AI/1801.00631}
+
+
+\bibitem[\protect\citeauthoryear{Martineau and Finin}{Martineau and
+  Finin}{2009}]%
+        {conf/icwsm/MartineauF09}
+\bibfield{author}{\bibinfo{person}{Justin Martineau} {and} \bibinfo{person}{Tim
+  Finin}.} \bibinfo{year}{2009}\natexlab{}.
+\newblock \showarticletitle{Delta TFIDF: An Improved Feature Space for
+  Sentiment Analysis.}. In \bibinfo{booktitle}{\emph{ICWSM}},
+  \bibfield{editor}{\bibinfo{person}{Eytan Adar}, \bibinfo{person}{Matthew
+  Hurst}, \bibinfo{person}{Tim Finin}, \bibinfo{person}{Natalie~S. Glance},
+  \bibinfo{person}{Nicolas Nicolov}, {and} \bibinfo{person}{Belle~L. Tseng}}
+  (Eds.). \bibinfo{publisher}{The AAAI Press}.
+\newblock
+\showISBNx{978-1-57735-421-5}
+\urldef\tempurl%
+\url{http://dblp.uni-trier.de/db/conf/icwsm/icwsm2009.html#MartineauF09}
+\showURL{%
+\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{McCann, Bradbury, Xiong, and Socher}{McCann
+  et~al\mbox{.}}{2017}]%
+        {McCann2017}
+\bibfield{author}{\bibinfo{person}{Bryan McCann}, \bibinfo{person}{James
+  Bradbury}, \bibinfo{person}{Caiming Xiong}, {and} \bibinfo{person}{Richard
+  Socher}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{{Learned in Translation: Contextualized Word
+  Vectors}}.
+\newblock  \bibinfo{number}{Nips} (\bibinfo{year}{2017}),
+  \bibinfo{pages}{1--12}.
+\newblock
+\showeprint[arxiv]{1708.00107}
+\urldef\tempurl%
+\url{http://arxiv.org/abs/1708.00107}
+\showURL{%
+\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Merity, Keskar, and Socher}{Merity
+  et~al\mbox{.}}{2017}]%
+        {DBLP:journals/corr/abs-1708-02182}
+\bibfield{author}{\bibinfo{person}{Stephen Merity},
+  \bibinfo{person}{Nitish~Shirish Keskar}, {and} \bibinfo{person}{Richard
+  Socher}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{Regularizing and Optimizing {LSTM} Language
+  Models}.
+\newblock \bibinfo{journal}{\emph{CoRR}}  \bibinfo{volume}{abs/1708.02182}
+  (\bibinfo{year}{2017}).
+\newblock
+\showeprint[arxiv]{1708.02182}
+\urldef\tempurl%
+\url{http://arxiv.org/abs/1708.02182}
+\showURL{%
+\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Pennington, Socher, and Manning}{Pennington
+  et~al\mbox{.}}{2014}]%
+        {pennington-etal-2014-glove}
+\bibfield{author}{\bibinfo{person}{Jeffrey Pennington},
+  \bibinfo{person}{Richard Socher}, {and} \bibinfo{person}{Christopher
+  Manning}.} \bibinfo{year}{2014}\natexlab{}.
+\newblock \showarticletitle{{G}love: Global Vectors for Word Representation}.
+  In \bibinfo{booktitle}{\emph{Proceedings of the 2014 Conference on Empirical
+  Methods in Natural Language Processing ({EMNLP})}}.
+  \bibinfo{publisher}{Association for Computational Linguistics},
+  \bibinfo{address}{Doha, Qatar}, \bibinfo{pages}{1532--1543}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.3115/v1/D14-1162}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Peters, Neumann, Iyyer, Gardner, Clark, Lee,
+  and Zettlemoyer}{Peters et~al\mbox{.}}{2018}]%
+        {Peters2018}
+\bibfield{author}{\bibinfo{person}{Matthew~E Peters}, \bibinfo{person}{Mark
+  Neumann}, \bibinfo{person}{Mohit Iyyer}, \bibinfo{person}{Matt Gardner},
+  \bibinfo{person}{Christopher Clark}, \bibinfo{person}{Kenton Lee}, {and}
+  \bibinfo{person}{Luke Zettlemoyer}.} \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{{Deep contextualized word representations}}.
+\newblock  (\bibinfo{year}{2018}).
+\newblock
+\showISBNx{9781941643327}
+\showISSN{9781941643327}
+\urldef\tempurl%
+\url{https://doi.org/10.18653/v1/N18-1202}
+\showDOI{\tempurl}
+\showeprint[arxiv]{1802.05365}
+
+
+\bibitem[\protect\citeauthoryear{Piao and Breslin}{Piao and Breslin}{2018}]%
+        {Piao2018}
+\bibfield{author}{\bibinfo{person}{Guangyuan Piao} {and}
+  \bibinfo{person}{John~G Breslin}.} \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{{Financial Aspect and Sentiment Predictions with
+  Deep Neural Networks}}. \bibinfo{pages}{1973--1977}.
+\newblock
+\showISBNx{9781450356404}
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3184558.3191829}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Severyn and Moschitti}{Severyn and
+  Moschitti}{2015}]%
+        {Severyn2015}
+\bibfield{author}{\bibinfo{person}{Aliaksei Severyn} {and}
+  \bibinfo{person}{Alessandro Moschitti}.} \bibinfo{year}{2015}\natexlab{}.
+\newblock \showarticletitle{Twitter Sentiment Analysis with Deep Convolutional
+  Neural Networks}. In \bibinfo{booktitle}{\emph{Proceedings of the 38th
+  International {ACM} {SIGIR} Conference on Research and Development in
+  Information Retrieval - {SIGIR} {\textquotesingle}15}}.
+  \bibinfo{publisher}{{ACM} Press}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/2766462.2767830}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Sohangir, Wang, Pomeranets, and
+  Khoshgoftaar}{Sohangir et~al\mbox{.}}{2018}]%
+        {Sohangir2018}
+\bibfield{author}{\bibinfo{person}{Sahar Sohangir}, \bibinfo{person}{Dingding
+  Wang}, \bibinfo{person}{Anna Pomeranets}, {and} \bibinfo{person}{Taghi~M
+  Khoshgoftaar}.} \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{{Big Data: Deep Learning for financial sentiment
+  analysis}}.
+\newblock \bibinfo{journal}{\emph{Journal of Big Data}} \bibinfo{volume}{5},
+  \bibinfo{number}{1} (\bibinfo{year}{2018}).
+\newblock
+\showISBNx{4053701701116}
+\showISSN{21961115}
+\urldef\tempurl%
+\url{https://doi.org/10.1186/s40537-017-0111-6}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Sun, Qiu, Xu, and Huang}{Sun
+  et~al\mbox{.}}{2019}]%
+        {Sun2019}
+\bibfield{author}{\bibinfo{person}{Chi Sun}, \bibinfo{person}{Xipeng Qiu},
+  \bibinfo{person}{Yige Xu}, {and} \bibinfo{person}{Xuanjing Huang}.}
+  \bibinfo{year}{2019}\natexlab{}.
+\newblock \showarticletitle{{How to Fine-Tune BERT for Text Classification?}}
+\newblock  (\bibinfo{year}{2019}).
+\newblock
+\showeprint[arxiv]{1905.05583}
+\urldef\tempurl%
+\url{https://arxiv.org/pdf/1905.05583v1.pdf http://arxiv.org/abs/1905.05583}
+\showURL{%
+\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Tripathy, Agrawal, and Rath}{Tripathy
+  et~al\mbox{.}}{2016}]%
+        {Tripathy2016}
+\bibfield{author}{\bibinfo{person}{Abinash Tripathy}, \bibinfo{person}{Ankit
+  Agrawal}, {and} \bibinfo{person}{Santanu~Kumar Rath}.}
+  \bibinfo{year}{2016}\natexlab{}.
+\newblock \showarticletitle{Classification of sentiment reviews using n-gram
+  machine learning approach}.
+\newblock \bibinfo{journal}{\emph{Expert Systems with Applications}}
+  \bibinfo{volume}{57} (\bibinfo{date}{sep} \bibinfo{year}{2016}),
+  \bibinfo{pages}{117--126}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1016/j.eswa.2016.03.028}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Vaswani, Shazeer, Parmar, Uszkoreit, Jones,
+  Gomez, Kaiser, and Polosukhin}{Vaswani et~al\mbox{.}}{2017}]%
+        {Vaswani2017}
+\bibfield{author}{\bibinfo{person}{Ashish Vaswani}, \bibinfo{person}{Noam
+  Shazeer}, \bibinfo{person}{Niki Parmar}, \bibinfo{person}{Jakob Uszkoreit},
+  \bibinfo{person}{Llion Jones}, \bibinfo{person}{Aidan~N. Gomez},
+  \bibinfo{person}{Lukasz Kaiser}, {and} \bibinfo{person}{Illia Polosukhin}.}
+  \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{{Attention Is All You Need}}.
+\newblock  \bibinfo{number}{Nips} (\bibinfo{year}{2017}).
+\newblock
+\showeprint[arxiv]{1706.03762}
+\urldef\tempurl%
+\url{http://arxiv.org/abs/1706.03762}
+\showURL{%
+\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Whitelaw, Garg, and Argamon}{Whitelaw
+  et~al\mbox{.}}{2005}]%
+        {Whitelaw2005}
+\bibfield{author}{\bibinfo{person}{Casey Whitelaw}, \bibinfo{person}{Navendu
+  Garg}, {and} \bibinfo{person}{Shlomo Argamon}.}
+  \bibinfo{year}{2005}\natexlab{}.
+\newblock \showarticletitle{Using appraisal groups for sentiment analysis}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the 14th {ACM} international
+  conference on Information and knowledge management - {CIKM}
+  {\textquotesingle}05}}. \bibinfo{publisher}{{ACM} Press}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/1099554.1099714}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Yang, Rosenfeld, and Makutonin}{Yang
+  et~al\mbox{.}}{2018}]%
+        {Yang2018}
+\bibfield{author}{\bibinfo{person}{Steve Yang}, \bibinfo{person}{Jason
+  Rosenfeld}, {and} \bibinfo{person}{Jacques Makutonin}.}
+  \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{{Financial Aspect-Based Sentiment Analysis using
+  Deep Representations}}.
+\newblock  (\bibinfo{year}{2018}).
+\newblock
+\showeprint[arxiv]{1808.07931}
+\urldef\tempurl%
+\url{https://arxiv.org/pdf/1808.07931v1.pdf http://arxiv.org/abs/1808.07931}
+\showURL{%
+\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Zhang, Wang, and Liu}{Zhang
+  et~al\mbox{.}}{2018}]%
+        {Zhang2018}
+\bibfield{author}{\bibinfo{person}{Lei Zhang}, \bibinfo{person}{Shuai Wang},
+  {and} \bibinfo{person}{Bing Liu}.} \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{Deep learning for sentiment analysis: A survey}.
+\newblock \bibinfo{journal}{\emph{Wiley Interdisciplinary Reviews: Data Mining
+  and Knowledge Discovery}} \bibinfo{volume}{8}, \bibinfo{number}{4}
+  (\bibinfo{date}{mar} \bibinfo{year}{2018}), \bibinfo{pages}{e1253}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1002/widm.1253}
+\showDOI{\tempurl}
+
+
+\bibitem[\protect\citeauthoryear{Zhu, Kiros, Zemel, Salakhutdinov, Urtasun,
+  Torralba, and Fidler}{Zhu et~al\mbox{.}}{2015}]%
+        {Zhu2015}
+\bibfield{author}{\bibinfo{person}{Yukun Zhu}, \bibinfo{person}{Ryan Kiros},
+  \bibinfo{person}{Richard Zemel}, \bibinfo{person}{Ruslan Salakhutdinov},
+  \bibinfo{person}{Raquel Urtasun}, \bibinfo{person}{Antonio Torralba}, {and}
+  \bibinfo{person}{Sanja Fidler}.} \bibinfo{year}{2015}\natexlab{}.
+\newblock \showarticletitle{{Aligning Books and Movies: Towards Story-like
+  Visual Explanations by Watching Movies and Reading Books}}.
+\newblock  (\bibinfo{date}{jun} \bibinfo{year}{2015}).
+\newblock
+\showeprint[arxiv]{1506.06724}
+\urldef\tempurl%
+\url{http://arxiv.org/abs/1506.06724}
+\showURL{%
+\tempurl}
+
+
+\end{thebibliography}

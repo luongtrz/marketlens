@@ -1,0 +1,95 @@
+{
+  "mcnemar_da": {
+    "baseline": "baseline_fixed_knn",
+    "learned": "learned_cem_rag",
+    "baseline_only_correct": 32,
+    "learned_only_correct": 33,
+    "p_value": 1.0,
+    "significant_at_0.05": false,
+    "significant_at_0.10": false
+  },
+  "block_bootstrap_sharpe_ci": {
+    "baseline": "baseline_fixed_knn",
+    "learned": "learned_cem_rag",
+    "block_size": 7,
+    "n_samples": 2000,
+    "seed": 42,
+    "ci_95_low": -0.658051,
+    "ci_95_high": 1.054858,
+    "delta_significant_positive": false
+  },
+  "summary": {
+    "always_hold": {
+      "da": 0.190164,
+      "balanced_acc": 0.063388,
+      "macro_f1": 0.10652,
+      "mcc": 0.0,
+      "coverage": 0.0,
+      "sharpe": 0.0,
+      "sortino": 0.0,
+      "max_dd": 0.0,
+      "hit_at_5": 0.0,
+      "brier": 0.0
+    },
+    "random_direction": {
+      "da": 0.501639,
+      "balanced_acc": 0.446847,
+      "macro_f1": 0.387419,
+      "mcc": 0.078429,
+      "coverage": 0.82623,
+      "sharpe": 0.031932,
+      "sortino": 0.560354,
+      "max_dd": -0.929688,
+      "hit_at_5": 0.0,
+      "brier": 0.0
+    },
+    "rsi_momentum": {
+      "da": 0.190164,
+      "balanced_acc": 0.063388,
+      "macro_f1": 0.10652,
+      "mcc": 0.0,
+      "coverage": 0.0,
+      "sharpe": 0.0,
+      "sortino": 0.0,
+      "max_dd": 0.0,
+      "hit_at_5": 0.0,
+      "brier": 0.0
+    },
+    "sentiment_only": {
+      "da": 0.27541,
+      "balanced_acc": 0.32351,
+      "macro_f1": 0.242036,
+      "mcc": -0.050831,
+      "coverage": 0.403279,
+      "sharpe": 0.197648,
+      "sortino": -0.430923,
+      "max_dd": -0.91514,
+      "hit_at_5": 0.0,
+      "brier": 0.0
+    },
+    "baseline_fixed_knn": {
+      "da": 0.393443,
+      "balanced_acc": 0.43058,
+      "macro_f1": 0.294242,
+      "mcc": 0.024068,
+      "coverage": 0.806557,
+      "sharpe": -0.296973,
+      "sortino": -1.235278,
+      "max_dd": -0.999958,
+      "hit_at_5": 0.928826,
+      "brier": 0.320392
+    },
+    "learned_cem_rag": {
+      "da": 0.396721,
+      "balanced_acc": 0.404839,
+      "macro_f1": 0.309037,
+      "mcc": 0.035539,
+      "coverage": 0.783607,
+      "sharpe": -0.14329,
+      "sortino": -0.940793,
+      "max_dd": -0.999482,
+      "hit_at_5": 0.953737,
+      "brier": 0.307147
+    }
+  }
+}

@@ -10,6 +10,8 @@ from fastapi import FastAPI, Request
 from aihub.src.sentiment.schema import SentimentRequest, SentimentResponse
 from aihub.src.factors.schema import FactorRequest, FactorResponse
 from aihub.src.predict.schema import PredictRequest, PredictResponse
+from aihub.src.events.schema import EventExtractionRequest, EventExtractionResponse
+from aihub.src.events.extractor import EventExtractor
 from aihub.src.factors.extractor import FactorExtractor
 from aihub.src.predict.rag_builder import RAGContextBuilder, StockMemClient
 from aihub.src.config import AIHubConfig
@@ -141,6 +143,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.rag_builder = RAGContextBuilder(stockmem_client=stockmem_client)
     app.state.sentiment_model = factory.create_sentiment_model()
     app.state.factor_extractor = FactorExtractor(factory.get_default_client())
+    llm_for_events: LLMClient | None = None
+    try:
+        llm_for_events = factory.get_default_client()
+    except Exception:
+        pass
+    app.state.event_extractor = EventExtractor(llm=llm_for_events)
     backends_in_use = {
         factory.resolve_backend(""),
         factory.resolve_backend(config.predict_llm_backend),
@@ -257,3 +265,10 @@ async def predict(request: PredictRequest, http: Request) -> PredictResponse:
     except Exception as exc:
         logger.exception("predict endpoint failed: %s", exc)
         return _predict_error_response(exc)
+
+
+@app.post("/events/extract", response_model=EventExtractionResponse)
+async def extract_events(payload: EventExtractionRequest, request: Request) -> EventExtractionResponse:
+    """Extract structured events from article title/summary + factors."""
+    extractor: EventExtractor = request.app.state.event_extractor
+    return await extractor.extract(payload)

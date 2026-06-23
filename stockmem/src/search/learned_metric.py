@@ -83,6 +83,37 @@ class LearnedDiagonalMetric:
             raise ValueError("Learned retriever artifact must contain a JSON object")
         return cls.from_payload(payload)
 
+    def score_batch(
+        self,
+        query_blocks: Sequence[np.ndarray],
+        cand_stacked: Sequence[np.ndarray],
+    ) -> np.ndarray:
+        """Score one query against N candidates in vectorized form.
+
+        cand_stacked: one array per block, each shaped (N, dim_b).
+        Returns: float64 array of shape (N,).
+        """
+        if len(query_blocks) != len(self.block_dims) or len(cand_stacked) != len(self.block_dims):
+            raise ValueError("Block count mismatch in score_batch")
+        N = cand_stacked[0].shape[0]
+        total = np.zeros(N, dtype=np.float64)
+        offset = 0
+        for b, (dim, scale) in enumerate(zip(self.block_dims, self.block_scales)):
+            d_b = self.diagonal[offset : offset + dim]
+            offset += dim
+            if float(scale) <= _EPS:
+                continue
+            q = np.asarray(query_blocks[b], dtype=np.float64) * d_b
+            qn = float(np.linalg.norm(q))
+            if qn <= _EPS:
+                continue
+            q_hat = q / qn
+            C = np.asarray(cand_stacked[b], dtype=np.float64) * d_b[None, :]
+            C_norms = np.linalg.norm(C, axis=1, keepdims=True)
+            C_hat = np.where(C_norms > _EPS, C / np.maximum(C_norms, _EPS), 0.0)
+            total += float(scale) * (C_hat @ q_hat)
+        return total
+
     def score(self, query_blocks: Sequence[np.ndarray], candidate_blocks: Sequence[np.ndarray]) -> float:
         if len(query_blocks) != len(self.block_dims) or len(candidate_blocks) != len(self.block_dims):
             raise ValueError("Input blocks do not match learned metric")

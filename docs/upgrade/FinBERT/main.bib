@@ -1,0 +1,733 @@
+%%% ====================================================================
+%%%  BibTeX-file{
+%%%     author          = "Gerry Murray",
+%%%     version         = "1.2",
+%%%     date            = "2 April 2012",
+%%%     filename        = "acmsmall-sample-bibfile.bib",
+%%%     address         = "ACM, NY",
+%%%     email           = "murray at hq.acm.org",
+%%%     codetable       = "ISO/ASCII",
+%%%     keywords        = "ACM Reference Format, bibliography, citation, references",
+%%%     supported       = "yes",
+%%%     docstring       = "This BibTeX database file contains 'bibdata' entries
+%%%                        that 'match' the examples provided in the Specifications Document
+%%%                        AND, also, 'legacy'-type bibs. It should assist authors in
+%%%                        choosing the 'correct' at-bibtype and necessary bib-fields
+%%%                        so as to obtain the appropriate ACM Reference Format output.
+%%%                        It also contains many 'Standard Abbreviations'. "
+%%%  }
+%%% ====================================================================
+
+% Journals
+
+% First the Full Name is given, then the abbreviation used in the AMS Math
+% Reviews, with an indication if it could not be found there.
+% Note the 2nd overwrites the 1st, so swap them if you want the full name.
+
+ %{AMS}
+ @String{AMSTrans = "American Mathematical Society Translations" }
+ @String{AMSTrans = "Amer. Math. Soc. Transl." }
+ @String{BullAMS = "Bulletin of the American Mathematical Society" }
+ @String{BullAMS = "Bull. Amer. Math. Soc." }
+ @String{ProcAMS = "Proceedings of the American Mathematical Society" }
+ @String{ProcAMS = "Proc. Amer. Math. Soc." }
+ @String{TransAMS = "Transactions of the American Mathematical Society" }
+ @String{TransAMS = "Trans. Amer. Math. Soc." }
+
+ %ACM
+ @String{CACM = "Communications of the {ACM}" }
+ @String{CACM = "Commun. {ACM}" }
+ @String{CompServ = "Comput. Surveys" }
+ @String{JACM = "J. ACM" }
+ @String{ACMMathSoft = "{ACM} Transactions on Mathematical Software" }
+ @String{ACMMathSoft = "{ACM} Trans. Math. Software" }
+ @String{SIGNUM = "{ACM} {SIGNUM} Newsletter" }
+ @String{SIGNUM = "{ACM} {SIGNUM} Newslett." }
+
+ @String{AmerSocio = "American Journal of Sociology" }
+ @String{AmerStatAssoc = "Journal of the American Statistical Association" }
+ @String{AmerStatAssoc = "J. Amer. Statist. Assoc." }
+ @String{ApplMathComp = "Applied Mathematics and Computation" }
+ @String{ApplMathComp = "Appl. Math. Comput." }
+ @String{AmerMathMonthly = "American Mathematical Monthly" }
+ @String{AmerMathMonthly = "Amer. Math. Monthly" }
+ @String{BIT = "{BIT}" }
+ @String{BritStatPsych = "British Journal of Mathematical and Statistical
+          Psychology" }
+ @String{BritStatPsych = "Brit. J. Math. Statist. Psych." }
+ @String{CanMathBull = "Canadian Mathematical Bulletin" }
+ @String{CanMathBull = "Canad. Math. Bull." }
+ @String{CompApplMath = "Journal of Computational and Applied Mathematics" }
+ @String{CompApplMath = "J. Comput. Appl. Math." }
+ @String{CompPhys = "Journal of Computational Physics" }
+ @String{CompPhys = "J. Comput. Phys." }
+ @String{CompStruct = "Computers and Structures" }
+ @String{CompStruct = "Comput. \& Structures" }
+ @String{CompJour = "The Computer Journal" }
+ @String{CompJour = "Comput. J." }
+ @String{CompSysSci = "Journal of Computer and System Sciences" }
+ @String{CompSysSci = "J. Comput. System Sci." }
+ @String{Computing = "Computing" }
+ @String{ContempMath = "Contemporary Mathematics" }
+ @String{ContempMath = "Contemp. Math." }
+ @String{Crelle = "Crelle's Journal" }
+ @String{GiornaleMath = "Giornale di Mathematiche" }
+ @String{GiornaleMath = "Giorn. Mat." } % didn't find in AMS MR., ibid.
+
+ %IEEE
+ @String{Computer = "{IEEE} Computer" }
+ @String{IEEETransComp = "{IEEE} Transactions on Computers" }
+ @String{IEEETransComp = "{IEEE} Trans. Comput." }
+ @String{IEEETransAC = "{IEEE} Transactions on Automatic Control" }
+ @String{IEEETransAC = "{IEEE} Trans. Automat. Control" }
+ @String{IEEESpec = "{IEEE} Spectrum" } % didn't find in AMS MR
+ @String{ProcIEEE = "Proceedings of the {IEEE}" }
+ @String{ProcIEEE = "Proc. {IEEE}" } % didn't find in AMS MR
+ @String{IEEETransAeroElec = "{IEEE} Transactions on Aerospace and Electronic
+     Systems" }
+ @String{IEEETransAeroElec = "{IEEE} Trans. Aerospace Electron. Systems" }
+
+ @String{IMANumerAna = "{IMA} Journal of Numerical Analysis" }
+ @String{IMANumerAna = "{IMA} J. Numer. Anal." }
+ @String{InfProcLet = "Information Processing Letters" }
+ @String{InfProcLet = "Inform. Process. Lett." }
+ @String{InstMathApp = "Journal of the Institute of Mathematics and
+     its Applications" }
+ @String{InstMathApp = "J. Inst. Math. Appl." }
+ @String{IntControl = "International Journal of Control" }
+ @String{IntControl = "Internat. J. Control" }
+ @String{IntNumerEng = "International Journal for Numerical Methods in
+     Engineering" }
+ @String{IntNumerEng = "Internat. J. Numer. Methods Engrg." }
+ @String{IntSuper = "International Journal of Supercomputing Applications" }
+ @String{IntSuper = "Internat. J. Supercomputing Applic." } % didn't find
+%% in AMS MR
+ @String{Kibernetika = "Kibernetika" }
+ @String{JResNatBurStand = "Journal of Research of the National Bureau
+     of Standards" }
+ @String{JResNatBurStand = "J. Res. Nat. Bur. Standards" }
+ @String{LinAlgApp = "Linear Algebra and its Applications" }
+ @String{LinAlgApp = "Linear Algebra Appl." }
+ @String{MathAnaAppl = "Journal of Mathematical Analysis and Applications" }
+ @String{MathAnaAppl = "J. Math. Anal. Appl." }
+ @String{MathAnnalen = "Mathematische Annalen" }
+ @String{MathAnnalen = "Math. Ann." }
+ @String{MathPhys = "Journal of Mathematical Physics" }
+ @String{MathPhys = "J. Math. Phys." }
+ @String{MathComp = "Mathematics of Computation" }
+ @String{MathComp = "Math. Comp." }
+ @String{MathScand = "Mathematica Scandinavica" }
+ @String{MathScand = "Math. Scand." }
+ @String{TablesAidsComp = "Mathematical Tables and Other Aids to Computation" }
+ @String{TablesAidsComp = "Math. Tables Aids Comput." }
+ @String{NumerMath = "Numerische Mathematik" }
+ @String{NumerMath = "Numer. Math." }
+ @String{PacificMath = "Pacific Journal of Mathematics" }
+ @String{PacificMath = "Pacific J. Math." }
+ @String{ParDistComp = "Journal of Parallel and Distributed Computing" }
+ @String{ParDistComp = "J. Parallel and Distrib. Comput." } % didn't find
+%% in AMS MR
+ @String{ParComputing = "Parallel Computing" }
+ @String{ParComputing = "Parallel Comput." }
+ @String{PhilMag = "Philosophical Magazine" }
+ @String{PhilMag = "Philos. Mag." }
+ @String{ProcNAS = "Proceedings of the National Academy of Sciences
+                    of the USA" }
+ @String{ProcNAS = "Proc. Nat. Acad. Sci. U. S. A." }
+ @String{Psychometrika = "Psychometrika" }
+ @String{QuartMath = "Quarterly Journal of Mathematics, Oxford, Series (2)" }
+ @String{QuartMath = "Quart. J. Math. Oxford Ser. (2)" }
+ @String{QuartApplMath = "Quarterly of Applied Mathematics" }
+ @String{QuartApplMath = "Quart. Appl. Math." }
+ @String{RevueInstStat = "Review of the International Statisical Institute" }
+ @String{RevueInstStat = "Rev. Inst. Internat. Statist." }
+
+ %SIAM
+ @String{JSIAM = "Journal of the Society for Industrial and Applied
+     Mathematics" }
+ @String{JSIAM = "J. Soc. Indust. Appl. Math." }
+ @String{JSIAMB = "Journal of the Society for Industrial and Applied
+     Mathematics, Series B, Numerical Analysis" }
+ @String{JSIAMB = "J. Soc. Indust. Appl. Math. Ser. B Numer. Anal." }
+ @String{SIAMAlgMeth = "{SIAM} Journal on Algebraic and Discrete Methods" }
+ @String{SIAMAlgMeth = "{SIAM} J. Algebraic Discrete Methods" }
+ @String{SIAMAppMath = "{SIAM} Journal on Applied Mathematics" }
+ @String{SIAMAppMath = "{SIAM} J. Appl. Math." }
+ @String{SIAMComp = "{SIAM} Journal on Computing" }
+ @String{SIAMComp = "{SIAM} J. Comput." }
+ @String{SIAMMatrix = "{SIAM} Journal on Matrix Analysis and Applications" }
+ @String{SIAMMatrix = "{SIAM} J. Matrix Anal. Appl." }
+ @String{SIAMNumAnal = "{SIAM} Journal on Numerical Analysis" }
+ @String{SIAMNumAnal = "{SIAM} J. Numer. Anal." }
+ @String{SIAMReview = "{SIAM} Review" }
+ @String{SIAMReview = "{SIAM} Rev." }
+ @String{SIAMSciStat = "{SIAM} Journal on Scientific and Statistical
+     Computing" }
+ @String{SIAMSciStat = "{SIAM} J. Sci. Statist. Comput." }
+
+ @String{SoftPracExp = "Software Practice and Experience" }
+ @String{SoftPracExp = "Software Prac. Experience" } % didn't find in AMS MR
+ @String{StatScience = "Statistical Science" }
+ @String{StatScience = "Statist. Sci." }
+ @String{Techno = "Technometrics" }
+ @String{USSRCompMathPhys = "{USSR} Computational Mathematics and Mathematical
+     Physics" }
+ @String{USSRCompMathPhys = "{U. S. S. R.} Comput. Math. and Math. Phys." }
+ @String{VLSICompSys = "Journal of {VLSI} and Computer Systems" }
+ @String{VLSICompSys = "J. {VLSI} Comput. Syst." }
+ @String{ZAngewMathMech = "Zeitschrift fur Angewandte Mathematik und
+     Mechanik" }
+ @String{ZAngewMathMech = "Z. Angew. Math. Mech." }
+ @String{ZAngewMathPhys = "Zeitschrift fur Angewandte Mathematik und Physik" }
+ @String{ZAngewMathPhys = "Z. Angew. Math. Phys." }
+
+% Publishers % ================================================= |
+
+ @String{Academic = "Academic Press" }
+ @String{ACMPress = "{ACM} Press" }
+ @String{AdamHilger = "Adam Hilger" }
+ @String{AddisonWesley = "Addison-Wesley" }
+ @String{AllynBacon = "Allyn and Bacon" }
+ @String{AMS = "American Mathematical Society" }
+ @String{Birkhauser = "Birkha{\"u}ser" }
+ @String{CambridgePress = "Cambridge University Press" }
+ @String{Chelsea = "Chelsea" }
+ @String{ClaredonPress = "Claredon Press" }
+ @String{DoverPub = "Dover Publications" }
+ @String{Eyolles = "Eyolles" }
+ @String{HoltRinehartWinston = "Holt, Rinehart and Winston" }
+ @String{Interscience = "Interscience" }
+ @String{JohnsHopkinsPress = "The Johns Hopkins University Press" }
+ @String{JohnWileySons = "John Wiley and Sons" }
+ @String{Macmillan = "Macmillan" }
+ @String{MathWorks = "The Math Works Inc." }
+ @String{McGrawHill = "McGraw-Hill" }
+ @String{NatBurStd = "National Bureau of Standards" }
+ @String{NorthHolland = "North-Holland" }
+ @String{OxfordPress = "Oxford University Press" }  %address Oxford or London?
+ @String{PergamonPress = "Pergamon Press" }
+ @String{PlenumPress = "Plenum Press" }
+ @String{PrenticeHall = "Prentice-Hall" }
+ @String{SIAMPub = "{SIAM} Publications" }
+ @String{Springer = "Springer-Verlag" }
+ @String{TexasPress = "University of Texas Press" }
+ @String{VanNostrand = "Van Nostrand" }
+ @String{WHFreeman = "W. H. Freeman and Co." }
+
+%Entries
+
+@article{Malkiel2003,
+author = {Malkiel, Burton G},
+doi = {10.1257/089533003321164958},
+file = {:Users/dogu.araci/Desktop/naspers/ceotalk/bibliography/Malkiel - 2003 - The Efficient Market Hypothesis and Its Critics.pdf:pdf},
+issn = {0895-3309},
+journal = {Journal of Economic Perspectives},
+month = {feb},
+number = {1},
+pages = {59--82},
+title = {{The Efficient Market Hypothesis and Its Critics}},
+url = {http://pubs.aeaweb.org/doi/10.1257/089533003321164958},
+volume = {17},
+year = {2003}
+}
+
+@article{Guo2016,
+abstract = {In finance and accounting, relative to quantitative methods traditionally used, textual analysis becomes popular recently despite of its substantially less precise manner. In an overview of the literature, we describe various methods used in textual analysis, especially machine learning. By comparing their classification performance, we find that neural network outperforms many other machine learning techniques in classifying news category. Moreover, we highlight that there are many challenges left for future development of textual analysis, such as identifying multiple objects within one single document.},
+author = {Guo, Li and Shi, Feng and Tu, Jun},
+doi = {10.1016/J.JFDS.2017.02.001},
+file = {:Users/dogu.araci/Desktop/naspers/ceotalk/bibliography/Guo, Shi, Tu - 2016 - Textual analysis and machine leaning Crack unstructured data in finance and accounting.pdf:pdf},
+issn = {2405-9188},
+journal = {The Journal of Finance and Data Science},
+month = {sep},
+number = {3},
+pages = {153--170},
+publisher = {Elsevier},
+title = {{Textual analysis and machine leaning: Crack unstructured data in finance and accounting}},
+url = {https://www.sciencedirect.com/science/article/pii/S2405918816300496},
+volume = {2},
+year = {2016}
+}
+
+@article{Loughran2011,
+abstract = {Previous research uses negative word counts to measure the tone of a text. We show that word lists developed for other disciplines misclassify common words in financial text. In a large sample of 10-Ks during 1994 to 2008, almost three-fourths of the words identified as negative by the widely used Harvard Dictionary are words typically not considered negative in financial contexts. We develop an alternative negative word list, along with five other word lists, that better reflect tone in financial text. We link the word lists to 10-K filing returns, trading volume, return volatility, fraud, material weakness, and unexpected earning},
+author = {Loughran, Tim and Mcdonald, Bill},
+doi = {10.1111/j.1540-6261.2010.01625.x},
+issn = {00221082},
+journal = {Journal of Finance},
+month = {feb},
+number = {1},
+pages = {35--65},
+publisher = {John Wiley {\&} Sons, Ltd (10.1111)},
+title = {{When Is a Liability Not a Liability? Textual Analysis, Dictionaries, and 10-Ks}},
+url = {http://doi.wiley.com/10.1111/j.1540-6261.2010.01625.x},
+volume = {66},
+year = {2011}
+}
+
+@article{Peters2018,
+abstract = {We introduce a new type of deep contextualized word representation that models both (1) complex characteristics of word use (e.g., syntax and semantics), and (2) how these uses vary across linguistic contexts (i.e., to model polysemy). Our word vectors are learned functions of the internal states of a deep bidirectional language model (biLM), which is pre-trained on a large text corpus. We show that these representations can be easily added to existing models and significantly improve the state of the art across six challenging NLP problems, including question answering, textual entailment and sentiment analysis. We also present an analysis showing that exposing the deep internals of the pre-trained network is crucial, allowing downstream models to mix different types of semi-supervision signals.},
+archivePrefix = {arXiv},
+arxivId = {1802.05365},
+author = {Peters, Matthew E and Neumann, Mark and Iyyer, Mohit and Gardner, Matt and Clark, Christopher and Lee, Kenton and Zettlemoyer, Luke},
+doi = {10.18653/v1/N18-1202},
+eprint = {1802.05365},
+file = {:Users/dogu.araci/Desktop/naspers/ceotalk/bibliography/Peters et al. - Unknown - Deep contextualized word representations.pdf:pdf},
+isbn = {9781941643327},
+issn = {9781941643327},
+keywords = {transfer learning},
+mendeley-tags = {transfer learning},
+pmid = {299497},
+title = {{Deep contextualized word representations}},
+url = {http://allennlp.org/elmo http://arxiv.org/abs/1802.05365},
+year = {2018}
+}
+
+@article{Howard2018,
+abstract = {Inductive transfer learning has greatly impacted computer vision, but existing approaches in NLP still require task-specific modifications and training from scratch. We propose Universal Language Model Fine-tuning (ULMFiT), an effective transfer learning method that can be applied to any task in NLP, and introduce techniques that are key for fine-tuning a language model. Our method significantly outperforms the state-of-the-art on six text classification tasks, reducing the error by 18-24{\%} on the majority of datasets. Furthermore, with only 100 labeled examples, it matches the performance of training from scratch on 100x more data. We open-source our pretrained models and code.},
+archivePrefix = {arXiv},
+arxivId = {1801.06146},
+author = {Howard, Jeremy and Ruder, Sebastian},
+eprint = {1801.06146},
+file = {:Users/dogu.araci/Desktop/naspers/ceotalk/bibliography/Howard, Ruder - 2018 - Universal Language Model Fine-tuning for Text Classification.pdf:pdf},
+month = {jan},
+title = {{Universal Language Model Fine-tuning for Text Classification}},
+url = {http://arxiv.org/abs/1801.06146},
+year = {2018}
+}
+
+@article{Malo2014,
+abstract = {The use of robo-readers to analyze news texts is an emerging technology trend in computational finance. In recent research, a substantial effort has been invested to develop sophisticated financial polarity-lexicons that can be used to investigate how financial sentiments relate to future company performance. However, based on experience from other fields, where sentiment analysis is commonly applied, it is well-known that the overall semantic orientation of a sentence may differ from the prior polarity of individual words. The objective of this article is to investigate how semantic orientations can be better detected in financial and economic news by accommodating the overall phrase-structure information and domain-specific use of language. Our three main contributions are: (1) establishment of a human-annotated finance phrase-bank, which can be used as benchmark for training and evaluating alternative models; (2) presentation of a technique to enhance financial lexicons with attributes that help to identify expected direction of events that affect overall sentiment; (3) development of a linearized phrase-structure model for detecting contextual semantic orientations in financial and economic news texts. The relevance of the newly added lexicon features and the benefit of using the proposed learning-algorithm are demonstrated in a comparative study against previously used general sentiment models as well as the popular word frequency models used in recent financial studies. The proposed framework is parsimonious and avoids the explosion in feature-space caused by the use of conventional n-gram features.},
+archivePrefix = {arXiv},
+arxivId = {arXiv:1307.5336v2},
+author = {Malo, Pekka and Sinha, Ankur and Korhonen, Pekka and Wallenius, Jyrki and Takala, Pyry},
+doi = {10.1002/asi.23062},
+eprint = {arXiv:1307.5336v2},
+file = {:Users/dogu.araci/Desktop/naspers/ceotalk/bibliography/Malo et al. - 2014 - Good debt or bad debt Detecting semantic orientations in economic texts.pdf:pdf},
+issn = {23301643},
+journal = {Journal of the Association for Information Science and Technology},
+keywords = {financial polarity},
+mendeley-tags = {financial polarity},
+number = {4},
+pages = {782--796},
+title = {{Good debt or bad debt: Detecting semantic orientations in economic texts}},
+volume = {65},
+year = {2014}
+}
+
+
+@article{Kraus2017,
+abstract = {Company disclosures greatly aid in the process of financial decision-making; therefore, they are consulted by financial investors and automated traders before exercising ownership in stocks. While humans are usually able to correctly interpret the content, the same is rarely true of computerized decision support systems, which struggle with the complexity and ambiguity of natural language. A possible remedy is represented by deep learning, which overcomes several shortcomings of traditional methods of text mining. For instance, recurrent neural networks, such as long short-term memories, employ hierarchical structures, together with a large number of hidden layers, to automatically extract features from ordered sequences of words and capture highly non-linear relationships such as context-dependent meanings. However, deep learning has only recently started to receive traction, possibly because its performance is largely untested. Hence, this paper studies the use of deep neural networks for financial decision support. We additionally experiment with transfer learning, in which we pre-train the network on a different corpus with a length of 139.1 million words. Our results reveal a higher directional accuracy as compared to traditional machine learning when predicting stock price movements in response to financial disclosures. Our work thereby helps to highlight the business value of deep learning and provides recommendations to practitioners and executives.},
+annote = {bag-of-words loses information concerning the meaning in a specific conext
+
+1. deep learning to improve prediction of short-term price movements
+2. further bolster predictive performance with transfer learning?
+
+What is data?
+Germany company announcements.
+
+What kind of transfer learning?
+They learn word embeddings from financial corpus.},
+archivePrefix = {arXiv},
+arxivId = {1710.03954},
+author = {Kraus, Mathias and Feuerriegel, Stefan},
+doi = {10.1016/j.dss.2017.10.001},
+eprint = {1710.03954},
+file = {:Users/dogu.araci/Desktop/naspers/ceotalk/bibliography/Kraus, Feuerriegel - 2017 - Decision support from financial disclosures with deep neural networks and transfer learning.pdf:pdf},
+isbn = {1664-1078},
+issn = {01679236},
+journal = {Decision Support Systems},
+keywords = {Decision support,Deep learning,Financial news,Machine learning,Text mining,Transfer learning,financial polarity,transfer learning},
+mendeley-tags = {financial polarity,transfer learning},
+pages = {38--48},
+pmid = {29017140},
+title = {{Decision support from financial disclosures with deep neural networks and transfer learning}},
+volume = {104},
+year = {2017}
+}
+
+@article{Devlin2018,
+abstract = {We introduce a new language representation model called BERT, which stands for Bidirectional Encoder Representations from Transformers. Unlike recent language representation models, BERT is designed to pre-train deep bidirectional representations by jointly conditioning on both left and right context in all layers. As a result, the pre-trained BERT representations can be fine-tuned with just one additional output layer to create state-of-the-art models for a wide range of tasks, such as question answering and language inference, without substantial task-specific architecture modifications. BERT is conceptually simple and empirically powerful. It obtains new state-of-the-art results on eleven natural language processing tasks, including pushing the GLUE benchmark to 80.4{\%} (7.6{\%} absolute improvement), MultiNLI accuracy to 86.7 (5.6{\%} absolute improvement) and the SQuAD v1.1 question answering Test F1 to 93.2 (1.5{\%} absolute improvement), outperforming human performance by 2.0{\%}.},
+archivePrefix = {arXiv},
+arxivId = {1810.04805},
+author = {Devlin, Jacob and Chang, Ming-Wei and Lee, Kenton and Toutanova, Kristina},
+doi = {arXiv:1811.03600v2},
+eprint = {1810.04805},
+file = {:Users/dogu.araci/Desktop/naspers/ceotalk/bibliography/Devlin et al. - 2018 - BERT Pre-training of Deep Bidirectional Transformers for Language Understanding.pdf:pdf},
+isbn = {0-674-24915-1 0-674-24917-8},
+issn = {0140-525X},
+keywords = {transfer learning},
+mendeley-tags = {transfer learning},
+pmid = {1000303116},
+title = {{BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding}},
+url = {https://github.com/tensorflow/tensor2tensor http://arxiv.org/abs/1810.04805},
+year = {2018}
+}
+
+@article{Yang2018,
+abstract = {The topic of aspect-based sentiment analysis (ABSA) has been explored for a variety of industries, but it still remains much unexplored in finance. The recent release of data for an open challenge (FiQA) from the companion proceedings of WWW '18 has provided valuable finance-specific annotations. FiQA contains high quality labels, but it still lacks data quantity to apply traditional ABSA deep learning architecture. In this paper, we employ high-level semantic representations and methods of inductive transfer learning for NLP. We experiment with extensions of recently developed domain adaptation methods and target task fine-tuning that significantly improve performance on a small dataset. Our results show an 8.7{\%} improvement in the F1 score for classification and an 11{\%} improvement over the MSE for regression on current state-of-the-art results.},
+archivePrefix = {arXiv},
+arxivId = {1808.07931},
+author = {Yang, Steve and Rosenfeld, Jason and Makutonin, Jacques},
+eprint = {1808.07931},
+file = {:Users/doguaraci/Desktop/naspers/ceotalk/bibliography/Yang, Rosenfeld, Makutonin - 2018 - Financial Aspect-Based Sentiment Analysis using Deep Representations.pdf:pdf},
+title = {{Financial Aspect-Based Sentiment Analysis using Deep Representations}},
+url = {https://arxiv.org/pdf/1808.07931v1.pdf http://arxiv.org/abs/1808.07931},
+year = {2018}
+}
+@article{Loughran2016,
+abstract = {Relative to quantitative methods traditionally used in accounting and finance, textual analysis is substantially less precise. Thus, understanding the art is of equal importance to understanding the science. In this survey we describe the nuances of the method and, as users of textual analysis, some of the tripwires in implementation. We also review the contemporary textual analysis literature and highlight areas of future research.},
+author = {Loughran, Tim and Mcdonald, Bill},
+doi = {10.1111/1475-679X.12123},
+file = {:Users/doguaraci/Desktop/naspers/ceotalk/bibliography/Loughran, Mcdonald - 2016 - Textual Analysis in Accounting and Finance A Survey.pdf:pdf},
+isbn = {ID 2504147},
+issn = {1475679X},
+journal = {Journal of Accounting Research},
+keywords = {D82,D83,G14,G18,G30,M40,M41,Na{\"{i}}ve Bayes,Zipf's law,bag of words,cosine similarity,financial polarity,readability,sentiment analysis,textual analysis,word lists},
+mendeley-tags = {financial polarity},
+number = {4},
+pages = {1187--1230},
+title = {{Textual Analysis in Accounting and Finance: A Survey}},
+volume = {54},
+year = {2016}
+}
+
+@article{Sohangir2018,
+abstract = {Deep Learning and Big Data analytics are two focal points of data science. Deep Learning models have achieved remarkable results in speech recognition and computer vision in recent years. Big Data is important for organizations that need to collect a huge amount of data like a social network and one of the greatest assets to use Deep Learning is analyzing a massive amount of data (Big Data). This advantage makes Deep Learning as a valuable tool for Big Data. Deep Learning can be used to extract incredible information that buried in a Big Data. The modern stock market is an example of these social networks. They are a popular place to increase wealth and generate income, but the fundamental problem of when to buy or sell shares, or which stocks to buy has not been solved. It is very common among investors to have professional financial advisors, but what is the best resource to support the decisions these people make? Investment banks such as Goldman Sachs, Lehman Brothers, and Salomon Brothers dominated the world of financial advice for more than a decade. However, via the popularity of the Internet and financial social networks such as StockTwits and SeekingAlpha, investors around the world have new opportunity to gather and share their experiences. Individual experts can predict the movement of the stock market in financial social networks with the reasonable accuracy, but what is the sentiment of a mass group of these expert authors towards various stocks? In this paper, we seek to determine if Deep Learning models can be adapted to improve the performance of sentiment analysis for StockTwits. We applied several neural network models such as long short-term memory, doc2vec, and convolutional neural networks, to stock market opinions posted in StockTwits. Our results show that Deep Learning model can be used effectively for financial sentiment analysis and a convolutional neural network is the best model to predict sentiment of authors in StockTwits dataset.},
+author = {Sohangir, Sahar and Wang, Dingding and Pomeranets, Anna and Khoshgoftaar, Taghi M},
+doi = {10.1186/s40537-017-0111-6},
+file = {::},
+isbn = {4053701701116},
+issn = {21961115},
+journal = {Journal of Big Data},
+keywords = {Big Data,Deep Learning,Information retrieval,Sentiment analysis},
+number = {1},
+title = {{Big Data: Deep Learning for financial sentiment analysis}},
+url = {https://doi.org/10.1186/s40537-017-0111-6},
+volume = {5},
+year = {2018}
+}
+
+@techreport{Lutz2018,
+abstract = {Researchers and financial professionals require robust computerized tools that allow users to rapidly operationalize and assess the semantic textual content in financial news. However, existing methods commonly work at the document-level while deeper insights into the actual structure and the sentiment of individual sentences remain blurred. As a result, investors are required to apply the utmost attention and detailed, domain-specific knowledge in order to assess the information on a fine-grained basis. To facilitate this manual process, this paper proposes the use of distributed text representations and multi-instance learning to transfer information from the document-level to the sentence-level. Compared to alternative approaches, this method features superior predictive performance while preserving context and interpretability. Our analysis of a manually-labeled dataset yields a predictive accuracy of up to 69.90{\%}, exceeding the performance of alternative approaches by at least 3.80 percentage points. Accordingly, this study not only benefits investors with regard to their financial decision-making, but also helps companies to communicate their messages as intended.},
+archivePrefix = {arXiv},
+arxivId = {1901.00400},
+author = {Lutz, Bernhard and Pr{\"{o}}llochs, Nicolas and Neumann, Dirk},
+eprint = {1901.00400},
+file = {:Users/doguaraci/Desktop/naspers/ceotalk/bibliography/Lutz, Pr{\"{o}}llochs, Neumann - 2018 - Sentence-Level Sentiment Analysis of Financial News Using Distributed Text Representations and Multi-.pdf:pdf},
+title = {{Sentence-Level Sentiment Analysis of Financial News Using Distributed Text Representations and Multi-Instance Learning}},
+url = {http://arxiv.org/abs/1901.00400},
+year = {2018}
+}
+
+@article{McCann2017,
+abstract = {Computer vision has benefited from initializing multiple deep layers with weights pretrained on large supervised training sets like ImageNet. Natural language processing (NLP) typically sees initialization of only the lowest layer of deep models with pretrained word vectors. In this paper, we use a deep LSTM encoder from an attentional sequence-to-sequence model trained for machine translation (MT) to contextualize word vectors. We show that adding these context vectors (CoVe) improves performance over using only unsupervised word and character vectors on a wide variety of common NLP tasks: sentiment analysis (SST, IMDb), question classification (TREC), entailment (SNLI), and question answering (SQuAD). For fine-grained sentiment analysis and entailment, CoVe improves performance of our baseline models to the state of the art.},
+archivePrefix = {arXiv},
+arxivId = {1708.00107},
+author = {McCann, Bryan and Bradbury, James and Xiong, Caiming and Socher, Richard},
+eprint = {1708.00107},
+file = {:Users/doguaraci/Desktop/naspers/ceotalk/bibliography/McCann et al. - 2017 - Learned in Translation Contextualized Word Vectors.pdf:pdf},
+number = {Nips},
+pages = {1--12},
+title = {{Learned in Translation: Contextualized Word Vectors}},
+url = {http://arxiv.org/abs/1708.00107},
+year = {2017}
+}
+
+@article{Sun2019,
+abstract = {Language model pre-training has proven to be useful in learning universal language representations. As a state-of-the-art language model pre-training model, BERT (Bidirectional Encoder Representations from Transformers) has achieved amazing results in many language understanding tasks. In this paper, we conduct exhaustive experiments to investigate different fine-tuning methods of BERT on text classification task and provide a general solution for BERT fine-tuning. Finally, the proposed solution obtains new state-of-the-art results on eight widely-studied text classification datasets.},
+annote = {Fine-tuning
+1. further train BERT on within-task training data or in-domain data.
+2. fine-tune BERT for the target task
+
+layer-selection
+layer-wise learning rate
+catastropgic forgetting
+low-shot learning},
+archivePrefix = {arXiv},
+arxivId = {1905.05583},
+author = {Sun, Chi and Qiu, Xipeng and Xu, Yige and Huang, Xuanjing},
+eprint = {1905.05583},
+file = {:Users/doguaraci/Desktop/naspers/ceotalk/bibliography/Sun et al. - 2019 - How to Fine-Tune BERT for Text Classification.pdf:pdf},
+title = {{How to Fine-Tune BERT for Text Classification?}},
+url = {https://arxiv.org/pdf/1905.05583v1.pdf http://arxiv.org/abs/1905.05583},
+year = {2019}
+}
+
+@article{DBLP:journals/corr/abs-1708-02182,
+  author    = {Stephen Merity and
+               Nitish Shirish Keskar and
+               Richard Socher},
+  title     = {Regularizing and Optimizing {LSTM} Language Models},
+  journal   = {CoRR},
+  volume    = {abs/1708.02182},
+  year      = {2017},
+  url       = {http://arxiv.org/abs/1708.02182},
+  archivePrefix = {arXiv},
+  eprint    = {1708.02182},
+  timestamp = {Mon, 13 Aug 2018 16:47:54 +0200},
+  biburl    = {https://dblp.org/rec/bib/journals/corr/abs-1708-02182},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+@inproceedings{pennington-etal-2014-glove,
+    title = "{G}love: Global Vectors for Word Representation",
+    author = "Pennington, Jeffrey  and
+      Socher, Richard  and
+      Manning, Christopher",
+    booktitle = "Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing ({EMNLP})",
+    month = oct,
+    year = "2014",
+    address = "Doha, Qatar",
+    publisher = "Association for Computational Linguistics",
+    url = "https://www.aclweb.org/anthology/D14-1162",
+    doi = "10.3115/v1/D14-1162",
+    pages = "1532--1543",
+}
+
+@article{Vaswani2017,
+abstract = {The dominant sequence transduction models are based on complex recurrent or convolutional neural networks in an encoder-decoder configuration. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train. Our model achieves 28.4 BLEU on the WMT 2014 English-to-German translation task, improving over the existing best results, including ensembles by over 2 BLEU. On the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after training for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature. We show that the Transformer generalizes well to other tasks by applying it successfully to English constituency parsing both with large and limited training data.},
+archivePrefix = {arXiv},
+arxivId = {1706.03762},
+author = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N. and Kaiser, Lukasz and Polosukhin, Illia},
+eprint = {1706.03762},
+file = {:Users/dogu.araci/Desktop/naspers/ceotalk/bibliography/1706.03762.pdf:pdf},
+number = {Nips},
+title = {{Attention Is All You Need}},
+url = {http://arxiv.org/abs/1706.03762},
+year = {2017}
+}
+@article{Zhu2015,
+abstract = {Books are a rich source of both fine-grained information, how a character, an object or a scene looks like, as well as high-level semantics, what someone is thinking, feeling and how these states evolve through a story. This paper aims to align books to their movie releases in order to provide rich descriptive explanations for visual content that go semantically far beyond the captions available in current datasets. To align movies and books we exploit a neural sentence embedding that is trained in an unsupervised way from a large corpus of books, as well as a video-text neural embedding for computing similarities between movie clips and sentences in the book. We propose a context-aware CNN to combine information from multiple sources. We demonstrate good quantitative performance for movie/book alignment and show several qualitative examples that showcase the diversity of tasks our model can be used for.},
+archivePrefix = {arXiv},
+arxivId = {1506.06724},
+author = {Zhu, Yukun and Kiros, Ryan and Zemel, Richard and Salakhutdinov, Ruslan and Urtasun, Raquel and Torralba, Antonio and Fidler, Sanja},
+eprint = {1506.06724},
+file = {::},
+month = {jun},
+title = {{Aligning Books and Movies: Towards Story-like Visual Explanations by Watching Movies and Reading Books}},
+url = {http://arxiv.org/abs/1506.06724},
+year = {2015}
+}
+@inproceedings{Maia2018,
+abstract = {The growing maturity of Natural Language Processing (NLP) techniques and resources is dramatically changing the landscape of many application domains which are dependent on the analysis of unstructured data at scale. The finance domain, with its reliance on the interpretation of multiple unstructured and structured data sources and its demand for fast and comprehensive decision making is already emerging as a primary ground for the experimentation of NLP, Web Mining and Information Retrieval (IR) techniques for the automatic analysis of financial news and opinions online. This challenge focuses on advancing the state-of-the-art of aspect-based sentiment analysis and opinion-based Question Answering for the financial domain.},
+author = {Maia, Macedo and Handschuh, Siegfried and Freitas, Andr{\'{e}} and Davis, Brian and Mcdermott, Ross and Zarrouk, Manel and Balahur, Alexandra and Mc-Dermott, Ross},
+doi = {10.1145/3184558},
+file = {::},
+isbn = {9781450356404},
+keywords = {Financial Domain,Opinion Mining,Question Answering},
+publisher = {ACM},
+title = {{Companion of the The Web Conference 2018 on The Web Conference 2018, {\{}WWW{\}} 2018, Lyon , France, April 23-27, 2018}},
+url = {https://doi.org/10.1145/3184558. http://doi.acm.org/10.1145/3184558},
+year = {2018}
+}
+@article{Krishnamoorthy2018,
+abstract = {Mining financial text documents and understanding the sentiments of individual investors, institutions and markets is an important and challenging problem in the literature. Current approaches to mine sentiments from financial texts largely rely on domain-specific dictionaries. However, dictionary-based methods often fail to accurately predict the polarity of financial texts. This paper aims to improve the state-of-the-art and introduces a novel sentiment analysis approach that employs the concept of financial and non-financial performance indicators. It presents an association rule mining-based hierarchical sentiment classifier model to predict the polarity of financial texts as positive, neutral or negative. The performance of the proposed model is evaluated on a benchmark financial dataset. The model is also compared against other state-of-the-art dictionary and machine learning-based approaches and the results are found to be quite promising. The novel use of performance indicators for financial sentiment analysis offers interesting and useful insights.},
+author = {Krishnamoorthy, Srikumar},
+doi = {10.1007/s10115-017-1134-1},
+issn = {02193116},
+journal = {Knowledge and Information Systems},
+keywords = {Classification,Financial news,Machine learning,Performance indicators,Sentiment analysis,Text mining},
+month = {aug},
+number = {2},
+pages = {373--394},
+publisher = {Springer London},
+title = {{Sentiment analysis of financial news articles using performance indicators}},
+url = {http://link.springer.com/10.1007/s10115-017-1134-1},
+volume = {56},
+year = {2018}
+}
+@inproceedings{Piao2018,
+abstract = {In this paper, we describe our ensemble approach for sentiment and aspect predictions in the financial domain for a given text. This ensemble approach uses Convolutional Neural Networks (CNNs) and Recurrent Neural Networks (RNNs) with a ridge regression and a voting strategy for sentiment and aspect predictions, and therefore, does not rely on any handcrafted feature. Based on 5-cross validation on the released training set, the results show that CNNs overall perform better than RNNs on both tasks, and the ensemble approach can boost the performance further by leveraging different types of deep learning approaches.},
+author = {Piao, Guangyuan and Breslin, John G},
+doi = {10.1145/3184558.3191829},
+file = {:Users/dogu.araci/Desktop/naspers/ceotalk/bibliography/fiqa.pdf:pdf},
+isbn = {9781450356404},
+keywords = {Deep Learning,Financial Aspect Prediction,Sentiment Analysis},
+pages = {1973--1977},
+title = {{Financial Aspect and Sentiment Predictions with Deep Neural Networks}},
+url = {https://doi.org/10.1145/3184558.3191829},
+year = {2018}
+}
+
+
+@inproceedings{Maia20182,
+author = {Maia, Macedo and Freitas, Andr� and Handschuh, Siegfried},
+booktitle = {2018 IEEE 12th International Conference on Semantic Computing (ICSC)},
+doi = {10.1109/ICSC.2018.00065},
+isbn = {978-1-5386-4408-9},
+month = {jan},
+pages = {318--319},
+publisher = {IEEE},
+title = {{FinSSLx: A Sentiment Analysis Model for the Financial Domain Using Text Simplification}},
+url = {http://ieeexplore.ieee.org/document/8334488/},
+year = {2018}
+}
+@article{Liu2012,
+  doi = {10.2200/s00416ed1v01y201204hlt016},
+  url = {https://doi.org/10.2200/s00416ed1v01y201204hlt016},
+  year  = {2012},
+  month = {may},
+  publisher = {Morgan {\&} Claypool Publishers {LLC}},
+  volume = {5},
+  number = {1},
+  pages = {1--167},
+  author = {Bing Liu},
+  title = {Sentiment Analysis and Opinion Mining},
+  journal = {Synthesis Lectures on Human Language Technologies}
+}
+@article{Kant2018,
+abstract = {Multi-emotion sentiment classification is a natural language processing (NLP) problem with valuable use cases on real-world data. We demonstrate that large-scale unsupervised language modeling combined with finetuning offers a practical solution to this task on difficult datasets, including those with label class imbalance and domain-specific context. By training an attention-based Transformer network (Vaswani et al. 2017) on 40GB of text (Amazon reviews) (McAuley et al. 2015) and fine-tuning on the training set, our model achieves a 0.69 F1 score on the SemEval Task 1:E-c multi-dimensional emotion classification problem (Mohammad et al. 2018), based on the Plutchik wheel of emotions (Plutchik 1979). These results are competitive with state of the art models, including strong F1 scores on difficult (emotion) categories such as Fear (0.73), Disgust (0.77) and Anger (0.78), as well as competitive results on rare categories such as Anticipation (0.42) and Surprise (0.37). Furthermore, we demonstrate our application on a real world text classification task. We create a narrowly collected text dataset of real tweets on several topics, and show that our finetuned model outperforms general purpose commercially available APIs for sentiment and multidimensional emotion classification on this dataset by a significant margin. We also perform a variety of additional studies, investigating properties of deep learning architectures, datasets and algorithms for achieving practical multidimensional sentiment classification. Overall, we find that unsupervised language modeling and finetuning is a simple framework for achieving high quality results on real-world sentiment classification.},
+archivePrefix = {arXiv},
+arxivId = {1812.01207},
+author = {Kant, Neel and Puri, Raul and Yakovenko, Nikolai and Catanzaro, Bryan},
+eprint = {1812.01207},
+file = {:Users/doguaraci/Desktop/naspers/ceotalk/bibliography/Kant et al. - 2018 - Practical Text Classification With Large Pre-Trained Language Models.pdf:pdf},
+isbn = {1812.01207v1},
+title = {{Practical Text Classification With Large Pre-Trained Language Models}},
+url = {http://arxiv.org/abs/1812.01207},
+year = {2018}
+}
+
+@inproceedings{Whitelaw2005,
+  doi = {10.1145/1099554.1099714},
+  url = {https://doi.org/10.1145/1099554.1099714},
+  year  = {2005},
+  publisher = {{ACM} Press},
+  author = {Casey Whitelaw and Navendu Garg and Shlomo Argamon},
+  title = {Using appraisal groups for sentiment analysis},
+  booktitle = {Proceedings of the 14th {ACM} international conference on Information and knowledge management  - {CIKM} {\textquotesingle}05}
+}
+
+@inproceedings{conf/icwsm/MartineauF09,
+  added-at = {2013-03-27T16:49:16.000+0100},
+  author = {Martineau, Justin and Finin, Tim},
+  biburl = {https://www.bibsonomy.org/bibtex/2a25da3de58639e863a2bc179f7bfbc69/bsc},
+  booktitle = {ICWSM},
+  editor = {Adar, Eytan and Hurst, Matthew and Finin, Tim and Glance, Natalie S. and Nicolov, Nicolas and Tseng, Belle L.},
+  ee = {http://aaai.org/ocs/index.php/ICWSM/09/paper/view/187},
+  interhash = {366d31d44aa74bc745a08b10a443c2d2},
+  intrahash = {a25da3de58639e863a2bc179f7bfbc69},
+  isbn = {978-1-57735-421-5},
+  keywords = {analysis ba2013 sentiment},
+  publisher = {The AAAI Press},
+  timestamp = {2013-03-27T16:49:16.000+0100},
+  title = {Delta TFIDF: An Improved Feature Space for Sentiment Analysis.},
+  url = {http://dblp.uni-trier.de/db/conf/icwsm/icwsm2009.html#MartineauF09},
+  year = 2009
+}
+
+@Inbook{Agarwal2016,
+author="Agarwal, Basant
+and Mittal, Namita",
+title="Machine Learning Approach for Sentiment Analysis",
+bookTitle="Prominent Feature Extraction for Sentiment Analysis",
+year="2016",
+publisher="Springer International Publishing",
+address="Cham",
+pages="21--45",
+abstract="Machine learning algorithms have been widely used for sentiment analysis [66]. The bag-of-words (BoW) representation is commonly used for sentiment analysis [63, 93]. BoW method assumes the independence of words and ignores the importance of semantic and subjective information in the text. All the words in the text are considered equally important. The BoW representation is commonly used for sentiment analysis, resulting into high dimensionality of the feature space. Machine learning algorithms reduce this high-dimensional feature space with the help of feature selection techniques which selects only important features by eliminating the noisy and irrelevant features. Recently, machine learning-based sentiment analysis models are gaining prominence in the field [66].",
+isbn="978-3-319-25343-5",
+doi="10.1007/978-3-319-25343-5_3",
+url="https://doi.org/10.1007/978-3-319-25343-5_3"
+}
+
+@article{DBLP:journals/corr/KhardeS16,
+  author    = {Vishal. A. Kharde and
+               Sheetal. Sonawane},
+  title     = {Sentiment Analysis of Twitter Data : {A} Survey of Techniques},
+  journal   = {CoRR},
+  volume    = {abs/1601.06971},
+  year      = {2016},
+  url       = {http://arxiv.org/abs/1601.06971},
+  archivePrefix = {arXiv},
+  eprint    = {1601.06971},
+  timestamp = {Mon, 13 Aug 2018 16:48:48 +0200},
+  biburl    = {https://dblp.org/rec/bib/journals/corr/KhardeS16},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{Tripathy2016,
+  doi = {10.1016/j.eswa.2016.03.028},
+  url = {https://doi.org/10.1016/j.eswa.2016.03.028},
+  year  = {2016},
+  month = {sep},
+  publisher = {Elsevier {BV}},
+  volume = {57},
+  pages = {117--126},
+  author = {Abinash Tripathy and Ankit Agrawal and Santanu Kumar Rath},
+  title = {Classification of sentiment reviews using n-gram machine learning approach},
+  journal = {Expert Systems with Applications}
+}
+
+@article{Araque2017,
+  doi = {10.1016/j.eswa.2017.02.002},
+  url = {https://doi.org/10.1016/j.eswa.2017.02.002},
+  year  = {2017},
+  month = {jul},
+  publisher = {Elsevier {BV}},
+  volume = {77},
+  pages = {236--246},
+  author = {Oscar Araque and Ignacio Corcuera-Platas and J. Fernando S{\'{a}}nchez-Rada and Carlos A. Iglesias},
+  title = {Enhancing deep learning sentiment analysis with ensemble techniques in social applications},
+  journal = {Expert Systems with Applications}
+}
+
+@article{Zhang2018,
+  doi = {10.1002/widm.1253},
+  url = {https://doi.org/10.1002/widm.1253},
+  year  = {2018},
+  month = {mar},
+  publisher = {Wiley},
+  volume = {8},
+  number = {4},
+  pages = {e1253},
+  author = {Lei Zhang and Shuai Wang and Bing Liu},
+  title = {Deep learning for sentiment analysis: A survey},
+  journal = {Wiley Interdisciplinary Reviews: Data Mining and Knowledge Discovery}
+}
+
+@inproceedings{Severyn2015,
+  doi = {10.1145/2766462.2767830},
+  url = {https://doi.org/10.1145/2766462.2767830},
+  year  = {2015},
+  publisher = {{ACM} Press},
+  author = {Aliaksei Severyn and Alessandro Moschitti},
+  title = {Twitter Sentiment Analysis with Deep Convolutional Neural Networks},
+  booktitle = {Proceedings of the 38th International {ACM} {SIGIR} Conference on Research and Development in Information Retrieval - {SIGIR} {\textquotesingle}15}
+}
+
+@ARTICLE{2018arXiv180100631M,
+   author = {{Marcus}, G.},
+    title = "{Deep Learning: A Critical Appraisal}",
+  journal = {arXiv e-prints},
+archivePrefix = "arXiv",
+   eprint = {1801.00631},
+ primaryClass = "cs.AI",
+ keywords = {Computer Science - Artificial Intelligence, Computer Science - Machine Learning, Statistics - Machine Learning, 97R40, I.2.0, I.2.6},
+     year = 2018,
+    month = jan,
+   adsurl = {https://ui.adsabs.harvard.edu/abs/2018arXiv180100631M},
+  adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+@article{Li2014,
+  doi = {10.1016/j.knosys.2014.04.022},
+  url = {https://doi.org/10.1016/j.knosys.2014.04.022},
+  year  = {2014},
+  month = {oct},
+  publisher = {Elsevier {BV}},
+  volume = {69},
+  pages = {14--23},
+  author = {Xiaodong Li and Haoran Xie and Li Chen and Jianping Wang and Xiaotie Deng},
+  title = {News impact on stock price return via sentiment analysis},
+  journal = {Knowledge-Based Systems}
+}
+
+@inproceedings{Pagolu2016,
+  doi = {10.1109/scopes.2016.7955659},
+  url = {https://doi.org/10.1109/scopes.2016.7955659},
+  year  = {2016},
+  month = {oct},
+  publisher = {{IEEE}},
+  author = {Venkata Sasank Pagolu and Kamal Nayan Reddy and Ganapati Panda and Babita Majhi},
+  title = {Sentiment analysis of Twitter data for predicting stock market movements},
+  booktitle = {2016 International Conference on Signal Processing,  Communication,  Power and Embedded System ({SCOPES})}
+}

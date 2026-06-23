@@ -22,6 +22,7 @@ class Evaluation:
     metrics: dict[str, float]
     correct: list[bool]
     returns: list[float]
+    hit_correct: list[bool] = None  # type: ignore[assignment]
 
 
 def _fixed_score(
@@ -49,6 +50,7 @@ def evaluate(
 ) -> Evaluation:
     correct: list[bool] = []
     strategy_returns: list[float] = []
+    hit_correct_list: list[bool] = []
     buy_correct = buy_total = sell_correct = sell_total = hold_correct = hold_total = 0
     hit_count = hit_total = 0
     same_scores: list[float] = []
@@ -102,9 +104,9 @@ def evaluate(
         if query.direction != 0:
             hit_total += 1
             top_five = scored[:5]
-            hit_count += int(
-                any(row.direction == query.direction for _, row in top_five)
-            )
+            this_hit = any(row.direction == query.direction for _, row in top_five)
+            hit_count += int(this_hit)
+            hit_correct_list.append(this_hit)
             same_scores.extend(
                 candidate_score
                 for candidate_score, row in top_five
@@ -135,7 +137,7 @@ def evaluate(
         "combined": combined,
         "n": float(len(correct)),
     }
-    return Evaluation(metrics=metrics, correct=correct, returns=strategy_returns)
+    return Evaluation(metrics=metrics, correct=correct, returns=strategy_returns, hit_correct=hit_correct_list)
 
 
 def mcnemar_exact(left: Sequence[bool], right: Sequence[bool]) -> tuple[int, int, float]:
@@ -326,7 +328,12 @@ def main() -> None:
     )
     val_delta = val_candidate.metrics["combined"] - val_baseline.metrics["combined"]
     test_delta = candidate.metrics["combined"] - baseline.metrics["combined"]
+    val_hit_delta = val_candidate.metrics["hit_at_5"] - val_baseline.metrics["hit_at_5"]
+    test_hit_delta = candidate.metrics["hit_at_5"] - baseline.metrics["hit_at_5"]
     base_only, learned_only, p_value = mcnemar_exact(baseline.correct, candidate.correct)
+    hit_base_only, hit_learned_only, hit_p_value = mcnemar_exact(
+        baseline.hit_correct or [], candidate.hit_correct or []
+    )
     ci_low, ci_high = bootstrap_da_delta(
         baseline.correct,
         candidate.correct,
@@ -335,10 +342,15 @@ def main() -> None:
     print(
         json.dumps(
             {
-                "mcnemar": {
+                "mcnemar_da": {
                     "baseline_only_correct": base_only,
                     "learned_only_correct": learned_only,
                     "p_value": p_value,
+                },
+                "mcnemar_hit_at_5": {
+                    "baseline_only_hit": hit_base_only,
+                    "learned_only_hit": hit_learned_only,
+                    "p_value": hit_p_value,
                 },
                 "bootstrap_da_delta_95pct": [ci_low, ci_high],
                 "leak_delta_combined": (
@@ -353,12 +365,16 @@ def main() -> None:
                         (candidate.metrics["buy_da"] + candidate.metrics["sell_da"]) / 2
                         >= (baseline.metrics["buy_da"] + baseline.metrics["sell_da"]) / 2 + 0.01
                     ),
-                    "mcnemar_p_lt_0_10": p_value < 0.10,
+                    "mcnemar_da_p_lt_0_10": p_value < 0.10,
+                    "mcnemar_hit_p_lt_0_10": hit_p_value < 0.10,
                     "seed_std_lt_0_03": float(artifact_payload.get("seed_std", 1.0)) < 0.03,
-                    "val_and_test_delta_same_sign": val_delta * test_delta > 0,
+                    "val_and_test_combined_delta_same_sign": val_delta * test_delta > 0,
+                    "val_and_test_hit_delta_same_sign": val_hit_delta * test_hit_delta > 0,
                 },
                 "val_combined_delta": val_delta,
                 "test_combined_delta": test_delta,
+                "val_hit_delta": val_hit_delta,
+                "test_hit_delta": test_hit_delta,
             },
             indent=2,
         )
