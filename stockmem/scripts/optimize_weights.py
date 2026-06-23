@@ -121,9 +121,9 @@ def load_rows(path: Path) -> list[Row]:
                 factor_vec=np.array(item["factor_vec"], dtype=np.float32),
                 indicator_vec=np.array(item["indicator_vec"], dtype=np.float32),
                 price_vec=np.array(item["price_vec"], dtype=np.float32),
-                future_return_1d=float(item.get("future_return_1d", 0.0)),
-                future_return_7d=float(item.get("future_return_7d", 0.0)),
-                future_return_30d=float(item.get("future_return_30d", 0.0)),
+                future_return_1d=float(item.get("future_return_1d") or 0.0),
+                future_return_7d=float(item.get("future_return_7d") or 0.0),
+                future_return_30d=float(item.get("future_return_30d") or 0.0),
                 event_vec=np.array(item.get("event_vec", []), dtype=np.float32),
             )
         )
