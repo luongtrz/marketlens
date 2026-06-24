@@ -1,0 +1,938 @@
+{
+  "fixed_knn_test": [
+    {
+      "bin_lower": 0.5,
+      "bin_upper": 0.55,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.55,
+      "bin_upper": 0.6,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.6,
+      "bin_upper": 0.65,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.65,
+      "bin_upper": 0.7,
+      "avg_conf": 0.6935,
+      "avg_acc": 0.1667,
+      "count": 6
+    },
+    {
+      "bin_lower": 0.7,
+      "bin_upper": 0.75,
+      "avg_conf": 0.7245,
+      "avg_acc": 0.4583,
+      "count": 24
+    },
+    {
+      "bin_lower": 0.75,
+      "bin_upper": 0.8,
+      "avg_conf": 0.7717,
+      "avg_acc": 0.5625,
+      "count": 32
+    },
+    {
+      "bin_lower": 0.8,
+      "bin_upper": 0.85,
+      "avg_conf": 0.8302,
+      "avg_acc": 0.6667,
+      "count": 18
+    },
+    {
+      "bin_lower": 0.85,
+      "bin_upper": 0.9,
+      "avg_conf": 0.882,
+      "avg_acc": 0.5238,
+      "count": 21
+    },
+    {
+      "bin_lower": 0.9,
+      "bin_upper": 0.95,
+      "avg_conf": 0.9468,
+      "avg_acc": 0.3767,
+      "count": 146
+    },
+    {
+      "bin_lower": 0.95,
+      "bin_upper": 1.0,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    }
+  ],
+  "knn_returns_test": [
+    {
+      "bin_lower": 0.5,
+      "bin_upper": 0.55,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.55,
+      "bin_upper": 0.6,
+      "avg_conf": 0.5741,
+      "avg_acc": 0.5,
+      "count": 42
+    },
+    {
+      "bin_lower": 0.6,
+      "bin_upper": 0.65,
+      "avg_conf": 0.6242,
+      "avg_acc": 0.6087,
+      "count": 23
+    },
+    {
+      "bin_lower": 0.65,
+      "bin_upper": 0.7,
+      "avg_conf": 0.6747,
+      "avg_acc": 0.4615,
+      "count": 26
+    },
+    {
+      "bin_lower": 0.7,
+      "bin_upper": 0.75,
+      "avg_conf": 0.7214,
+      "avg_acc": 0.4194,
+      "count": 31
+    },
+    {
+      "bin_lower": 0.75,
+      "bin_upper": 0.8,
+      "avg_conf": 0.7716,
+      "avg_acc": 0.5,
+      "count": 14
+    },
+    {
+      "bin_lower": 0.8,
+      "bin_upper": 0.85,
+      "avg_conf": 0.8196,
+      "avg_acc": 0.2667,
+      "count": 15
+    },
+    {
+      "bin_lower": 0.85,
+      "bin_upper": 0.9,
+      "avg_conf": 0.871,
+      "avg_acc": 0.3,
+      "count": 10
+    },
+    {
+      "bin_lower": 0.9,
+      "bin_upper": 0.95,
+      "avg_conf": 0.9,
+      "avg_acc": 0.3889,
+      "count": 72
+    },
+    {
+      "bin_lower": 0.95,
+      "bin_upper": 1.0,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    }
+  ],
+  "cem_rag_test": [
+    {
+      "bin_lower": 0.5,
+      "bin_upper": 0.55,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.55,
+      "bin_upper": 0.6,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.6,
+      "bin_upper": 0.65,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.65,
+      "bin_upper": 0.7,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.7,
+      "bin_upper": 0.75,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.75,
+      "bin_upper": 0.8,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.8,
+      "bin_upper": 0.85,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.85,
+      "bin_upper": 0.9,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.9,
+      "bin_upper": 0.95,
+      "avg_conf": 0.95,
+      "avg_acc": 0.48,
+      "count": 125
+    },
+    {
+      "bin_lower": 0.95,
+      "bin_upper": 1.0,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    }
+  ],
+  "cem_rag_full_test": [
+    {
+      "bin_lower": 0.5,
+      "bin_upper": 0.55,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.55,
+      "bin_upper": 0.6,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.6,
+      "bin_upper": 0.65,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.65,
+      "bin_upper": 0.7,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.7,
+      "bin_upper": 0.75,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.75,
+      "bin_upper": 0.8,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.8,
+      "bin_upper": 0.85,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.85,
+      "bin_upper": 0.9,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.9,
+      "bin_upper": 0.95,
+      "avg_conf": 0.95,
+      "avg_acc": 0.48,
+      "count": 125
+    },
+    {
+      "bin_lower": 0.95,
+      "bin_upper": 1.0,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    }
+  ],
+  "xgboost_test": [
+    {
+      "bin_lower": 0.5,
+      "bin_upper": 0.55,
+      "avg_conf": 0.5079,
+      "avg_acc": 0.4012,
+      "count": 334
+    },
+    {
+      "bin_lower": 0.55,
+      "bin_upper": 0.6,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.6,
+      "bin_upper": 0.65,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.65,
+      "bin_upper": 0.7,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.7,
+      "bin_upper": 0.75,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.75,
+      "bin_upper": 0.8,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.8,
+      "bin_upper": 0.85,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.85,
+      "bin_upper": 0.9,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.9,
+      "bin_upper": 0.95,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.95,
+      "bin_upper": 1.0,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    }
+  ],
+  "xgboost_price_only_test": [
+    {
+      "bin_lower": 0.5,
+      "bin_upper": 0.55,
+      "avg_conf": 0.5095,
+      "avg_acc": 0.4521,
+      "count": 334
+    },
+    {
+      "bin_lower": 0.55,
+      "bin_upper": 0.6,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.6,
+      "bin_upper": 0.65,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.65,
+      "bin_upper": 0.7,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.7,
+      "bin_upper": 0.75,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.75,
+      "bin_upper": 0.8,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.8,
+      "bin_upper": 0.85,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.85,
+      "bin_upper": 0.9,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.9,
+      "bin_upper": 0.95,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.95,
+      "bin_upper": 1.0,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    }
+  ],
+  "xgboost_event_only_test": [
+    {
+      "bin_lower": 0.5,
+      "bin_upper": 0.55,
+      "avg_conf": 0.5272,
+      "avg_acc": 0.3946,
+      "count": 332
+    },
+    {
+      "bin_lower": 0.55,
+      "bin_upper": 0.6,
+      "avg_conf": 0.555,
+      "avg_acc": 1.0,
+      "count": 2
+    },
+    {
+      "bin_lower": 0.6,
+      "bin_upper": 0.65,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.65,
+      "bin_upper": 0.7,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.7,
+      "bin_upper": 0.75,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.75,
+      "bin_upper": 0.8,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.8,
+      "bin_upper": 0.85,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.85,
+      "bin_upper": 0.9,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.9,
+      "bin_upper": 0.95,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.95,
+      "bin_upper": 1.0,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    }
+  ],
+  "xgboost_no_event_test": [
+    {
+      "bin_lower": 0.5,
+      "bin_upper": 0.55,
+      "avg_conf": 0.5069,
+      "avg_acc": 0.3832,
+      "count": 334
+    },
+    {
+      "bin_lower": 0.55,
+      "bin_upper": 0.6,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.6,
+      "bin_upper": 0.65,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.65,
+      "bin_upper": 0.7,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.7,
+      "bin_upper": 0.75,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.75,
+      "bin_upper": 0.8,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.8,
+      "bin_upper": 0.85,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.85,
+      "bin_upper": 0.9,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.9,
+      "bin_upper": 0.95,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.95,
+      "bin_upper": 1.0,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    }
+  ],
+  "ablation_no_event_test": [
+    {
+      "bin_lower": 0.5,
+      "bin_upper": 0.55,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.55,
+      "bin_upper": 0.6,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.6,
+      "bin_upper": 0.65,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.65,
+      "bin_upper": 0.7,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.7,
+      "bin_upper": 0.75,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.75,
+      "bin_upper": 0.8,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.8,
+      "bin_upper": 0.85,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.85,
+      "bin_upper": 0.9,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.9,
+      "bin_upper": 0.95,
+      "avg_conf": 0.95,
+      "avg_acc": 0.4961,
+      "count": 127
+    },
+    {
+      "bin_lower": 0.95,
+      "bin_upper": 1.0,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    }
+  ],
+  "ablation_no_factor_test": [
+    {
+      "bin_lower": 0.5,
+      "bin_upper": 0.55,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.55,
+      "bin_upper": 0.6,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.6,
+      "bin_upper": 0.65,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.65,
+      "bin_upper": 0.7,
+      "avg_conf": 0.678,
+      "avg_acc": 1.0,
+      "count": 1
+    },
+    {
+      "bin_lower": 0.7,
+      "bin_upper": 0.75,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.75,
+      "bin_upper": 0.8,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.8,
+      "bin_upper": 0.85,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.85,
+      "bin_upper": 0.9,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.9,
+      "bin_upper": 0.95,
+      "avg_conf": 0.95,
+      "avg_acc": 0.3667,
+      "count": 120
+    },
+    {
+      "bin_lower": 0.95,
+      "bin_upper": 1.0,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    }
+  ],
+  "ablation_fixed_ret_test": [
+    {
+      "bin_lower": 0.5,
+      "bin_upper": 0.55,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.55,
+      "bin_upper": 0.6,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.6,
+      "bin_upper": 0.65,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.65,
+      "bin_upper": 0.7,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.7,
+      "bin_upper": 0.75,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.75,
+      "bin_upper": 0.8,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.8,
+      "bin_upper": 0.85,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.85,
+      "bin_upper": 0.9,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.9,
+      "bin_upper": 0.95,
+      "avg_conf": 0.95,
+      "avg_acc": 0.4769,
+      "count": 130
+    },
+    {
+      "bin_lower": 0.95,
+      "bin_upper": 1.0,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    }
+  ],
+  "ablation_no_policy_test": [
+    {
+      "bin_lower": 0.5,
+      "bin_upper": 0.55,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.55,
+      "bin_upper": 0.6,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.6,
+      "bin_upper": 0.65,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.65,
+      "bin_upper": 0.7,
+      "avg_conf": 0.6603,
+      "avg_acc": 0.4889,
+      "count": 180
+    },
+    {
+      "bin_lower": 0.7,
+      "bin_upper": 0.75,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.75,
+      "bin_upper": 0.8,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.8,
+      "bin_upper": 0.85,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.85,
+      "bin_upper": 0.9,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.9,
+      "bin_upper": 0.95,
+      "avg_conf": 0.95,
+      "avg_acc": 0.48,
+      "count": 125
+    },
+    {
+      "bin_lower": 0.95,
+      "bin_upper": 1.0,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    }
+  ],
+  "ablation_price_only_test": [
+    {
+      "bin_lower": 0.5,
+      "bin_upper": 0.55,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.55,
+      "bin_upper": 0.6,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.6,
+      "bin_upper": 0.65,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.65,
+      "bin_upper": 0.7,
+      "avg_conf": 0.677,
+      "avg_acc": 0.5,
+      "count": 2
+    },
+    {
+      "bin_lower": 0.7,
+      "bin_upper": 0.75,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.75,
+      "bin_upper": 0.8,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.8,
+      "bin_upper": 0.85,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.85,
+      "bin_upper": 0.9,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    },
+    {
+      "bin_lower": 0.9,
+      "bin_upper": 0.95,
+      "avg_conf": 0.95,
+      "avg_acc": 0.3917,
+      "count": 120
+    },
+    {
+      "bin_lower": 0.95,
+      "bin_upper": 1.0,
+      "avg_conf": null,
+      "avg_acc": null,
+      "count": 0
+    }
+  ]
+}
