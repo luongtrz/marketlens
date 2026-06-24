@@ -438,6 +438,102 @@ def _knn_returns_signal(
     )
 
 
+def _cem_rag_signal(
+    similar_records: list,
+    tau: float = 0.22,
+    horizon: str = "7d",
+) -> tuple["PredictResponse", "CEMRAGPrediction"]:
+    """CEM-RAG: derive p_up/p_down/p_hold from kNN similarity × future return direction.
+
+    Similarity from SimilarRecord is in [-1, 1]; shifted to [0, 1] as weight so even
+    low-similarity neighbours contribute a small positive mass.
+    Signal rule: BUY if p_up - p_down >= tau, SELL if p_down - p_up >= tau, else HOLD.
+    tau=0.22 is the policy_v4 value calibrated on val Sharpe with coverage gate.
+    """
+    from shared.models.prediction import CEMRAGPrediction, SignalType
+
+    ret_attr = f"future_return_{horizon}"
+    usable = [
+        sr for sr in similar_records
+        if getattr(sr.record, ret_attr, None) is not None
+    ]
+
+    if not usable:
+        cem = CEMRAGPrediction(
+            horizon=horizon, p_up=1 / 3, p_down=1 / 3, p_hold=1 / 3,
+            signal="HOLD", confidence=0.50, tau=tau,
+            explanation="cem_rag: no similar records with future return data — defaulting to HOLD.",
+            retrieval_count=0,
+        )
+        return (
+            PredictResponse(
+                signal=SignalType.HOLD,
+                confidence=0.50,
+                explanation=cem.explanation,
+                reasoning_steps=["cem_rag: 0 usable records"],
+            ),
+            cem,
+        )
+
+    # Shift similarity [-1,1] → [0,1] so weight is always positive
+    weights = [(sr.similarity + 1) / 2 for sr in usable]
+    total_w = sum(weights) + 1e-12
+
+    p_up   = sum(w for w, sr in zip(weights, usable) if getattr(sr.record, ret_attr) > 0) / total_w
+    p_down = sum(w for w, sr in zip(weights, usable) if getattr(sr.record, ret_attr) < 0) / total_w
+    p_hold = max(0.0, 1.0 - p_up - p_down)
+
+    diff_up   = p_up - p_down
+    diff_down = p_down - p_up
+
+    if diff_up >= tau:
+        signal     = SignalType.BUY
+        confidence = round(min(0.50 + diff_up * 0.80, 0.95), 3)
+    elif diff_down >= tau:
+        signal     = SignalType.SELL
+        confidence = round(min(0.50 + diff_down * 0.80, 0.95), 3)
+    else:
+        signal     = SignalType.HOLD
+        confidence = round(0.50 + max(diff_up, diff_down) * 0.30, 3)
+
+    ret_vals = [f"{getattr(sr.record, ret_attr):+.2f}%" for sr in usable]
+    explanation = (
+        f"cem_rag ({horizon}): {len(usable)} similar records → "
+        f"p_up={p_up:.3f} p_down={p_down:.3f} p_hold={p_hold:.3f}  "
+        f"τ={tau} → {signal.value}. "
+        f"Retrieved {horizon} returns: {', '.join(ret_vals)}."
+    )
+
+    cem = CEMRAGPrediction(
+        horizon=horizon,
+        p_up=round(p_up, 4),
+        p_down=round(p_down, 4),
+        p_hold=round(p_hold, 4),
+        signal=signal.value,
+        confidence=confidence,
+        tau=tau,
+        explanation=explanation,
+        retrieval_count=len(usable),
+    )
+
+    return (
+        PredictResponse(
+            signal=signal,
+            confidence=confidence,
+            explanation=explanation,
+            reasoning_steps=[
+                f"horizon: {horizon}  tau: {tau}",
+                f"usable similar records: {len(usable)}/{len(similar_records)}",
+                f"p_up={p_up:.4f}  p_down={p_down:.4f}  p_hold={p_hold:.4f}",
+                f"diff_up={diff_up:.4f}  diff_down={diff_down:.4f}",
+                f"signal={signal.value}  confidence={confidence:.3f}",
+                f"retrieved {horizon} returns: {ret_vals}",
+            ],
+        ),
+        cem,
+    )
+
+
 async def step_predict(
     ctx: PipelineContext,
     clients: ModuleClients,
@@ -446,6 +542,8 @@ async def step_predict(
     knn_weights: dict[str, float] | None = None,
     knn_buy_threshold: float = 3.0,
     knn_sell_threshold: float = -3.0,
+    cem_tau: float = 0.22,
+    cem_horizon: str = "7d",
 ) -> None:
     """STEP 4: Predict signal using selected provider."""
     if ctx.current_record is None or ctx.market_snapshot is None:
@@ -453,7 +551,13 @@ async def step_predict(
 
     try:
         provider = (predict_provider or "knn_returns").strip().lower()
-        if provider == "knn_returns":
+        if provider == "cem_rag":
+            ctx.prediction, ctx.cem_rag_prediction = _cem_rag_signal(
+                similar_records=ctx.similar_records,
+                tau=cem_tau,
+                horizon=cem_horizon,
+            )
+        elif provider == "knn_returns":
             ctx.prediction = _knn_returns_signal(
                 similar_records=ctx.similar_records,
                 weights=knn_weights or _DEFAULT_KNN_WEIGHTS,

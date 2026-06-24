@@ -55,6 +55,7 @@ class PredictionResult(BaseModel):
     key_factors: list[NormalizedFactor]
     market_snapshot: MarketSnapshot | None = None
     errors: list[str] = []  # Non-fatal errors encountered during run
+    cem_rag: "CEMRAGPrediction | None" = None  # Populated when predict_provider="cem_rag"
 
 
 class CEMRAGPrediction(BaseModel):

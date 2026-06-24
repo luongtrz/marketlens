@@ -8,7 +8,7 @@ from shared.models.article import IngestionRecord
 from shared.models.factor import Factor, NormalizedFactor
 from shared.models.market import MarketSnapshot
 from shared.models.memory import SimilarRecord, StockMemRecord
-from shared.models.prediction import PredictResponse, PredictionResult, SignalType
+from shared.models.prediction import CEMRAGPrediction, PredictResponse, PredictionResult, SignalType
 
 
 @dataclass
@@ -29,6 +29,7 @@ class PipelineContext:
     current_record_id: str | None = None
     similar_records: list[SimilarRecord] = field(default_factory=list)
     prediction: PredictResponse | None = None
+    cem_rag_prediction: CEMRAGPrediction | None = None
     errors: list[str] = field(default_factory=list)
 
     def build_result(self) -> PredictionResult:
@@ -45,4 +46,5 @@ class PipelineContext:
             key_factors=self.factors,
             market_snapshot=self.market_snapshot,
             errors=self.errors,
+            cem_rag=self.cem_rag_prediction,
         )
