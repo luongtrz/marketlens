@@ -61,3 +61,12 @@ docs/upgrade/FinSeer*/
 docs/upgrade/*.pdf
 docs/upgrade/Notes_*.pdf
 docs/upgrade/
+scripts/fix_*.py
+scripts/fill_missing_returns.py
+scripts/fill_returns_rest.py
+scripts/regen_optimizer_rest.py
+scripts/extract_events_and_repopulate.py
+scripts/compute_event_states.py
+scripts/eval_eth_proxy.py
+scripts/eval_knn_returns.py
+scripts/optimize_knn_returns_weights.py
