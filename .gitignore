@@ -51,6 +51,9 @@ crawler/pids/
 artifacts/predictions/
 artifacts/datasets/
 
+# StockMem data — large JSON datasets (not code)
+stockmem/data/*.json
+
 # Reference papers / external docs (not code)
 docs/upgrade/PatchTST/
 docs/upgrade/FinBERT/
