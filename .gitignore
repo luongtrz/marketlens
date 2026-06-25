@@ -46,3 +46,12 @@ crawler/data/*.jsonl
 crawler/data/seen_*.json
 crawler/pids/
 ..myspace
+
+# Research artifacts — large data files, regenerable from scripts
+artifacts/predictions/
+artifacts/datasets/
+
+# Reference papers / external docs
+docs/upgrade/PatchTST/
+docs/upgrade/FinBERT/
+docs/upgrade/Notes_*.pdf
