@@ -1,0 +1,77 @@
+\documentclass[../main.tex]{subfiles}
+
+\begin{document}
+\section{Experimental Analysis} \label{exp_analysis}
+
+\subsection{Effects of further pre-training (RQ3)}
+We first measure the effect of further pre-training on the performance of the classifier. We  compare three models: 1) No further pre-training (denoted by Vanilla BERT), 2) Further pre-training on classification training set (denoted by FinBERT-task), 3) Further pre-training on domain corpus, TRC2-financial (denoted by FinBERT-domain). Models are evaluated with loss, accuracy and macro average F1 scores on the test dataset. The results can be seen on table \ref{tab:pretraining}.
+
+    \subfile{tables/finetune_results.tex}
+    
+The classifier that were further pre-trained on financial domain corpus performs best among the three, though the difference is not very high. There might be four reasons behind this result: 1) The corpus might have a different distribution than the task set, 2) BERT classifiers might not improve significantly with further pre-training, 3) Short sentence classification might not benefit significantly from further pre-training, 4) Performance is already so good, that there is not much room for improvement. We think that the last explanation is the likeliest, because for the subset of Financial Phrasebank that all of the annotators agree on the result, accuracy of Vanilla BERT is already 0.96. The performance on the other agreement levels should be lower, as even the humans can't agree fully on them. More experiments with another financial labeled dataset is necessary to conclude that effect of further pre-training on domain corpus is not significant.
+
+\subsection{Catastrophic forgetting (RQ4)}
+For measuring the performance of the techniques against catastrophic forgetting, we try four different settings: No adjustment (NA), only with slanted triangular learning rate (STL), slanted triangular learning rate and gradual unfreezing (STL+GU) and the techniques in the previous one, together with discriminative fine-tuning. We report the performance of these four settings with loss on test function and trajectory of validation loss over training epochs. The results can be seen on table \ref{tab:catastrophic forgetting} and figure \ref{fig:strategy}.
+
+\begin{figure}[h] 
+  \centering
+  \includegraphics[width=\linewidth]{images/strategy.png}
+  \caption{Validation loss trajectories with different training strategies}
+  \label{fig:strategy}
+  \Description{The 1907 Franklin Model D roadster.}
+\end{figure}
+
+    \subfile{tables/catastrophic.tex}
+    
+Applying all three of the strategies produce the best performance in terms of test loss and accuracy. Gradual unfreezing and discriminative fine-tuning have the same reasoning behind them: higher level features should be fine-tuned more than the lower level ones, since information learned from language modeling are mostly present in the lower levels. We see from table \ref{tab:catastrophic forgetting} that using only discriminative fine-tuning with slanted triangular learning rates performs worse than using the slanted triangular learning rates alone. This shows that gradual unfreezing is the most important technique for our case.
+
+One way that catastrophic forgetting can show itself is the sudden increase in validation loss after several epochs. As model is trained, it quickly starts to overfit when no measure is taken accordingly. As it can be seen on the figure \ref{fig:strategy}, that is the case when none of the aforementioned techniques are applied. The model achieves the best performance on validation set after the first epoch and then starts to overfit. While with all three techniques applied, model is much more stable. The other combinations lie between these two cases. 
+
+\subsection{Choosing the best layer for classification (RQ5)}
+BERT has 12 Transformer encoder layers. It is not necessarily a given that the last layer captures the most relevant information regarding classification task during language model training. For this experiment, we investigate which layer out of 12 Transformer encoder layers give the best result for classification. We put the classification layer after the \textsc{CLS]} tokens of respective representations. We also try taking the average of all layers.
+
+As shown in table \ref{tab:layer4clas}the last layer contributes the most to the model performance in terms of all the metrics measured. This might be indicative of two factors: 1) When the higher layers are used the model that is being trained is larger, hence possibly more powerful, 2) The lower layers capture deeper semantic information, hence they struggle to fine-tune that information for classification. 
+
+    \subfile{tables/layer4clas.tex}
+\subsection{Training only a subset of the layers (RQ6)}
+BERT is a very large model. Even on small datasets, fine-tuning the whole model requires significant time and computing power. Therefore if a slightly lower performance can be achieved with fine-tuning only a subset of all parameters, it might be preferable in some contexts. Especially if training set is very large, this change might make BERT more convenient to use. Here we experiment with fine-tuning only the last \textit{k} many encoder layers.
+
+    \subfile{tables/unfreezed.tex}
+
+The results are presented on table \ref{tab:unfreezed}. Fine-tuning only the classification layer does not achieve close performance to fine-tuning other layers. However fine-tuning only the last layer handily outperforms the state-of-the-art machine learning methods like HSC. After Layer-9, the performance becomes virtually the same, only to be outperformed by fine-tuning the whole model. This result shows that in order to utilize BERT, an expensive training of the whole model is not mandatory. A fair trade-off can be made for much less training time with a small decrease in model performance. 
+
+\subsection{Where does the model fail?}
+With 97\% accuracy on the subset of Financial PhraseBank with 100\% annotator agreement, we think it might be an interesting exercise to examine cases where the model failed to predict the true label. Therefore in this section we will present several examples where model makes the wrong prediction. Also in Malo et al. (2014 )\cite{Malo2014}, it is indicated that most of the inter-annotator disagreements are between positive and neutral labels (agreement for separating positive-negative, negative-neutral and positive-neutral are 98.7\%, 94.2\% and 75.2\% respectively). Authors attribute that the difficulty of distinguishing "commonly used company glitter and actual positive statements". We will present the confusion matrix in order to observe whether this is the case for FinBERT as well. 
+\newline
+
+\textbf{Example 1:} \texttt{Pre-tax loss totaled euro 0.3 million , compared to a loss of euro 2.2 million in the first quarter of 2005 .
+}
+
+\textbf{True value:} Positive \textbf{Predicted:} Negative
+\newline
+
+\textbf{Example 2:} \texttt{This implementation is very important to the operator , since it is about to launch its Fixed to Mobile convergence service in Brazil}
+
+\textbf{True value:} Neutral \textbf{Predicted:} Positive
+\newline
+
+\textbf{Example 3:} \texttt{The situation of coated magazine printing paper will continue to be weak .}
+
+\textbf{True value:} Negative \textbf{Predicted:} Neutral
+\newline
+
+
+The first example is actually the most common type of failure. The model fails to do the math in which figure is higher, and in the absence of words indicative of direction like "increased", might make the prediction of neutral. However, there are many similar cases where it does make the true prediction too. Examples 2 and 3 are different versions of the same type of failure. The model fails to distinguish a neutral statement about a given situation from a statement that indicated polarity about the company. In the third example, information about the company's business would probably help.
+
+\begin{figure}[h] 
+  \centering
+  \includegraphics[width=.6\linewidth]{images/cm.png}
+  \caption{Confusion matrix}
+  \label{fig:cm}
+  \Description{The 1907 Franklin Model D roadster.}
+\end{figure}
+
+The confusion matrix is presented on figure \ref{fig:cm}. 73\% of the failures happen between labels positive and negative, while same number is 5\% for negative and positive. That is consistent with both the inter-annotator agreement numbers and common sense. It is easier to differentiate between positive and negative. But it might be more challenging to decide whether a statement indicates a positive outlook or merely an objective observation.
+
+\end{document}
+

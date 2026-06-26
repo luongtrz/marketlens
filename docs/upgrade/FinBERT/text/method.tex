@@ -1,0 +1,72 @@
+\documentclass[../main.tex]{subfiles}
+
+\begin{document}
+\section{Method} \label{sec:method}
+
+In this section, we will present our BERT implementation for financial domain named as FinBERT, after giving a brief background on relevant neural architectures.
+
+\subsection{Preliminaries} \label{neural baselines}
+
+\subsubsection{LSTM}
+Long short-term memory (LSTM) is a type of recurrent neural network that allows long-term dependencies in a sequence to persist in the network by using "forget" and "update" gates. It is one of the primary architectures for modeling any sequential data generation process, from stock prices to natural language. 
+Since a text is a sequence of tokens, the first choice for any LSTM natural language processing model is determining how to initially represent a single token. Using pre-trained weights for initial token representation is the common practice. One such pre-training algorithm is GLoVe (Global Vectors for Word Representation) \cite{pennington-etal-2014-glove}. GLoVr is a model for calculating word representations with the unsupervised task of training a log-bilinear regression model on a word-word co-occurance matrix from a large corpus. It is an effective model for representing words in a vector space, however it doesn't contextualize these representations with respect to the sequence they are actually used in\footnote{The pre-trained weights for GLoVE can be found here: https://nlp.stanford.edu/projects/glove/}.
+
+\subsubsection{ELMo} \label{basic lstm models}
+ ELMo embeddings \cite{Peters2018} are contextualized word representations in the sense that the surrounding words influence the representation of the word. In the center of ELMo, there is a bidirectional language model with multiple LSTM layers. The goal of a language model is to learn the probability distribution over sequences of tokens in a given vocabulary. ELMo models the probability of a token given the previous (and separately following) tokens in the sequence. Then the model also learns how to weight different representations from different LSTM layers in order to calculate one contextualized vector per token. Once the contextualized representations are extracted, these can be used to initialize any down-stream NLP task\footnote{The pre-trained ELMo models can be found here: https://allennlp.org/elmo}.
+ 
+ \subsubsection{ULMFit} \label{ulmfit}
+ ULMFit is a transfer learning model for down-stream NLP tasks, that make use of language model pre-training \cite{Howard2018}. Unlike ELMo, with ULMFit, the whole language model is fine-tuned together with the task-specific layers. The underlying language model used in ULMFit is AWD-LSTM, which uses sophisticated dropout tuning strategies to better regularize its LSTM model \cite{DBLP:journals/corr/abs-1708-02182}. For classification using ULMFit two linear layers are added to the pre-trained AWD-LSTM, first of which takes the pooled last hidden states as input. 
+ 
+ULMFit comes with novel training strategies for further pre-training the language model on domain-specific corpus and fine-tuning on the down-stream task. We implement these strategies with FinBERT as explained in section \ref{finbert}.
+ 
+ \subsubsection{Transformer}
+ The Transformer is an attention-based architecture for modeling sequential information, that is an alternative to recurrent neural networks \cite{Vaswani2017}. It was proposed as a sequence-to-sequence model, therefore including encoder and decoder mechanisms. Here, we will focus only on the encoder part (though decoder is quite similar). The encoder consists of multiple identical Transformer layers. Each layer has a multi-headed self-attention layer and a fully connected feed-forward network. For one self-attention layer, three mappings from embeddings (key, query and value) are learned. Using each token's key and all tokens' query vectors, a similarity score is calculated with dot product. These scores are used to weight the value vectors to arrive at the new representation of the token. With the multi-headed self-attention, these layers are concatenated together, so that the sequence can be evaluated from varying "perspectives". Then the resulted vectors go through fully connected networks with shared parameters. 
+ 
+ As it was argued by Vaswani 2017 \cite{Vaswani2017}, Transformer architecture has several advantages over the RNN-based approaches. Because of RNNs' sequential nature, they are much harder to parallelize on GPUs and too many steps between far away elements in a sequence make it hard for information to persist.
+ 
+\subsubsection{BERT}
+ BERT \cite{Devlin2018} is in essence a language model that consists of a set of Transformer encoders stacked on top of each other. However it defines the language modeling task differently from ELMo and AWD-LSTM. Instead of predicting the next word given previous ones, BERT "masks" a randomly selected 15\% of all tokens. With a softmax layer over vocabulary on top of the last encoder layer the masked tokens are predicted. A second task BERT is trained on is "next sentence prediction". Given two sentences, the model predicts whether or not these two actually follow each other. 
+ 
+ The input sequence is represented with token and position embeddings. Two tokens denoted by \textsc{[CLS]} and \textsc{[SEP]} are added to the beginning and end of the sequence respectively. For all classification tasks, including the next sentence prediction, \textsc{[CLS]} token is used. 
+ 
+ BERT has two versions: BERT-base, with 12 encoder layers, hidden size of 768, 12 multi-head attention heads and 110M parameters in total and BERT-large, with 24 encoder layers, hidden size of 1024, 16 multi-head attention heads and 340M parameters. Both of these models have been trained on BookCorpus \cite{Zhu2015} and English Wikipedia, which have in total more than 3,500M words \footnote{The pre-trained weights are made public by creators of BERT. The code and weights can be found here: https://github.com/google-research/bert}. 
+  
+\subsection{BERT for financial domain: FinBERT} \label{finbert}
+In this subsection we will describe our implementation of BERT: 1) how further pre-training on domain corpus is done, 2-3) how we implemented BERT for classification and regression tasks, 4) training strategies we used during fine-tuning to prevent catastrophic forgetting.
+\subsubsection{Further pre-training} \label{further pre-training}
+Howard and Ruder (2018) \cite{Howard2018} shows that futher pre-training a language model on a target domain corpus improves the eventual classification performance. For BERT, there is not decisive research showing that would be the case as well. Regardless, we implement further pre-training in order to observe if such adaptation is going to be beneficial for financial domain.
+
+For further pre-training, we experiment with two approaches. The first is pre-training the model on a relatively large corpus from the target domain. For that, we further pre-train a BERT language model on a financial corpus (details of the corpus can be found on section \ref{trc2}). The second approach is pre-training the model only on the sentences from the training classification dataset. Although the second corpus is much smaller, using data from the direct target might provide better target domain adaptation.
+
+\subsubsection{FinBERT for text classification} \label{classification}
+Sentiment classification is conducted by adding a dense layer after the last hidden state of the \textsc{[CLS]} token. This is the recommended practice for using BERT for any classification task \cite{Devlin2018}. Then, the classifier network is trained on the labeled sentiment dataset. An overview of all the steps involved in the procedure is presented on figure \ref{fig:model overview}. 
+
+\begin{figure*}[h] 
+  \centering
+  \includegraphics[width=\textwidth]{images/bert.pdf}
+  \caption{Overview of pre-training, further pre-training and classification fine-tuning}
+  \label{fig:model overview}
+  \Description{The 1907 Franklin Model D roadster.}
+\end{figure*}
+
+\subsubsection{FinBERT for regression}
+While the focus of this paper is classification, we also implement regression with almost the same architecture on a different dataset with continuous targets. The only difference is that the loss function being used is mean squared error instead of the cross entropy loss. 
+
+\subsubsection{Training strategies to prevent catastrophic forgetting} 
+As it was pointed out by Howard and Ruder (2018) \cite{Howard2018}, catastrophic forgetting is a significant danger with this fine-tuning approach. Because the fine-tuning procedure can quickly cause model to "forget" the information from language modeling task as it tries to adapt to the new task. In order to deal with this phenomenon, we apply three techniques as it was proposed by Howard and Ruder (2018): slanted triangular learning rates, discriminative fine-tuning and gradual unfreezing. 
+
+Slanted triangular learning rate applies a learning rate schedule in the shape of a slanted triangular, that is, learning rate first linearly increases up to some point and after that point linearly decreases. 
+
+Discriminative fine-tuning is using lower learning rates for lower layers on the network. Assume our learning rate at layer $l$ is $\alpha$. Then for discrimination rate of $\theta$ we calculate the learning rate for layer $l-1$ as $\alpha_{l-1} = \theta \alpha_l$. The assumption behind this method is that the lower layers represent the deep-level language information, while the upper ones include information for actual classification task. Therefore we fine-tune them differently. 
+
+With gradual freezing, we start training with all layers but the classifier layer as frozen. During training we gradually unfreeze all of the layers starting from the highest one, so that the lower level features become the least fine-tuned ones. Hence, during the initial stages of training it is prevented for model to "forget" low-level language information that it learned from pre-training.
+
+
+
+
+
+
+
+
+
+\end{document}

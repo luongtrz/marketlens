@@ -1,0 +1,325 @@
+\begin{thebibliography}{43}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Baevski et~al.(2020)Baevski, Zhou, Mohamed, and Auli]{wav2vec2}
+Alexei Baevski, Yuhao Zhou, Abdelrahman Mohamed, and Michael Auli.
+\newblock wav2vec 2.0: A framework for self-supervised learning of speech
+  representations.
+\newblock \emph{Advances in Neural Information Processing Systems},
+  33:\penalty0 12449--12460, 2020.
+
+\bibitem[Bai et~al.(2018)Bai, Kolter, and Koltun]{tcn}
+Shaojie Bai, J~Zico Kolter, and Vladlen Koltun.
+\newblock An empirical evaluation of generic convolutional and recurrent
+  networks for sequence modeling.
+\newblock \emph{arXiv preprint arXiv:1803.01271}, 2018.
+
+\bibitem[Bao et~al.(2022)Bao, Dong, Piao, and Wei]{beit}
+Hangbo Bao, Li~Dong, Songhao Piao, and Furu Wei.
+\newblock {BE}i{T}: {BERT} pre-training of image transformers.
+\newblock In \emph{International Conference on Learning Representations}, 2022.
+\newblock URL \url{https://openreview.net/forum?id=p-BhZSz59o4}.
+
+\bibitem[Bommasani et~al.(2021)Bommasani, Hudson, Adeli, Altman, Arora, von
+  Arx, Bernstein, Bohg, Bosselut, Brunskill, et~al.]{foundation}
+Rishi Bommasani, Drew~A Hudson, Ehsan Adeli, Russ Altman, Simran Arora, Sydney
+  von Arx, Michael~S Bernstein, Jeannette Bohg, Antoine Bosselut, Emma
+  Brunskill, et~al.
+\newblock On the opportunities and risks of foundation models.
+\newblock \emph{arXiv preprint arXiv:2108.07258}, 2021.
+
+\bibitem[Box \& Jenkins(1970)Box and Jenkins]{arima}
+G.~E.~P. Box and Gwilym~M. Jenkins.
+\newblock \emph{Time series analysis, forecasting and control}.
+\newblock 1970.
+
+\bibitem[Bryan \& Stefan(2021)Bryan and Stefan]{survey1}
+Lim Bryan and Zohren Stefan.
+\newblock Time-series forecasting with deep learning: a survey.
+\newblock \emph{Phil. Trans. R. Soc. A}, 2021.
+\newblock \doi{10.1098/rsta.2020.0209}.
+
+\bibitem[Cao et~al.(2020)Cao, Wang, Duan, Zhang, Zhu, Huang, Tong, Xu, Bai,
+  Tong, et~al.]{graph1}
+Defu Cao, Yujing Wang, Juanyong Duan, Ce~Zhang, Xia Zhu, Congrui Huang, Yunhai
+  Tong, Bixiong Xu, Jing Bai, Jie Tong, et~al.
+\newblock Spectral temporal graph neural network for multivariate time-series
+  forecasting.
+\newblock \emph{Advances in neural information processing systems},
+  33:\penalty0 17766--17778, 2020.
+
+\bibitem[Chen et~al.(2022)Chen, Wang, Peng, Wen, Zhou, and Sun]{quatformer}
+Weiqi Chen, Wenwei Wang, Bingqing Peng, Qingsong Wen, Tian Zhou, and Liang Sun.
+\newblock Learning to rotate: Quaternion transformer for complicated periodical
+  time series forecasting.
+\newblock In \emph{Proceedings of the 28th ACM SIGKDD Conference on Knowledge
+  Discovery and Data Mining}, pp.\  146--156, 2022.
+
+\bibitem[Chen et~al.(2021)Chen, Segovia, and Gel]{graph2}
+Yuzhou Chen, Ignacio Segovia, and Yulia~R Gel.
+\newblock Z-gcnets: time zigzags at graph convolutional networks for time
+  series forecasting.
+\newblock In \emph{International Conference on Machine Learning}, pp.\
+  1684--1694. PMLR, 2021.
+
+\bibitem[Cirstea et~al.(2022)Cirstea, Guo, Yang, Kieu, Dong, and
+  Pan]{triformer}
+Razvan-Gabriel Cirstea, Chenjuan Guo, Bin Yang, Tung Kieu, Xuanyi Dong, and
+  Shirui Pan.
+\newblock Triformer: Triangular, variable-specific attentions for long sequence
+  multivariate time series forecasting.
+\newblock In \emph{Proceedings of the Thirty-First International Joint
+  Conference on Artificial Intelligence, {IJCAI-22}}, pp.\  1994--2001, 7 2022.
+\newblock \doi{10.24963/ijcai.2022/277}.
+\newblock URL \url{https://doi.org/10.24963/ijcai.2022/277}.
+
+\bibitem[Devlin et~al.(2018)Devlin, Chang, Lee, and Toutanova]{bert}
+Jacob Devlin, Ming{-}Wei Chang, Kenton Lee, and Kristina Toutanova.
+\newblock {BERT:} pre-training of deep bidirectional transformers for language
+  understanding.
+\newblock \emph{CoRR}, abs/1810.04805, 2018.
+\newblock URL \url{http://arxiv.org/abs/1810.04805}.
+
+\bibitem[Dosovitskiy et~al.(2021)Dosovitskiy, Beyer, Kolesnikov, Weissenborn,
+  Zhai, Unterthiner, Dehghani, Minderer, Heigold, Gelly, Uszkoreit, and
+  Houlsby]{vit}
+Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, Dirk Weissenborn,
+  Xiaohua Zhai, Thomas Unterthiner, Mostafa Dehghani, Matthias Minderer, Georg
+  Heigold, Sylvain Gelly, Jakob Uszkoreit, and Neil Houlsby.
+\newblock An image is worth 16x16 words: Transformers for image recognition at
+  scale.
+\newblock In \emph{International Conference on Learning Representations}, 2021.
+\newblock URL \url{https://openreview.net/forum?id=YicbFdNTTy}.
+
+\bibitem[Eldele et~al.(2021)Eldele, Ragab, Chen, Wu, Kwoh, Li, and
+  Guan]{ts-tcc}
+Emadeldeen Eldele, Mohamed Ragab, Zhenghua Chen, Min Wu, Chee~Keong Kwoh,
+  Xiaoli Li, and Cuntai Guan.
+\newblock Time-series representation learning via temporal and contextual
+  contrasting.
+\newblock In \emph{Proceedings of the Thirtieth International Joint Conference
+  on Artificial Intelligence, {IJCAI-21}}, pp.\  2352--2359, 2021.
+
+\bibitem[Fama(1970)]{emh}
+Eugene~F Fama.
+\newblock Efficient capital markets: A review of theory and empirical work.
+\newblock \emph{The journal of Finance}, 25\penalty0 (2):\penalty0 383--417,
+  1970.
+
+\bibitem[Franceschi et~al.(2019)Franceschi, Dieuleveut, and
+  Jaggi]{representation}
+Jean-Yves Franceschi, Aymeric Dieuleveut, and Martin Jaggi.
+\newblock Unsupervised scalable representation learning for multivariate time
+  series.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~32, 2019.
+\newblock URL
+  \url{https://proceedings.neurips.cc/paper/2019/file/53c6de78244e9f528eb3e1cda69699bb-Paper.pdf}.
+
+\bibitem[He et~al.(2021)He, Chen, Xie, Li, Doll{\'{a}}r, and Girshick]{mae}
+Kaiming He, Xinlei Chen, Saining Xie, Yanghao Li, Piotr Doll{\'{a}}r, and
+  Ross~B. Girshick.
+\newblock Masked autoencoders are scalable vision learners.
+\newblock \emph{CoRR}, abs/2111.06377, 2021.
+\newblock URL \url{https://arxiv.org/abs/2111.06377}.
+
+\bibitem[Hendrycks \& Gimpel(2016)Hendrycks and Gimpel]{gelu}
+Dan Hendrycks and Kevin Gimpel.
+\newblock Gaussian error linear units (gelus).
+\newblock \emph{arXiv preprint arXiv:1606.08415}, 2016.
+
+\bibitem[Hochreiter \& Schmidhuber(1997)Hochreiter and Schmidhuber]{lstm}
+S.~Hochreiter and J.~Schmidhuber.
+\newblock Long short-term memory.
+\newblock \emph{Neural Comput.}, 1997.
+
+\bibitem[Hsu et~al.(2021)Hsu, Bolte, Tsai, Lakhotia, Salakhutdinov, and
+  Mohamed]{hubert}
+Wei-Ning Hsu, Benjamin Bolte, Yao-Hung~Hubert Tsai, Kushal Lakhotia, Ruslan
+  Salakhutdinov, and Abdelrahman Mohamed.
+\newblock Hubert: Self-supervised speech representation learning by masked
+  prediction of hidden units.
+\newblock \emph{IEEE/ACM Transactions on Audio, Speech, and Language
+  Processing}, 29:\penalty0 3451--3460, 2021.
+
+\bibitem[Kalyan et~al.(2021)Kalyan, Rajasekharan, and Sangeetha]{nlpsurvey}
+Katikapalli~Subramanyam Kalyan, Ajit Rajasekharan, and Sivanesan Sangeetha.
+\newblock Ammus: A survey of transformer-based pretrained models in natural
+  language processing.
+\newblock \emph{arXiv preprint arXiv:2108.05542}, 2021.
+
+\bibitem[Karita et~al.(2019)Karita, Chen, Hayashi, Hori, Inaguma, Jiang,
+  Someki, Soplin, Yamamoto, Wang, et~al.]{speechsurvey}
+Shigeki Karita, Nanxin Chen, Tomoki Hayashi, Takaaki Hori, Hirofumi Inaguma,
+  Ziyan Jiang, Masao Someki, Nelson Enrique~Yalta Soplin, Ryuichi Yamamoto,
+  Xiaofei Wang, et~al.
+\newblock A comparative study on transformer vs rnn in speech applications.
+\newblock In \emph{IEEE Automatic Speech Recognition and Understanding Workshop
+  (ASRU)}, pp.\  449--456. IEEE, 2019.
+
+\bibitem[Khan et~al.(2021)Khan, Naseer, Hayat, Zamir, Khan, and Shah]{cvsurvey}
+Salman Khan, Muzammal Naseer, Munawar Hayat, Syed~Waqas Zamir, Fahad~Shahbaz
+  Khan, and Mubarak Shah.
+\newblock Transformers in vision: A survey.
+\newblock \emph{ACM Computing Surveys (CSUR)}, 2021.
+
+\bibitem[Kim et~al.(2022)Kim, Kim, Tae, Park, Choi, and Choo]{revin}
+Taesung Kim, Jinhee Kim, Yunwon Tae, Cheonbok Park, Jang-Ho Choi, and Jaegul
+  Choo.
+\newblock Reversible instance normalization for accurate time-series
+  forecasting against distribution shift.
+\newblock In \emph{International Conference on Learning Representations}, 2022.
+\newblock URL \url{https://openreview.net/forum?id=cGDAkQo1C0p}.
+
+\bibitem[Kumar et~al.(2022)Kumar, Raghunathan, Jones, Ma, and Liang]{lp-ft}
+Ananya Kumar, Aditi Raghunathan, Robbie~Matthew Jones, Tengyu Ma, and Percy
+  Liang.
+\newblock Fine-tuning can distort pretrained features and underperform
+  out-of-distribution.
+\newblock In \emph{International Conference on Learning Representations}, 2022.
+\newblock URL \url{https://openreview.net/forum?id=UYneFzXSJWh}.
+
+\bibitem[Lara-Ben{\'\i}tez et~al.(2021)Lara-Ben{\'\i}tez, Carranza-Garc{\'\i}a,
+  and Riquelme]{survey3}
+Pedro Lara-Ben{\'\i}tez, Manuel Carranza-Garc{\'\i}a, and Jos{\'e}~C Riquelme.
+\newblock An experimental review on deep learning architectures for time series
+  forecasting.
+\newblock \emph{International Journal of Neural Systems}, 31\penalty0
+  (03):\penalty0 2130001, 2021.
+
+\bibitem[Li et~al.(2019)Li, Jin, Xuan, Zhou, Chen, Wang, and Yan]{logtrans}
+Shiyang Li, Xiaoyong Jin, Yao Xuan, Xiyou Zhou, Wenhu Chen, Yu-Xiang Wang, and
+  Xifeng Yan.
+\newblock Enhancing the locality and breaking the memory bottleneck of
+  transformer on time series forecasting.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~32, 2019.
+\newblock URL
+  \url{https://proceedings.neurips.cc/paper/2019/file/6775a0635c302542da2c32aa19d86be0-Paper.pdf}.
+
+\bibitem[Liu et~al.(2022)Liu, Yu, Liao, Li, Lin, Liu, and Dustdar]{pyraformer}
+Shizhan Liu, Hang Yu, Cong Liao, Jianguo Li, Weiyao Lin, Alex~X Liu, and
+  Schahram Dustdar.
+\newblock Pyraformer: Low-complexity pyramidal attention for long-range time
+  series modeling and forecasting.
+\newblock In \emph{International Conference on Learning Representations}, 2022.
+
+\bibitem[Rossi(2013)]{exchange}
+Barbara Rossi.
+\newblock Exchange rate predictability.
+\newblock \emph{Journal of Economic Literature}, 51\penalty0 (4):\penalty0
+  1063--1119, December 2013.
+\newblock \doi{10.1257/jel.51.4.1063}.
+\newblock URL \url{https://www.aeaweb.org/articles?id=10.1257/jel.51.4.1063}.
+
+\bibitem[Salinas et~al.(2020)Salinas, Flunkert, Gasthaus, and
+  Januschowski]{deepar}
+David Salinas, Valentin Flunkert, Jan Gasthaus, and Tim Januschowski.
+\newblock Deepar: Probabilistic forecasting with autoregressive recurrent
+  networks.
+\newblock \emph{International Journal of Forecasting}, 36\penalty0
+  (3):\penalty0 1181--1191, 2020.
+
+\bibitem[Schuster \& Nakajima(2012)Schuster and Nakajima]{wordpiece}
+Mike Schuster and Kaisuke Nakajima.
+\newblock Japanese and korean voice search.
+\newblock In \emph{IEEE International Conference on Acoustics, Speech and
+  Signal Processing (ICASSP)}, pp.\  5149--5152, 2012.
+\newblock \doi{10.1109/ICASSP.2012.6289079}.
+
+\bibitem[Tonekaboni et~al.(2021)Tonekaboni, Eytan, and Goldenberg]{tnc}
+Sana Tonekaboni, Danny Eytan, and Anna Goldenberg.
+\newblock Unsupervised representation learning for time series with temporal
+  neighborhood coding.
+\newblock In \emph{International Conference on Learning Representations}, 2021.
+\newblock URL \url{https://openreview.net/forum?id=8qDwejCuCN}.
+
+\bibitem[Torres et~al.(2021)Torres, Hadjout, Sebaa, Mart{\'\i}nez-{\'A}lvarez,
+  and Troncoso]{survey2}
+Jos{\'e}~F Torres, Dalil Hadjout, Abderrazak Sebaa, Francisco
+  Mart{\'\i}nez-{\'A}lvarez, and Alicia Troncoso.
+\newblock Deep learning for time series forecasting: a survey.
+\newblock \emph{Big Data}, 9\penalty0 (1):\penalty0 3--21, 2021.
+
+\bibitem[Ulyanov et~al.(2016)Ulyanov, Vedaldi, and Lempitsky]{instance}
+Dmitry Ulyanov, Andrea Vedaldi, and Victor Lempitsky.
+\newblock Instance normalization: The missing ingredient for fast stylization.
+\newblock \emph{arXiv preprint arXiv:1607.08022}, 2016.
+
+\bibitem[Vaswani et~al.(2017)Vaswani, Shazeer, Parmar, Uszkoreit, Jones, Gomez,
+  Kaiser, and Polosukhin]{transformer}
+Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones,
+  Aidan~N Gomez, Lukasz Kaiser, and Illia Polosukhin.
+\newblock Attention is all you need.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~30, 2017.
+\newblock URL
+  \url{https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf}.
+
+\bibitem[Wen et~al.(2022)Wen, Zhou, Zhang, Chen, Ma, Yan, and Sun]{tssurvey}
+Qingsong Wen, Tian Zhou, Chaoli Zhang, Weiqi Chen, Ziqing Ma, Junchi Yan, and
+  Liang Sun.
+\newblock Transformers in time series: A survey.
+\newblock \emph{arXiv preprint arXiv:2202.07125}, 2022.
+
+\bibitem[Wu et~al.(2021)Wu, Xu, Wang, and Long]{autoformer}
+Haixu Wu, Jiehui Xu, Jianmin Wang, and Mingsheng Long.
+\newblock Autoformer: Decomposition transformers with {Auto-Correlation} for
+  long-term series forecasting.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2021.
+
+\bibitem[Yang \& Hong(2022)Yang and Hong]{btsf}
+Ling Yang and Shenda Hong.
+\newblock Unsupervised time-series representation learning with iterative
+  bilinear temporal-spectral fusion.
+\newblock In \emph{ICML}, 2022.
+
+\bibitem[Yue et~al.(2022)Yue, Wang, Duan, Yang, Huang, Tong, and Xu]{ts2vec}
+Zhihan Yue, Yujing Wang, Juanyong Duan, Tianmeng Yang, Congrui Huang, Yunhai
+  Tong, and Bixiong Xu.
+\newblock Ts2vec: Towards universal representation of time series.
+\newblock In \emph{Proceedings of the AAAI Conference on Artificial
+  Intelligence}, volume~36, pp.\  8980--8987, 2022.
+
+\bibitem[Zeng et~al.(2022)Zeng, Chen, Zhang, and Xu]{dlinear}
+Ailing Zeng, Muxi Chen, Lei Zhang, and Qiang Xu.
+\newblock Are transformers effective for time series forecasting?
+\newblock \emph{arXiv preprint arXiv:2205.13504}, 2022.
+
+\bibitem[Zerveas et~al.(2021)Zerveas, Jayaraman, Patel, Bhamidipaty, and
+  Eickhoff]{tst}
+George Zerveas, Srideepika Jayaraman, Dhaval Patel, Anuradha Bhamidipaty, and
+  Carsten Eickhoff.
+\newblock A transformer-based framework for multivariate time series
+  representation learning.
+\newblock In \emph{Proceedings of the 27th ACM SIGKDD Conference on Knowledge
+  Discovery \& Data Mining}, pp.\  2114--2124, 2021.
+
+\bibitem[Zheng et~al.(2014)Zheng, Liu, Chen, Ge, and Zhao]{multichannel}
+Yi~Zheng, Qi~Liu, Enhong Chen, Yong Ge, and J~Leon Zhao.
+\newblock Time series classification using multi-channels deep convolutional
+  neural networks.
+\newblock In \emph{International conference on web-age information management},
+  pp.\  298--310. Springer, 2014.
+
+\bibitem[Zhou et~al.(2021)Zhou, Zhang, Peng, Zhang, Li, Xiong, and
+  Zhang]{informer}
+Haoyi Zhou, Shanghang Zhang, Jieqi Peng, Shuai Zhang, Jianxin Li, Hui Xiong,
+  and Wancai Zhang.
+\newblock Informer: Beyond efficient transformer for long sequence time-series
+  forecasting.
+\newblock In \emph{The Thirty-Fifth {AAAI} Conference on Artificial
+  Intelligence}, volume~35, pp.\  11106--11115, 2021.
+
+\bibitem[Zhou et~al.(2022)Zhou, Ma, Wen, Wang, Sun, and Jin]{fedformer}
+Tian Zhou, Ziqing Ma, Qingsong Wen, Xue Wang, Liang Sun, and Rong Jin.
+\newblock {FEDformer}: Frequency enhanced decomposed transformer for long-term
+  series forecasting.
+\newblock In \emph{Proc. 39th International Conference on Machine Learning},
+  2022.
+
+\end{thebibliography}

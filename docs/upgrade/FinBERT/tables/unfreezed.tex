@@ -1,0 +1,30 @@
+\documentclass[../main.tex]{subfiles}
+
+\begin{document}
+
+\begin{table}
+  \caption{Performance on starting training from different layers}
+  \label{tab:unfreezed}
+  \begin{tabular}{lccc}
+    \toprule
+    First layer unfreezed  &  Loss &  Accuracy &  Training time\\
+    \midrule
+    Embeddings layer & 0.37 & 0.86 & 332s \\
+    Layer-1 &      0.39 & 0.83 & 302s \\
+    Layer-2 &      0.39 & 0.83 & 291s \\
+    Layer-3 &      0.38 & 0.83 & 272s \\
+    Layer-4 &      0.38 & 0.82 & 250s \\
+    Layer-5 &      0.40 & 0.83 & 240s \\
+    Layer-6 &      0.40 & 0.81 & 220s \\
+    Layer-7 &      0.39 & 0.82 & 205s \\
+    Layer-8 &      0.39 & 0.84 & 188s \\
+    Layer-9 &      0.39 & 0.84 & 172s \\
+    Layer-10 &      0.41 & 0.84 & 158s \\
+    Layer-11 &      0.45 & 0.82 & 144s \\
+    Layer-12 &      0.47 & 0.81 & 133s \\
+    Classification layer & 1.04 & 0.52 & 119s \\
+  \bottomrule
+\end{tabular}
+\end{table}
+
+\end{document}
