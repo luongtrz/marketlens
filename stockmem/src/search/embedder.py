@@ -4,7 +4,7 @@ StockMem + History Rhymes split-vector embedder.
 Produces four L2-normalized vectors per record:
   - event_vec     (85d)  = type/group occurrences + dissemination/novelty
   - factor_vec    (75d)  = typeVec(62) + groupVec(13)
-  - indicator_vec (5d)   = z-scored [msi, rsi, sentiment_score, fgi, price_change_pct]
+  - indicator_vec (5d)   = z-scored [msi, rsi, chosen_sentiment, fgi, price_change_pct]
   - price_vec     (60d)  = OHLCV features [close_returns(20) | ranges(20) | volumes(20)]
 
 Search combines them via weighted cosine:
@@ -13,7 +13,7 @@ Search combines them via weighted cosine:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Iterable
+from typing import Iterable, Literal
 
 import numpy as np
 
@@ -39,6 +39,7 @@ MAX_ABS_RANGE = 0.50
 MAX_ABS_VOL_CHG = 5.0
 Z_SCORE_CLIP = 6.0
 ALPHA_NUMERIC = 0.5  # scales indicator block when packed into joint vector
+SentimentSource = Literal["sentiment_score", "finbert", "auto"]
 
 
 @dataclass(frozen=True)
@@ -63,13 +64,33 @@ def _l2_normalize(vec: np.ndarray) -> np.ndarray:
     return (vec / norm).astype(np.float32)
 
 
-def _extract_raw_numerical(record: StockMemRecord) -> np.ndarray:
+def _resolve_sentiment_value(
+    record: StockMemRecord,
+    sentiment_source: SentimentSource,
+) -> float:
+    if sentiment_source == "sentiment_score":
+        return float(record.sentiment_score)
+    finbert_score = record.finbert_sentiment_score
+    if sentiment_source == "finbert":
+        if finbert_score is not None:
+            return float(finbert_score)
+        return float(record.sentiment_score)
+    if finbert_score is not None:
+        return float(finbert_score)
+    return float(record.sentiment_score)
+
+
+def _extract_raw_numerical(
+    record: StockMemRecord,
+    *,
+    sentiment_source: SentimentSource,
+) -> np.ndarray:
     snap = record.market_snapshot
     return np.array(
         [
             float(snap.msi),
             float(snap.rsi),
-            float(record.sentiment_score),
+            _resolve_sentiment_value(record, sentiment_source),
             float(snap.fear_greed_index),
             float(snap.price_change_pct),
         ],
@@ -146,7 +167,8 @@ class RecordEmbedder:
     embedding queries so query indicators use the same normalization.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, sentiment_source: SentimentSource = "sentiment_score") -> None:
+        self._sentiment_source = sentiment_source
         self._stats = NormStats()
 
     @property
@@ -154,7 +176,10 @@ class RecordEmbedder:
         return self._stats
 
     def rebuild_corpus(self, records: Iterable[StockMemRecord]) -> None:
-        rows = [_extract_raw_numerical(r) for r in records]
+        rows = [
+            _extract_raw_numerical(r, sentiment_source=self._sentiment_source)
+            for r in records
+        ]
         if not rows:
             self._stats = NormStats()
             return
@@ -167,7 +192,10 @@ class RecordEmbedder:
 
     def update_corpus_with_record(self, record: StockMemRecord) -> None:
         """Incrementally update indicator normalization stats (Welford)."""
-        raw = _extract_raw_numerical(record).astype(np.float64)
+        raw = _extract_raw_numerical(
+            record,
+            sentiment_source=self._sentiment_source,
+        ).astype(np.float64)
         stats = self._stats
         if stats.count <= 0:
             self._stats = NormStats(
@@ -227,7 +255,10 @@ class RecordEmbedder:
 
         factor_vec = _l2_normalize(np.concatenate([type_vec, group_vec]))
 
-        raw = _extract_raw_numerical(record)
+        raw = _extract_raw_numerical(
+            record,
+            sentiment_source=self._sentiment_source,
+        )
         z = self._z_score(raw)
         indicator_vec = _l2_normalize(z.astype(np.float32))
 

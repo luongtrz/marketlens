@@ -43,12 +43,14 @@ def _make_record(
     candles: list[CandleData] | None = None,
     rsi: float = 50.0,
     sentiment: float = 0.0,
+    finbert_sentiment: float | None = None,
 ) -> StockMemRecord:
     return StockMemRecord(
         id="r",
         date=date(2026, 1, 1),
         symbol="BTC",
         sentiment_score=sentiment,
+        finbert_sentiment_score=finbert_sentiment,
         factors=factors or ["Record ETF inflows"],
         market_snapshot=MarketSnapshot(
             rsi=rsi,
@@ -141,3 +143,25 @@ def test_z_score_clip_bounds_extreme_indicator() -> None:
     assert float(np.abs(split.indicator_vec).max()) <= 1.0 + 1e-6
     # Pre-normalization bound: the raw z must have been clipped to Z_SCORE_CLIP.
     assert Z_SCORE_CLIP > 0  # sanity — imported constant must exist
+
+
+def test_embedder_can_use_finbert_sentiment_source() -> None:
+    rec_a = _make_record(
+        candles=_make_candles(25),
+        sentiment=-0.9,
+        finbert_sentiment=0.8,
+    )
+    rec_b = _make_record(
+        candles=_make_candles(25, base=120.0),
+        sentiment=-0.2,
+        finbert_sentiment=-0.6,
+    )
+
+    embedder = RecordEmbedder(sentiment_source="finbert")
+    embedder.rebuild_corpus([rec_a, rec_b])
+    split_a = embedder.embed_split(rec_a)
+    split_b = embedder.embed_split(rec_b)
+
+    # Index 2 is the sentiment dimension in indicator_vec.
+    assert split_a.indicator_vec[2] > 0
+    assert split_b.indicator_vec[2] < 0

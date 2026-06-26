@@ -8,9 +8,11 @@ import pytest
 
 from stockmem.scripts.cem_dataset import (
     LabeledRow,
+    hybrid_selection_score,
     is_mature,
     label_rows,
     mine_candidates,
+    ndcg_at_k,
     teacher_relevance,
 )
 from stockmem.scripts.evaluate_retriever import _zero_block_scale, evaluate
@@ -337,3 +339,27 @@ def test_soft_teacher_targets_reduce_distillation_loss() -> None:
     )
 
     assert after < before
+
+
+def test_ndcg_at_k_rewards_better_ranking_order() -> None:
+    ranked_good = [0.9, 0.6, 0.1]
+    ranked_bad = [0.1, 0.6, 0.9]
+    ideal = [0.9, 0.6, 0.1]
+
+    assert ndcg_at_k(ranked_good, ideal, 3) > ndcg_at_k(ranked_bad, ideal, 3)
+    assert ndcg_at_k(ranked_good, ideal, 3) <= 1.0
+
+
+def test_ndcg_at_k_uses_global_top_k_ideal_not_prefix() -> None:
+    ranked = [0.8, 0.7, 0.6]
+    unsorted_pool = [0.1, 0.8, 0.2, 0.7, 0.6]
+
+    assert ndcg_at_k(ranked, unsorted_pool, 3) == pytest.approx(1.0)
+
+
+def test_hybrid_selection_score_balances_ndcg_and_combined() -> None:
+    stronger_ranking = hybrid_selection_score(0.9, 0.25)
+    stronger_trading = hybrid_selection_score(0.7, 0.45)
+
+    assert stronger_ranking != pytest.approx(stronger_trading)
+    assert hybrid_selection_score(0.9, 0.45) > stronger_ranking

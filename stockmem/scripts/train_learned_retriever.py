@@ -1,16 +1,32 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Literal, Sequence
 
 import numpy as np
 
-from stockmem.scripts.cem_dataset import LabeledRow, label_rows, matured_pool, mine_candidates
-from stockmem.scripts.optimize_weights import _compute_sharpe, load_rows, validate_rows
+from stockmem.scripts.cem_dataset import (
+    DEFAULT_TEACHER_WEIGHTS,
+    LabeledRow,
+    hybrid_selection_score,
+    label_rows,
+    matured_pool,
+    mine_candidates,
+    ndcg_at_k,
+    teacher_relevance_for_pool,
+)
+from stockmem.scripts.optimize_weights import (
+    DEFAULT_BASELINE_WEIGHTS,
+    _compute_sharpe,
+    load_rows,
+    validate_rows,
+    weighted_similarity,
+)
 from stockmem.src.search.learned_metric import LearnedDiagonalMetric
 
 try:
@@ -21,6 +37,7 @@ except ImportError:  # pragma: no cover
 
 BLOCK_DIMS = (75, 5, 60)
 DEFAULT_WEIGHTS = (0.544392055430515, 0.30908053253948164, 0.14156627274414413)
+SelectionMetric = Literal["hit", "combined", "ndcg", "hybrid"]
 
 
 @dataclass(frozen=True)
@@ -40,6 +57,24 @@ class TrainConfig:
     batch_size: int = 16
     buy_threshold: float = 2.0
     sell_threshold: float = 2.0
+    outcome_weight: float = DEFAULT_TEACHER_WEIGHTS["outcome"]
+    regime_weight: float = DEFAULT_TEACHER_WEIGHTS["regime"]
+    surface_weight: float = DEFAULT_TEACHER_WEIGHTS["surface"]
+
+
+@dataclass(frozen=True)
+class EvalSnapshot:
+    epoch: int
+    loss: float
+    val_hit_at_k: float
+    val_combined: float
+    val_ndcg_at_k: float
+    val_hybrid: float
+    best_hit_at_k: float
+    best_combined: float
+    best_ndcg_at_k: float
+    best_hybrid: float
+    stale: int
 
 
 def _score_and_grad(
@@ -228,17 +263,84 @@ def _hit_at_k_fast(
     return hits / total if total else 0.0
 
 
+def _ndcg_at_k_fast(
+    labeled_list: list[LabeledRow],
+    all_stacked: list[np.ndarray],
+    dates_ord: np.ndarray,
+    metric: LearnedDiagonalMetric,
+    k: int,
+    split: str = "val",
+    teacher_weights: tuple[float, float, float] = (
+        DEFAULT_TEACHER_WEIGHTS["outcome"],
+        DEFAULT_TEACHER_WEIGHTS["regime"],
+        DEFAULT_TEACHER_WEIGHTS["surface"],
+    ),
+    baseline_weights: tuple[float, float, float] = DEFAULT_BASELINE_WEIGHTS,
+) -> float:
+    scores: list[float] = []
+    for i, query in enumerate(labeled_list):
+        if query.split != split or query.direction == 0:
+            continue
+        qord = int(dates_ord[i])
+        pool_idx = np.where(dates_ord <= qord - 7)[0]
+        if len(pool_idx) == 0:
+            continue
+        pool_rows = [labeled_list[j] for j in pool_idx]
+        pool_stacked = [s[pool_idx] for s in all_stacked]
+        learned_scores = metric.score_batch(query.blocks, pool_stacked)
+        ranked_local_idx = np.argsort(learned_scores)[::-1][: min(k, len(pool_rows))]
+        relevances = teacher_relevance_for_pool(
+            query,
+            pool_rows,
+            weights=baseline_weights,
+            outcome_weight=teacher_weights[0],
+            regime_weight=teacher_weights[1],
+            surface_weight=teacher_weights[2],
+        )
+        ranked_relevances = [relevances[id(pool_rows[j])] for j in ranked_local_idx]
+        ideal_relevances = list(relevances.values())
+        scores.append(ndcg_at_k(ranked_relevances, ideal_relevances, k))
+    return float(np.mean(scores)) if scores else 0.0
+
+
+def _selection_value(
+    metric_name: SelectionMetric,
+    *,
+    val_hit_at_k: float,
+    val_combined: float,
+    val_ndcg_at_k: float,
+) -> float:
+    if metric_name == "hit":
+        return val_hit_at_k
+    if metric_name == "combined":
+        return val_combined
+    if metric_name == "ndcg":
+        return val_ndcg_at_k
+    return hybrid_selection_score(val_ndcg_at_k, val_combined)
+
+
 def train_one_seed(
     labeled: Sequence[LabeledRow],
     config: TrainConfig,
     seed: int,
-) -> tuple[np.ndarray, np.ndarray, float, float, list[float]]:
-    """Returns (best_d, best_s, best_combined, best_hit_at_k, losses)."""
+    *,
+    trial_number: int | None = None,
+    history_writer: csv.DictWriter | None = None,
+    selection_metric: SelectionMetric = "hit",
+    init_diagonal: np.ndarray | None = None,
+    init_scales: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray, EvalSnapshot | None, list[float], list[EvalSnapshot]]:
+    """Returns best params plus loss/eval history for one seed."""
     rng = np.random.default_rng(seed)
     labeled_list = list(labeled)
     block_dims = tuple(block.size for block in labeled_list[0].blocks)
-    diagonal = np.ones(sum(block_dims), dtype=np.float64)
-    if len(block_dims) == 4:
+    if init_diagonal is not None:
+        diagonal = np.asarray(init_diagonal, dtype=np.float64).copy()
+    else:
+        diagonal = np.ones(sum(block_dims), dtype=np.float64)
+    if init_scales is not None:
+        scales = np.asarray(init_scales, dtype=np.float64).copy()
+    elif len(block_dims) == 4:
         scales = np.asarray(
             [0.05, *(0.95 * np.asarray(DEFAULT_WEIGHTS, dtype=np.float64))],
             dtype=np.float64,
@@ -250,11 +352,17 @@ def train_one_seed(
     m_s = np.zeros_like(scales)
     v_s = np.zeros_like(scales)
     step = 0
+    best_hit_at_k = -999.0
     best_combined = -999.0
+    best_ndcg_at_k = -999.0
+    best_hybrid = -999.0
+    best_selection_value = -999.0
     best_d = diagonal.copy()
     best_s = scales.copy()
+    best_snapshot: EvalSnapshot | None = None
     stale = 0
     losses: list[float] = []
+    eval_history: list[EvalSnapshot] = []
 
     # Pre-stack all blocks once for fast vectorized eval
     all_stacked = _prestack_blocks(labeled_list)
@@ -304,6 +412,9 @@ def train_one_seed(
                     hard_negs=config.hard_negs,
                     positive_count=config.positive_count,
                     flat_negs=config.flat_negs,
+                    outcome_weight=config.outcome_weight,
+                    regime_weight=config.regime_weight,
+                    surface_weight=config.surface_weight,
                     learned_score=lambda left, right: current_metric.score(
                         left.blocks,
                         right.blocks,
@@ -362,19 +473,106 @@ def train_one_seed(
         if (epoch + 1) % config.eval_every == 0 or epoch == config.epochs - 1:
             metric = LearnedDiagonalMetric(block_dims, diagonal, scales)
             val_hit = _hit_at_k_fast(labeled_list, all_stacked, dates_ord, metric, config.k)
-            if val_hit > best_combined + 1e-9:
-                best_combined = val_hit
+            val_combined = _val_combined_fast(
+                labeled_list,
+                all_stacked,
+                dates_ord,
+                metric,
+                config.k,
+                buy_threshold=config.buy_threshold,
+                sell_threshold=config.sell_threshold,
+            )
+            val_ndcg = _ndcg_at_k_fast(
+                labeled_list,
+                all_stacked,
+                dates_ord,
+                metric,
+                config.k,
+                teacher_weights=(
+                    config.outcome_weight,
+                    config.regime_weight,
+                    config.surface_weight,
+                ),
+                baseline_weights=DEFAULT_WEIGHTS,
+            )
+            val_hybrid = hybrid_selection_score(val_ndcg, val_combined)
+            current_selection_value = _selection_value(
+                selection_metric,
+                val_hit_at_k=val_hit,
+                val_combined=val_combined,
+                val_ndcg_at_k=val_ndcg,
+            )
+            if current_selection_value > best_selection_value + 1e-9:
+                best_selection_value = current_selection_value
+                best_hit_at_k = val_hit
+                best_combined = val_combined
+                best_ndcg_at_k = val_ndcg
+                best_hybrid = val_hybrid
                 best_d = diagonal.copy()
                 best_s = scales.copy()
                 stale = 0
             else:
                 stale += 1
+            snapshot = EvalSnapshot(
+                epoch=epoch + 1,
+                loss=losses[-1],
+                val_hit_at_k=val_hit,
+                val_combined=val_combined,
+                val_ndcg_at_k=val_ndcg,
+                val_hybrid=val_hybrid,
+                best_hit_at_k=best_hit_at_k,
+                best_combined=best_combined,
+                best_ndcg_at_k=best_ndcg_at_k,
+                best_hybrid=best_hybrid,
+                stale=stale,
+            )
+            if current_selection_value > best_selection_value - 1e-9 and stale == 0:
+                best_snapshot = snapshot
+            eval_history.append(snapshot)
+            trial_label = "final" if trial_number is None else str(trial_number)
+            print(
+                f"trial={trial_label} seed={seed} epoch={snapshot.epoch} "
+                f"loss={snapshot.loss:.6f} "
+                f"val_hit@{config.k}={snapshot.val_hit_at_k:.4f} "
+                f"val_combined={snapshot.val_combined:.4f} "
+                f"val_ndcg@{config.k}={snapshot.val_ndcg_at_k:.4f} "
+                f"val_hybrid={snapshot.val_hybrid:.4f} "
+                f"best_hit={snapshot.best_hit_at_k:.4f} "
+                f"best_combined={snapshot.best_combined:.4f} "
+                f"best_ndcg={snapshot.best_ndcg_at_k:.4f} "
+                f"best_hybrid={snapshot.best_hybrid:.4f} "
+                f"stale={snapshot.stale}",
+                flush=True,
+            )
+            if history_writer is not None:
+                history_writer.writerow(
+                    {
+                        "trial": trial_label,
+                        "seed": seed,
+                        "epoch": snapshot.epoch,
+                        "loss": f"{snapshot.loss:.8f}",
+                        "val_hit_at_k": f"{snapshot.val_hit_at_k:.8f}",
+                        "val_combined": f"{snapshot.val_combined:.8f}",
+                        "val_ndcg_at_k": f"{snapshot.val_ndcg_at_k:.8f}",
+                        "val_hybrid": f"{snapshot.val_hybrid:.8f}",
+                        "best_hit_at_k": f"{snapshot.best_hit_at_k:.8f}",
+                        "best_combined": f"{snapshot.best_combined:.8f}",
+                        "best_ndcg_at_k": f"{snapshot.best_ndcg_at_k:.8f}",
+                        "best_hybrid": f"{snapshot.best_hybrid:.8f}",
+                        "stale": snapshot.stale,
+                        "k": config.k,
+                        "temperature": f"{config.temperature:.8f}",
+                        "teacher_temperature": f"{config.teacher_temperature:.8f}",
+                        "ridge": f"{config.ridge:.8f}",
+                        "hard_negs": config.hard_negs,
+                        "positive_count": config.positive_count,
+                        "selection_metric": selection_metric,
+                    }
+                )
             if stale >= config.patience:
                 break
 
-    best_metric = LearnedDiagonalMetric(block_dims, best_d, best_s)
-    best_hit = _hit_at_k_fast(labeled_list, all_stacked, dates_ord, best_metric, config.k)
-    return best_d, best_s, best_combined, best_hit, losses
+    return best_d, best_s, best_snapshot, losses, eval_history
 
 
 def _require_optuna() -> Any:
@@ -388,6 +586,45 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Train leakage-clean learned diagonal retriever")
     parser.add_argument("--data", default="stockmem/data/real_optimizer.json")
     parser.add_argument("--output", default="stockmem/config/learned_retriever.json")
+    parser.add_argument(
+        "--history-output",
+        default="artifacts/train_logs/learned_retriever_history.csv",
+        help="CSV path for per-trial/per-seed/per-eval-step logs.",
+    )
+    parser.add_argument(
+        "--selection-metric",
+        choices=["hit", "combined", "ndcg", "hybrid"],
+        default="hybrid",
+        help="Metric used to keep the best checkpoint during training.",
+    )
+    parser.add_argument(
+        "--outcome-weight",
+        type=float,
+        default=DEFAULT_TEACHER_WEIGHTS["outcome"],
+        help="Teacher relevance weight for future outcome similarity.",
+    )
+    parser.add_argument(
+        "--regime-weight",
+        type=float,
+        default=DEFAULT_TEACHER_WEIGHTS["regime"],
+        help="Teacher relevance weight for regime similarity.",
+    )
+    parser.add_argument(
+        "--surface-weight",
+        type=float,
+        default=DEFAULT_TEACHER_WEIGHTS["surface"],
+        help="Teacher relevance weight for current snapshot similarity.",
+    )
+    parser.add_argument(
+        "--init-artifact",
+        default=None,
+        help="Optional learned retriever artifact to warm-start from.",
+    )
+    parser.add_argument(
+        "--skip-optuna",
+        action="store_true",
+        help="Skip hyperparameter search and train directly with the configured defaults.",
+    )
     parser.add_argument("--trials", type=int, default=20)
     parser.add_argument("--epochs", type=int, default=60)
     parser.add_argument("--seeds", type=int, default=5)
@@ -397,114 +634,270 @@ def main() -> None:
 
     rows = load_rows(Path(args.data))
     validate_rows(rows)
-    o = _require_optuna()
+    history_path = Path(args.history_output)
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+    history_file = history_path.open("w", newline="", encoding="utf-8")
+    history_writer = csv.DictWriter(
+        history_file,
+        fieldnames=[
+            "trial",
+            "seed",
+            "epoch",
+            "loss",
+            "val_hit_at_k",
+            "val_combined",
+            "val_ndcg_at_k",
+            "val_hybrid",
+            "best_hit_at_k",
+            "best_combined",
+            "best_ndcg_at_k",
+            "best_hybrid",
+            "stale",
+            "k",
+            "temperature",
+            "teacher_temperature",
+            "ridge",
+            "hard_negs",
+            "positive_count",
+            "selection_metric",
+        ],
+    )
+    history_writer.writeheader()
+    teacher_total = args.outcome_weight + args.regime_weight + args.surface_weight
+    if teacher_total <= 1e-12:
+        raise ValueError("Teacher relevance weights must sum to a positive value")
+    init_diagonal: np.ndarray | None = None
+    init_scales: np.ndarray | None = None
+    if args.init_artifact:
+        payload = json.loads(Path(args.init_artifact).read_text(encoding="utf-8"))
+        init_diagonal = np.asarray(payload["d"], dtype=np.float64)
+        init_scales = np.asarray(payload["block_scales"], dtype=np.float64)
 
-    def objective(trial: Any) -> float:
-        band = trial.suggest_categorical("band", ["0.5sigma", "fixed"])
+    try:
+        def objective(trial: Any) -> float:
+            band = trial.suggest_categorical("band", ["0.5sigma", "fixed"])
+            labeled = label_rows(rows, band=band)
+            config = TrainConfig(
+                temperature=trial.suggest_float("temperature", 0.04, 0.3, log=True),
+                teacher_temperature=trial.suggest_categorical(
+                    "teacher_temperature",
+                    [0.05, 0.1, 0.2],
+                ),
+                ridge=trial.suggest_float("ridge", 1e-4, 0.2, log=True),
+                hard_negs=trial.suggest_categorical("hard_negs", [4, 8, 12]),
+                positive_count=trial.suggest_categorical("positive_count", [1, 3, 5]),
+                learning_rate=trial.suggest_float("learning_rate", 1e-3, 3e-2, log=True),
+                epochs=args.epochs,
+                k=trial.suggest_categorical("k", [3, 5, 7]),
+                outcome_weight=args.outcome_weight,
+                regime_weight=args.regime_weight,
+                surface_weight=args.surface_weight,
+            )
+            print(
+                f"trial={trial.number} start band={band} "
+                f"temp={config.temperature:.5f} teacher_temp={config.teacher_temperature:.3f} "
+                f"ridge={config.ridge:.6f} hard_negs={config.hard_negs} "
+                f"positive_count={config.positive_count} lr={config.learning_rate:.5f} "
+                f"k={config.k}",
+                flush=True,
+            )
+            _, _, best_snapshot, _, eval_history = train_one_seed(
+                labeled,
+                config,
+                args.seed + trial.number,
+                trial_number=trial.number,
+                history_writer=history_writer,
+                selection_metric=args.selection_metric,
+                init_diagonal=init_diagonal,
+                init_scales=init_scales,
+            )
+            history_file.flush()
+            val_hit = best_snapshot.best_hit_at_k if best_snapshot else 0.0
+            val_combined = best_snapshot.best_combined if best_snapshot else 0.0
+            val_ndcg = best_snapshot.best_ndcg_at_k if best_snapshot else 0.0
+            objective_value = _selection_value(
+                args.selection_metric,
+                val_hit_at_k=val_hit,
+                val_combined=val_combined,
+                val_ndcg_at_k=val_ndcg,
+            )
+            print(
+                f"trial={trial.number} done val_hit@{config.k}={val_hit:.4f} "
+                f"val_combined={val_combined:.4f} "
+                f"val_ndcg@{config.k}={val_ndcg:.4f} "
+                f"objective={objective_value:.4f}",
+                flush=True,
+            )
+            trial.set_user_attr("val_hit_at_k", float(val_hit))
+            trial.set_user_attr("val_combined", float(val_combined))
+            trial.set_user_attr("best_ndcg_at_k", float(val_ndcg))
+            trial.set_user_attr("selection_metric", args.selection_metric)
+            trial.set_user_attr("selection_value", float(objective_value))
+            return objective_value
+
+        if args.skip_optuna:
+            params = {
+                "band": "fixed",
+                "temperature": 0.1,
+                "teacher_temperature": 0.1,
+                "ridge": 0.01,
+                "hard_negs": 8,
+                "positive_count": 3,
+                "learning_rate": 0.01,
+                "k": 5,
+            }
+            best_trial_number = None
+            best_trial_value = None
+            best_trial_hit = None
+            best_trial_combined = None
+            best_trial_ndcg = None
+        else:
+            o = _require_optuna()
+            study = o.create_study(
+                direction="maximize",
+                sampler=o.samplers.TPESampler(seed=args.seed),
+                study_name="stockmem_learned_retriever",
+            )
+            study.optimize(objective, n_trials=max(1, args.trials), show_progress_bar=False)
+            params = study.best_trial.params
+            best_trial_number = int(study.best_trial.number)
+            best_trial_value = float(study.best_trial.value)
+            best_trial_hit = float(study.best_trial.user_attrs.get("val_hit_at_k", 0.0))
+            best_trial_combined = float(
+                study.best_trial.user_attrs.get("val_combined", 0.0)
+            )
+            best_trial_ndcg = float(
+                study.best_trial.user_attrs.get("best_ndcg_at_k", 0.0)
+            )
+        band = str(params["band"])
         labeled = label_rows(rows, band=band)
+        block_dims = tuple(block.size for block in labeled[0].blocks)
+        split_counts: dict[str, int] = {}
+        direction_counts: dict[str, int] = {}
+        for item in labeled:
+            split_counts[item.split] = split_counts.get(item.split, 0) + 1
+            direction_key = f"{item.split}:{item.direction}"
+            direction_counts[direction_key] = direction_counts.get(direction_key, 0) + 1
         config = TrainConfig(
-            temperature=trial.suggest_float("temperature", 0.04, 0.3, log=True),
-            teacher_temperature=trial.suggest_categorical(
-                "teacher_temperature",
-                [0.05, 0.1, 0.2],
-            ),
-            ridge=trial.suggest_float("ridge", 1e-4, 0.2, log=True),
-            hard_negs=trial.suggest_categorical("hard_negs", [4, 8, 12]),
-            positive_count=trial.suggest_categorical("positive_count", [1, 3, 5]),
-            learning_rate=trial.suggest_float("learning_rate", 1e-3, 3e-2, log=True),
+            temperature=float(params["temperature"]),
+            teacher_temperature=float(params["teacher_temperature"]),
+            ridge=float(params["ridge"]),
+            hard_negs=int(params["hard_negs"]),
+            positive_count=int(params["positive_count"]),
+            learning_rate=float(params["learning_rate"]),
             epochs=args.epochs,
-            k=trial.suggest_categorical("k", [3, 5, 7]),
+            k=int(params["k"]),
+            outcome_weight=args.outcome_weight,
+            regime_weight=args.regime_weight,
+            surface_weight=args.surface_weight,
         )
-        _, _, val_combined, _, _ = train_one_seed(labeled, config, args.seed + trial.number)
-        return val_combined
 
-    study = o.create_study(
-        direction="maximize",
-        sampler=o.samplers.TPESampler(seed=args.seed),
-        study_name="stockmem_learned_retriever",
-    )
-    study.optimize(objective, n_trials=max(1, args.trials), show_progress_bar=False)
-    params = study.best_trial.params
-    band = str(params["band"])
-    labeled = label_rows(rows, band=band)
-    block_dims = tuple(block.size for block in labeled[0].blocks)
-    config = TrainConfig(
-        temperature=float(params["temperature"]),
-        teacher_temperature=float(params["teacher_temperature"]),
-        ridge=float(params["ridge"]),
-        hard_negs=int(params["hard_negs"]),
-        positive_count=int(params["positive_count"]),
-        learning_rate=float(params["learning_rate"]),
-        epochs=args.epochs,
-        k=int(params["k"]),
-    )
+        diagonals: list[np.ndarray] = []
+        scales_list: list[np.ndarray] = []
+        val_combineds: list[float] = []
+        val_hits_at_k: list[float] = []
+        val_ndcgs_at_k: list[float] = []
+        for seed in range(args.seed, args.seed + max(1, args.seeds)):
+            diagonal, scales, best_snapshot, losses, eval_history = train_one_seed(
+                labeled,
+                config,
+                seed,
+                history_writer=history_writer,
+                selection_metric=args.selection_metric,
+                init_diagonal=init_diagonal,
+                init_scales=init_scales,
+            )
+            diagonals.append(diagonal)
+            scales_list.append(scales)
+            val_combined = best_snapshot.best_combined if best_snapshot else 0.0
+            val_hit = best_snapshot.best_hit_at_k if best_snapshot else 0.0
+            val_ndcg = best_snapshot.best_ndcg_at_k if best_snapshot else 0.0
+            val_combineds.append(val_combined)
+            val_hits_at_k.append(val_hit)
+            val_ndcgs_at_k.append(val_ndcg)
+            history_file.flush()
+            best_epoch = best_snapshot.epoch if best_snapshot else 0
+            final_loss = losses[-1] if losses else 0.0
+            print(
+                f"seed={seed} best_epoch={best_epoch} "
+                f"val_combined={val_combined:.4f} val_hit@{config.k}={val_hit:.4f} "
+                f"val_ndcg@{config.k}={val_ndcgs_at_k[-1]:.4f} "
+                f"final_loss={final_loss:.6f}",
+                flush=True,
+            )
 
-    diagonals: list[np.ndarray] = []
-    scales_list: list[np.ndarray] = []
-    val_combineds: list[float] = []
-    val_hits_at_k: list[float] = []
-    for seed in range(args.seed, args.seed + max(1, args.seeds)):
-        diagonal, scales, val_combined, val_hit, losses = train_one_seed(labeled, config, seed)
-        diagonals.append(diagonal)
-        scales_list.append(scales)
-        val_combineds.append(val_combined)
-        val_hits_at_k.append(val_hit)
-        print(f"seed={seed} val_combined={val_combined:.4f} val_hit@{config.k}={val_hit:.4f} final_loss={losses[-1]:.6f}")
-
-    averaged_d = np.mean(np.vstack(diagonals), axis=0)
-    averaged_scales = np.mean(np.vstack(scales_list), axis=0)
-    averaged_scales /= averaged_scales.sum()
-    payload = {
-        "version": "learned_cem_v2",
-        "type": "learned_diagonal",
-        "dim": int(averaged_d.size),
-        "block_dims": list(block_dims),
-        "d": averaged_d.tolist(),
-        "block_scales": averaged_scales.tolist(),
-        "band": band,
-        "trained_at": datetime.now(timezone.utc).isoformat(),
-        "splits": {
-            "train": ["2023-01-01", "2024-12-24"],
-            "val": ["2025-01-01", "2025-06-23"],
-            "test": ["2025-07-01", "2026-05-01"],
-            "embargo_days": 7,
-        },
-        "hyperparameters": {
-            "temperature": config.temperature,
-            "teacher_temperature": config.teacher_temperature,
-            "ridge": config.ridge,
-            "hard_negs": config.hard_negs,
-            "positive_count": config.positive_count,
-            "flat_negs": config.flat_negs,
-            "learning_rate": config.learning_rate,
-            "epochs": config.epochs,
-            "k": config.k,
-        },
-        "val_combined": float(np.mean(val_combineds)),
-        "val_hit_at_k": float(np.mean(val_hits_at_k)),
-        "val_hit_at_5": float(np.mean(val_hits_at_k)),
-        "seed_std": float(np.std(val_hits_at_k)),
-        "seeds": list(range(args.seed, args.seed + max(1, args.seeds))),
-        "source": args.data,
-        "mining_protocol": {
-            "version": "outcome_regime_distillation_v1",
-            "teacher_relevance": {
-                "outcome_magnitude_similarity": 0.45,
-                "causal_volatility_similarity": 0.35,
-                "fixed_knn_surface_similarity": 0.20,
+        averaged_d = np.mean(np.vstack(diagonals), axis=0)
+        averaged_scales = np.mean(np.vstack(scales_list), axis=0)
+        averaged_scales /= averaged_scales.sum()
+        payload = {
+            "version": "learned_cem_v2",
+            "type": "learned_diagonal",
+            "dim": int(averaged_d.size),
+            "block_dims": list(block_dims),
+            "d": averaged_d.tolist(),
+            "block_scales": averaged_scales.tolist(),
+            "band": band,
+            "trained_at": datetime.now(timezone.utc).isoformat(),
+            "splits": {
+                "train": ["2023-01-01", "2024-12-24"],
+                "val": ["2025-01-01", "2025-06-23"],
+                "test": ["2025-07-01", "2026-05-01"],
+                "embargo_days": 7,
+                "counts": split_counts,
+                "direction_counts": direction_counts,
             },
-            "hard_negative_shortlist": "top_4x_fixed_knn_then_current_metric",
-            "flat_candidates_retained": True,
-        },
-    }
-    output = Path(args.output)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    print(
-        f"wrote {output} val_combined={np.mean(val_combineds):.4f} "
-        f"val_hit@k={np.mean(val_hits_at_k):.4f} "
-        f"seed_std={np.std(val_hits_at_k):.4f}"
-    )
+            "hyperparameters": {
+                "temperature": config.temperature,
+                "teacher_temperature": config.teacher_temperature,
+                "ridge": config.ridge,
+                "hard_negs": config.hard_negs,
+                "positive_count": config.positive_count,
+                "flat_negs": config.flat_negs,
+                "learning_rate": config.learning_rate,
+                "epochs": config.epochs,
+                "k": config.k,
+            },
+            "val_combined": float(np.mean(val_combineds)),
+            "val_hit_at_k": float(np.mean(val_hits_at_k)),
+            "val_hit_at_5": float(np.mean(val_hits_at_k)),
+            "val_ndcg_at_k": float(np.mean(val_ndcgs_at_k)),
+            "seed_std": float(np.std(val_hits_at_k)),
+            "seeds": list(range(args.seed, args.seed + max(1, args.seeds))),
+            "source": args.data,
+            "history_output": str(history_path),
+            "best_trial": {
+                "number": best_trial_number,
+                "value": best_trial_value,
+                "params": params,
+                "val_hit_at_k": best_trial_hit,
+                "val_combined": best_trial_combined,
+                "val_ndcg_at_k": best_trial_ndcg,
+            },
+            "selection_metric": args.selection_metric,
+            "mining_protocol": {
+                "version": "outcome_regime_distillation_v1",
+                "teacher_relevance": {
+                    "outcome_magnitude_similarity": config.outcome_weight,
+                    "causal_volatility_similarity": config.regime_weight,
+                    "fixed_knn_surface_similarity": config.surface_weight,
+                },
+                "hard_negative_shortlist": "top_4x_fixed_knn_then_current_metric",
+                "flat_candidates_retained": True,
+            },
+        }
+        output = Path(args.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        print(
+            f"wrote {output} val_combined={np.mean(val_combineds):.4f} "
+            f"val_hit@k={np.mean(val_hits_at_k):.4f} "
+            f"val_ndcg@k={np.mean(val_ndcgs_at_k):.4f} "
+            f"seed_std={np.std(val_hits_at_k):.4f} "
+            f"history={history_path}",
+            flush=True,
+        )
+    finally:
+        history_file.close()
 
 
 if __name__ == "__main__":

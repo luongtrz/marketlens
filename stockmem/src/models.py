@@ -69,6 +69,7 @@ class StockMemRecord(BaseModel):
     date: date
     symbol: str
     sentiment_score: float
+    finbert_sentiment_score: Optional[float] = None
     sentiment_label: str = "neutral"
     factors: list[str]
     normalized_factors: list[Any] = Field(default_factory=list)

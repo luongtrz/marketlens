@@ -16,6 +16,11 @@ VAL_START = date(2025, 1, 1)
 VAL_END = date(2025, 6, 23)
 TEST_START = date(2025, 7, 1)
 TEST_END = date(2026, 5, 1)
+DEFAULT_TEACHER_WEIGHTS = {
+    "outcome": 0.45,
+    "regime": 0.35,
+    "surface": 0.20,
+}
 
 
 @dataclass(frozen=True)
@@ -154,16 +159,93 @@ def teacher_relevance(
     candidate: LabeledRow,
     *,
     baseline_similarity: float,
+    outcome_weight: float = DEFAULT_TEACHER_WEIGHTS["outcome"],
+    regime_weight: float = DEFAULT_TEACHER_WEIGHTS["regime"],
+    surface_weight: float = DEFAULT_TEACHER_WEIGHTS["surface"],
 ) -> float:
     """Outcome-derived proxy for FinSeer's unavailable LLM relevance reward."""
     if anchor.direction == 0 or candidate.direction != anchor.direction:
         return 0.0
+    total = outcome_weight + regime_weight + surface_weight
+    if total <= 1e-12:
+        raise ValueError("Teacher relevance weights must sum to a positive value")
     surface_similarity = float(np.clip((baseline_similarity + 1.0) / 2.0, 0.0, 1.0))
     return (
-        0.45 * _outcome_similarity(anchor, candidate)
-        + 0.35 * _regime_similarity(anchor, candidate)
-        + 0.20 * surface_similarity
-    )
+        outcome_weight * _outcome_similarity(anchor, candidate)
+        + regime_weight * _regime_similarity(anchor, candidate)
+        + surface_weight * surface_similarity
+    ) / total
+
+
+def snapshot_similarity(
+    anchor: LabeledRow,
+    candidate: LabeledRow,
+    *,
+    weights: tuple[float, float, float],
+) -> float:
+    w1, w2, w3 = weights
+    return weighted_similarity(anchor.row, candidate.row, w1, w2, w3)
+
+
+def teacher_relevance_for_pool(
+    anchor: LabeledRow,
+    pool: Sequence[LabeledRow],
+    *,
+    weights: tuple[float, float, float],
+    outcome_weight: float = DEFAULT_TEACHER_WEIGHTS["outcome"],
+    regime_weight: float = DEFAULT_TEACHER_WEIGHTS["regime"],
+    surface_weight: float = DEFAULT_TEACHER_WEIGHTS["surface"],
+) -> dict[int, float]:
+    w1, w2, w3 = weights
+    out: dict[int, float] = {}
+    for row in pool:
+        baseline_similarity = weighted_similarity(anchor.row, row.row, w1, w2, w3)
+        out[id(row)] = teacher_relevance(
+            anchor,
+            row,
+            baseline_similarity=baseline_similarity,
+            outcome_weight=outcome_weight,
+            regime_weight=regime_weight,
+            surface_weight=surface_weight,
+        )
+    return out
+
+
+def ndcg_at_k(
+    ranked_relevances: Sequence[float],
+    ideal_relevances: Sequence[float],
+    k: int,
+) -> float:
+    if k <= 0:
+        return 0.0
+    ranked = [max(0.0, float(rel)) for rel in ranked_relevances[:k]]
+    ideal = sorted((max(0.0, float(rel)) for rel in ideal_relevances), reverse=True)[:k]
+    if not ranked or not ideal:
+        return 0.0
+
+    def _dcg(values: Sequence[float]) -> float:
+        total = 0.0
+        for index, rel in enumerate(values, start=1):
+            gain = float(rel)
+            total += gain / np.log2(index + 1.0)
+        return total
+
+    ideal_dcg = _dcg(ideal)
+    if ideal_dcg <= 1e-12:
+        return 0.0
+    return min(1.0, _dcg(ranked) / ideal_dcg)
+
+
+def hybrid_selection_score(
+    ndcg: float,
+    combined: float,
+    *,
+    combined_floor: float = -0.4,
+    combined_ceiling: float = 0.6,
+) -> float:
+    clipped = min(max(combined, combined_floor), combined_ceiling)
+    normalized = (clipped - combined_floor) / (combined_ceiling - combined_floor)
+    return 0.5 * float(ndcg) + 0.5 * float(normalized)
 
 
 def mine_candidates(
@@ -176,6 +258,9 @@ def mine_candidates(
     flat_negs: int = 2,
     learned_score: Callable[[LabeledRow, LabeledRow], float] | None = None,
     baseline_scores_override: dict[int, float] | None = None,
+    outcome_weight: float = DEFAULT_TEACHER_WEIGHTS["outcome"],
+    regime_weight: float = DEFAULT_TEACHER_WEIGHTS["regime"],
+    surface_weight: float = DEFAULT_TEACHER_WEIGHTS["surface"],
 ) -> MinedCandidates | None:
     if anchor.direction == 0:
         return None
@@ -199,6 +284,9 @@ def mine_candidates(
             anchor,
             row,
             baseline_similarity=baseline_scores[id(row)],
+            outcome_weight=outcome_weight,
+            regime_weight=regime_weight,
+            surface_weight=surface_weight,
         ),
         reverse=True,
     )
@@ -208,6 +296,9 @@ def mine_candidates(
             anchor,
             row,
             baseline_similarity=baseline_scores[id(row)],
+            outcome_weight=outcome_weight,
+            regime_weight=regime_weight,
+            surface_weight=surface_weight,
         )
         for row in selected_positives
     )
