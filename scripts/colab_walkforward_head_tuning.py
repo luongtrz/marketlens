@@ -56,6 +56,15 @@ class HeadConfig:
         }
 
 
+@dataclass(frozen=True)
+class SearchSpace:
+    k_choices: tuple[int, ...]
+    buy_range: tuple[float, float]
+    sell_range: tuple[float, float]
+    threshold_grid: tuple[float, ...]
+    prior_alpha: tuple[float, float, float, float, float]
+
+
 def _month_start(day: date) -> date:
     return day.replace(day=1)
 
@@ -322,19 +331,23 @@ def _selection_score(metrics: dict[str, object]) -> float:
     return 0.30 * buy + 0.30 * sell + 0.20 * active + 0.10 * overall + 0.10 * coverage
 
 
-def _dirichlet5(rng: random.Random) -> list[float]:
-    draws = np.asarray([-math.log(max(rng.random(), 1e-12)) for _ in range(5)], dtype=np.float64)
+def _gamma_sample(rng: random.Random, alpha: float) -> float:
+    return rng.gammavariate(alpha, 1.0)
+
+
+def _dirichlet_prior(rng: random.Random, alpha: tuple[float, float, float, float, float]) -> list[float]:
+    draws = np.asarray([_gamma_sample(rng, max(a, 1e-3)) for a in alpha], dtype=np.float64)
     draws /= draws.sum()
     return [float(value) for value in draws]
 
 
-def _candidate_configs(trials: int, seed: int) -> list[HeadConfig]:
+def _candidate_configs(trials: int, seed: int, space: SearchSpace) -> list[HeadConfig]:
     rng = random.Random(seed)
     configs: list[HeadConfig] = [
         HeadConfig(k=5, buy_thr=2.0, sell_thr=2.0, return_weights=DEFAULT_RETURN_WEIGHTS)
     ]
-    for k in K_CHOICES:
-        for threshold in (2.0, 2.5, 3.0):
+    for k in space.k_choices:
+        for threshold in space.threshold_grid:
             configs.append(
                 HeadConfig(
                     k=k,
@@ -344,12 +357,12 @@ def _candidate_configs(trials: int, seed: int) -> list[HeadConfig]:
                 )
             )
     for _ in range(trials):
-        weights = _dirichlet5(rng)
+        weights = _dirichlet_prior(rng, space.prior_alpha)
         configs.append(
             HeadConfig(
-                k=rng.choice(K_CHOICES),
-                buy_thr=round(rng.uniform(1.0, 4.0), 2),
-                sell_thr=round(rng.uniform(1.0, 4.0), 2),
+                k=rng.choice(space.k_choices),
+                buy_thr=round(rng.uniform(*space.buy_range), 2),
+                sell_thr=round(rng.uniform(*space.sell_range), 2),
                 return_weights={
                     "1d": round(weights[0], 4),
                     "3d": round(weights[1], 4),
@@ -475,6 +488,86 @@ def _run_walkforward(
     }
 
 
+def _metric_mean_std(metrics_list: list[dict[str, object]], key: str) -> tuple[float, float]:
+    values = np.asarray([float(item[key]) for item in metrics_list], dtype=np.float64)
+    if values.size == 0:
+        return 0.0, 0.0
+    return float(values.mean()), float(values.std())
+
+
+def _stability_objective(
+    metrics_list: list[dict[str, object]],
+    variance_penalty: float,
+) -> float:
+    if not metrics_list:
+        return float("-inf")
+    score_vals = np.asarray([_selection_score(item) for item in metrics_list], dtype=np.float64)
+    overall_vals = np.asarray([float(item["overall_da_pct"]) for item in metrics_list], dtype=np.float64)
+    active_vals = np.asarray([float(item["active_acc_pct"]) for item in metrics_list], dtype=np.float64)
+    coverage_vals = np.asarray([float(item["coverage_pct"]) for item in metrics_list], dtype=np.float64)
+    return float(
+        score_vals.mean()
+        - variance_penalty * score_vals.std()
+        - 0.35 * variance_penalty * overall_vals.std()
+        - 0.20 * variance_penalty * active_vals.std()
+        - 0.10 * variance_penalty * coverage_vals.std()
+    )
+
+
+def _run_shared_stable_config(
+    name: str,
+    top_map: dict[int, np.ndarray],
+    days: list[date],
+    futures: np.ndarray,
+    folds: list[Fold],
+    configs: list[HeadConfig],
+    variance_penalty: float,
+) -> dict[str, object]:
+    fold_indices = [_fold_query_indices(days, fold) for fold in folds]
+    leaderboard: list[dict[str, object]] = []
+    best_config = configs[0]
+    best_score = float("-inf")
+    best_val_metrics: list[dict[str, object]] = []
+
+    for config in configs:
+        val_metrics = [
+            _evaluate_indices(val_queries, top_map, futures, config)
+            for val_queries, _ in fold_indices
+        ]
+        stable_score = _stability_objective(val_metrics, variance_penalty)
+        leaderboard.append(
+            {
+                "config": config.to_json(),
+                "stable_val_score": stable_score,
+                "val_summary": _summarize_fold_metrics(val_metrics),
+            }
+        )
+        if stable_score > best_score:
+            best_config = config
+            best_score = stable_score
+            best_val_metrics = val_metrics
+
+    test_metrics = [
+        _evaluate_indices(test_queries, top_map, futures, best_config)
+        for _, test_queries in fold_indices
+    ]
+    return {
+        "name": name,
+        "variance_penalty": variance_penalty,
+        "best_config": best_config.to_json(),
+        "best_stable_val_score": best_score,
+        "summary": {
+            "val": _summarize_fold_metrics(best_val_metrics),
+            "test": _summarize_fold_metrics(test_metrics),
+        },
+        "top_configs": sorted(
+            leaderboard,
+            key=lambda item: float(item["stable_val_score"]),
+            reverse=True,
+        )[:15],
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
@@ -487,11 +580,14 @@ def main() -> None:
     parser.add_argument("--weights", default="")
     parser.add_argument("--mode", choices=("quick", "full"), default="quick")
     parser.add_argument("--window", choices=("expanding", "rolling", "both"), default="both")
+    parser.add_argument("--config-mode", choices=("per_fold", "shared_stable", "both"), default="both")
+    parser.add_argument("--search-space", choices=("wide", "focused"), default="focused")
     parser.add_argument("--trials", type=int, default=None)
     parser.add_argument("--kmax", type=int, default=30)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--precompute-progress-every", type=int, default=250)
     parser.add_argument("--fold-progress-every", type=int, default=2)
+    parser.add_argument("--variance-penalty", type=float, default=0.35)
     parser.add_argument("--output", default=DEFAULT_OUTPUT)
     args = parser.parse_args()
 
@@ -527,7 +623,24 @@ def main() -> None:
         args.precompute_progress_every,
     )
 
-    configs = _candidate_configs(trials, args.seed)
+    if args.search_space == "focused":
+        search_space = SearchSpace(
+            k_choices=(3, 5, 7, 10, 15, 20),
+            buy_range=(1.25, 3.10),
+            sell_range=(1.25, 3.50),
+            threshold_grid=(1.5, 2.0, 2.5, 3.0),
+            prior_alpha=(1.8, 1.6, 2.4, 1.6, 1.2),
+        )
+    else:
+        search_space = SearchSpace(
+            k_choices=K_CHOICES,
+            buy_range=(1.0, 4.0),
+            sell_range=(1.0, 4.0),
+            threshold_grid=(2.0, 2.5, 3.0),
+            prior_alpha=(1.0, 1.0, 1.0, 1.0, 1.0),
+        )
+
+    configs = _candidate_configs(trials, args.seed, search_space)
     print(f"[search-space] {len(configs)} unique configs", flush=True)
 
     specs: list[tuple[str, WindowSpec]] = []
@@ -586,23 +699,53 @@ def main() -> None:
                     "step_months": spec.step_months,
                     "expanding": spec.expanding,
                 },
-                "learned": _run_walkforward(
-                    f"{window_name}:learned",
-                    learned_top,
-                    days,
-                    futures,
-                    folds,
-                    configs,
-                    args.fold_progress_every,
+                "per_fold": (
+                    {
+                        "learned": _run_walkforward(
+                            f"{window_name}:learned",
+                            learned_top,
+                            days,
+                            futures,
+                            folds,
+                            configs,
+                            args.fold_progress_every,
+                        ),
+                        "fixed": _run_walkforward(
+                            f"{window_name}:fixed",
+                            fixed_top,
+                            days,
+                            futures,
+                            folds,
+                            configs,
+                            args.fold_progress_every,
+                        ),
+                    }
+                    if args.config_mode in {"per_fold", "both"}
+                    else None
                 ),
-                "fixed": _run_walkforward(
-                    f"{window_name}:fixed",
-                    fixed_top,
-                    days,
-                    futures,
-                    folds,
-                    configs,
-                    args.fold_progress_every,
+                "shared_stable": (
+                    {
+                        "learned": _run_shared_stable_config(
+                            f"{window_name}:learned:shared_stable",
+                            learned_top,
+                            days,
+                            futures,
+                            folds,
+                            configs,
+                            args.variance_penalty,
+                        ),
+                        "fixed": _run_shared_stable_config(
+                            f"{window_name}:fixed:shared_stable",
+                            fixed_top,
+                            days,
+                            futures,
+                            folds,
+                            configs,
+                            args.variance_penalty,
+                        ),
+                    }
+                    if args.config_mode in {"shared_stable", "both"}
+                    else None
                 ),
             }
         )

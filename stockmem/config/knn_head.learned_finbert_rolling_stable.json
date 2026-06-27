@@ -1,0 +1,43 @@
+{
+  "name": "learned_finbert_rolling_stable_v1",
+  "source_report": "wf_rolling_stable.json",
+  "retriever": "learned_retriever_finbert",
+  "selection_protocol": {
+    "window": "rolling",
+    "config_mode": "shared_stable",
+    "search_space": "focused",
+    "variance_penalty": 0.35
+  },
+  "head": {
+    "k": 5,
+    "buy_threshold": 1.45,
+    "sell_threshold": 1.47,
+    "return_weights": {
+      "1d": 0.0161,
+      "3d": 0.1459,
+      "7d": 0.4549,
+      "15d": 0.1005,
+      "30d": 0.2827
+    }
+  },
+  "test_summary": {
+    "buy_da_pct_mean": 56.04570145200971,
+    "buy_da_pct_median": 51.401098901098905,
+    "buy_da_pct_std": 20.740716501426178,
+    "sell_da_pct_mean": 47.08060547563959,
+    "sell_da_pct_median": 48.529411764705884,
+    "sell_da_pct_std": 21.079326080710462,
+    "hold_da_pct_mean": 9.299339549339548,
+    "hold_da_pct_median": 8.012820512820513,
+    "hold_da_pct_std": 9.30222591580749,
+    "overall_da_pct_mean": 47.88470611118509,
+    "overall_da_pct_median": 45.23342836778332,
+    "overall_da_pct_std": 10.737428380655835,
+    "active_acc_pct_mean": 54.65328752677461,
+    "active_acc_pct_median": 51.267650834403085,
+    "active_acc_pct_std": 11.932464920263262,
+    "coverage_pct_mean": 84.58701156687614,
+    "coverage_pct_median": 85.63492063492063,
+    "coverage_pct_std": 5.002228565389203
+  }
+}
