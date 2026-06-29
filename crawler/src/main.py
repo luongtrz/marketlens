@@ -14,6 +14,7 @@ from crawler.src.db.writer import IngestionDBWriter
 from crawler.src.llm.client import LLMClient
 from crawler.src.rss.deduplicator import Deduplicator
 from crawler.src.rss.fetcher import FeedSource, RSSFetcher
+from shared.asset_tags import detect_asset_tags
 from shared.config.loader import load_yaml
 from shared.models.article import IngestionRecord, RawArticle
 
@@ -137,10 +138,19 @@ async def start() -> None:
                 continue
 
             content = article.text
+            page_headline = ""
             if config.fetch_content:
-                fetched = await fetcher.fetch_article_content(article.url)
-                content = fetched or content
-            if config.only_btc_eth and _determine_tag(article.title, content or "") == "General":
+                content, page_headline = await fetcher.fetch_article_page(article.url)
+                content = content or article.text
+
+            asset_tags = detect_asset_tags(article.title, content or "", article.url)
+            if not asset_tags and page_headline and page_headline.strip() != (article.title or "").strip():
+                alt_tags = detect_asset_tags(page_headline, content or "", article.url)
+                if alt_tags:
+                    article = article.model_copy(update={"title": page_headline.strip()})
+                    asset_tags = alt_tags
+
+            if config.only_btc_eth and not asset_tags:
                 await dedup.mark_seen(article.url)
                 seen_urls.add(article.url)
                 continue
@@ -175,7 +185,7 @@ async def start() -> None:
                 sentiment_label=sentiment_label,
                 factors=enriched.factors,
                 raw_text=content,
-                metadata={"category": article.category},
+                metadata={"category": article.category, "asset_tags": sorted(asset_tags)},
             )
             try:
                 await writer.write(record)
@@ -235,6 +245,8 @@ def _append_article_jsonl(path: Path, record: IngestionRecord) -> None:
 
 def _build_supabase_row(record: IngestionRecord) -> dict[str, object]:
     content = (record.raw_text or record.summary or record.article_name or "").strip()
+    asset_tags = detect_asset_tags(record.article_name, content, record.url)
+    coin = sorted(asset_tags) if asset_tags else ["General"]
     payload: dict[str, object] = {
         "header": (record.article_name or "Untitled")[:200],
         "content": content[:5000],
@@ -242,6 +254,7 @@ def _build_supabase_row(record: IngestionRecord) -> dict[str, object]:
         "crawled_at": record.date_crawled.isoformat(),
         "source_url": record.url,
         "sentiment_score": record.sentiment_score,
+        "coin": coin,
     }
     if record.summary and str(record.summary).strip():
         payload["summary"] = str(record.summary).strip()[:8000]
@@ -273,15 +286,6 @@ async def _write_to_supabase(
             )
     except Exception as exc:
         logger.warning("Supabase insert error: %s", str(exc)[:200])
-
-
-def _determine_tag(title: str, content: str) -> str:
-    text = f"{title} {content}".lower()
-    if "btc" in text or "bitcoin" in text:
-        return "BTC"
-    if "eth" in text or "ethereum" in text or "etherium" in text:
-        return "ETH"
-    return "General"
 
 
 if __name__ == "__main__":

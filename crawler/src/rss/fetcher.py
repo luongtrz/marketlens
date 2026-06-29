@@ -167,20 +167,34 @@ class RSSFetcher:
 
     async def fetch_article_content(self, url: str) -> str:
         """Fetch and extract article body text. Uses BeautifulSoup when available."""
+        content, _ = await self.fetch_article_page(url)
+        return content
+
+    async def fetch_article_headline(self, url: str) -> str:
+        """Best-effort ``og:title`` / ``<title>`` from article HTML."""
+        _, headline = await self.fetch_article_page(url)
+        return headline
+
+    async def fetch_article_page(self, url: str) -> tuple[str, str]:
+        """Single GET: return ``(body_text, headline)``."""
+
         try:
             resp = await self._client.get(url)
             if resp.status_code >= 400:
-                return ""
+                return "", ""
             html = resp.text
         except Exception:
-            return ""
+            return "", ""
 
         try:
             from bs4 import BeautifulSoup
         except Exception:
-            return _clean_text(_strip_tags(html))[:5000]
+            m = re.search(r"<title[^>]*>(.*?)</title>", html, flags=re.IGNORECASE | re.DOTALL)
+            headline = _clean_title_tag(m.group(1)) if m else ""
+            return _clean_text(_strip_tags(html))[:5000], headline
 
         soup = BeautifulSoup(html, "html.parser")
+        headline = _headline_from_soup(soup)
         for bad in soup(["script", "style", "noscript"]):
             bad.decompose()
 
@@ -188,7 +202,7 @@ class RSSFetcher:
         if host.endswith("cryptoslate.com"):
             root = soup.select_one(".post-box__content-flow")
             if root:
-                return _extract_by_nodes(root)
+                return _extract_by_nodes(root), headline
         if host.endswith("theblock.co"):
             root = (
                 soup.select_one("#articleContent .dynamic-content")
@@ -196,26 +210,48 @@ class RSSFetcher:
                 or soup.select_one("article .article-content .dynamic-content")
             )
             if root:
-                return _extract_by_nodes(root)
+                return _extract_by_nodes(root), headline
         if host.endswith("cointelegraph.com"):
             root = soup.select_one('[data-testid="html-renderer-container"]')
             if root:
-                return _extract_by_nodes(root)
+                return _extract_by_nodes(root), headline
         if host.endswith("coindesk.com"):
             root = soup.select_one('[data-module-name="article-body"]')
             if root:
-                return _extract_by_nodes(root)
+                return _extract_by_nodes(root), headline
         if host.endswith("decrypt.co"):
             root = soup.select_one("main .post-content") or soup.select_one(".post-content")
             if root:
-                return _extract_by_nodes(root)
+                return _extract_by_nodes(root), headline
 
         for selector in ("article", "main article", "main", ".article-content", ".post-content"):
             for node in soup.select(selector):
                 text = _extract_by_nodes(node)
                 if len(text) >= 200:
-                    return text[:5000]
-        return _clean_text(soup.get_text(" ", strip=True))[:5000]
+                    return text[:5000], headline
+        return _clean_text(soup.get_text(" ", strip=True))[:5000], headline
+
+
+def _headline_from_soup(soup: object) -> str:
+    try:
+        og = soup.find("meta", property="og:title") or soup.find("meta", attrs={"name": "og:title"})  # type: ignore[attr-defined]
+        if og and og.get("content"):
+            return _clean_title_tag(str(og["content"]))
+        title_tag = soup.title  # type: ignore[attr-defined]
+        if title_tag and title_tag.string:
+            return _clean_title_tag(title_tag.string)
+    except Exception:
+        pass
+    return ""
+
+
+def _clean_title_tag(raw: str) -> str:
+    title = _clean_text(raw)
+    for sep in (" | ", " - ", " — ", " – "):
+        if sep in title:
+            title = title.split(sep, 1)[0].strip()
+            break
+    return title[:500]
 
 
 def _extract_by_nodes(root: object) -> str:

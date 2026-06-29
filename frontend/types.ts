@@ -11,6 +11,7 @@ export interface NewsArticle {
   detailedSummary?: string;
   keyTakeaways?: string[];
   sentimentScore?: number; // model scale -1 (bearish) … +1 (bullish)
+  coin?: string[];
   tag?: string;
 }
 

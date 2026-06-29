@@ -9,15 +9,26 @@ import { formatSource } from '../utils/formatters';
 
 const ITEMS_PER_PAGE = 20;
 
-/** UI filter tags (BTC / ETH / General) when API omitted ``tag``. */
-function effectiveArticleTag(a: NewsArticle): string {
-  if (a.tag) return a.tag;
+/** Coin tags from Supabase; keyword fallback is only for old/mock API payloads. */
+function effectiveArticleCoins(a: NewsArticle): string[] {
+  if (Array.isArray(a.coin) && a.coin.length > 0) return a.coin;
+  if (a.tag) {
+    if (a.tag === 'BTC & ETH') return ['BTC', 'ETH'];
+    return [a.tag];
+  }
   const hay = `${a.title} ${a.snippet}`.toLowerCase();
-  const hasBtc = hay.includes('btc') || hay.includes('bitcoin');
-  const hasEth = hay.includes('ethereum') || /\beth\b/.test(hay);
-  if (hasBtc && !hasEth) return 'BTC';
-  if (hasEth && !hasBtc) return 'ETH';
-  return 'General';
+  const hasBtc = /\b(btc|bitcoin)\b/.test(hay);
+  const hasEth = /\b(eth|ethereum|ether)\b/.test(hay)
+    || /\b(vitalik|buterin|erc-?20|arbitrum|optimism|uniswap|aave|lido)\b/.test(hay);
+  const tags = [];
+  if (hasBtc) tags.push('BTC');
+  if (hasEth) tags.push('ETH');
+  return tags.length > 0 ? tags : ['General'];
+}
+
+function articleMatchesTag(article: NewsArticle, tag: string): boolean {
+  if (tag === 'All') return true;
+  return effectiveArticleCoins(article).includes(tag);
 }
 
 const NewsAnalysis: React.FC = () => {
@@ -46,12 +57,12 @@ const NewsAnalysis: React.FC = () => {
     return params.get('articleId');
   }, [location.search]);
 
-  /** True when filters allow PostgREST-backed paging (no client-only dimensions / “General” tag). */
+  /** True when filters allow PostgREST-backed paging (no client-only dimensions). */
   const canUseServerPaging = useMemo(
     () =>
       sentimentFilter === 'All' &&
       sortBy === 'Latest' &&
-      (tagFilter === 'All' || tagFilter === 'BTC' || tagFilter === 'ETH'),
+      (tagFilter === 'All' || tagFilter === 'BTC' || tagFilter === 'ETH' || tagFilter === 'General'),
     [sentimentFilter, sortBy, tagFilter],
   );
 
@@ -139,7 +150,7 @@ const NewsAnalysis: React.FC = () => {
     }
     return articles
       .filter((article) => {
-        if (tagFilter !== 'All' && effectiveArticleTag(article) !== tagFilter) {
+        if (!articleMatchesTag(article, tagFilter)) {
           return false;
         }
         if (sentimentFilter !== 'All' && article.sentiment !== sentimentFilter) {

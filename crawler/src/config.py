@@ -22,8 +22,18 @@ DEFAULT_FEEDS: list[FeedSourceConfig] = [
         category="crypto_news",
     ),
     FeedSourceConfig(
+        name="CoinDesk Ethereum",
+        url="https://www.coindesk.com/arc/outboundfeeds/rss/?outputType=xml&tag=ethereum",
+        category="crypto_news",
+    ),
+    FeedSourceConfig(
         name="CoinTelegraph",
         url="https://cointelegraph.com/rss",
+        category="crypto_news",
+    ),
+    FeedSourceConfig(
+        name="CoinTelegraph Ethereum",
+        url="https://cointelegraph.com/rss/tag/ethereum",
         category="crypto_news",
     ),
     FeedSourceConfig(
@@ -32,8 +42,18 @@ DEFAULT_FEEDS: list[FeedSourceConfig] = [
         category="crypto_news",
     ),
     FeedSourceConfig(
+        name="Decrypt Ethereum",
+        url="https://decrypt.co/feed/ethereum",
+        category="crypto_news",
+    ),
+    FeedSourceConfig(
         name="CryptoSlate",
         url="https://cryptoslate.com/feed/",
+        category="crypto_news",
+    ),
+    FeedSourceConfig(
+        name="CryptoSlate Ethereum",
+        url="https://cryptoslate.com/category/ethereum/feed/",
         category="crypto_news",
     ),
     FeedSourceConfig(

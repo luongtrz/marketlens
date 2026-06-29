@@ -1,6 +1,8 @@
 crawler:
   poll_interval_seconds: 60
   enable_summary: false
+  min_publish_year: 2018
+  sitemap_max_urls_per_source: 200000
   feeds:
     - name: "CoinTelegraph"
       url: "https://www.coindesk.com/arc/outboundfeeds/rss/"

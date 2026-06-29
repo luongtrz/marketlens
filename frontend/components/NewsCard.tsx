@@ -92,6 +92,9 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, onClick }) => {
   };
 
   const accentSentiment = label ?? 'Neutral';
+  const footerSentiment = label ?? (
+    article.sentimentScore !== undefined ? polarityFromUnitScore(article.sentimentScore) : 'Neutral'
+  );
 
   return (
     <div
@@ -116,15 +119,20 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, onClick }) => {
         {article.snippet}
       </p>
 
-      {article.sentimentScore !== undefined && (
-        <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
+      {(article.sentimentScore !== undefined || article.tag) && (
+        <div className="mt-auto flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
           <span
             className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${getFooterSentimentPillClass(
-              label ?? polarityFromUnitScore(article.sentimentScore),
+              footerSentiment,
             )}`}
           >
-            Sentiment: {formatUnitSentiment(article.sentimentScore)}
+            Sentiment: {formatUnitSentiment(article.sentimentScore ?? 0)}
           </span>
+          {article.tag ? (
+            <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              {article.tag}
+            </span>
+          ) : null}
         </div>
       )}
     </div>

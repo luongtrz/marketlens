@@ -16,6 +16,7 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from main_controller.src.orchestrator.pipeline import Pipeline
 from main_controller.src.orchestrator.steps import ModuleClients
+from shared.asset_tags import detect_asset_tags
 from shared.models.article import IngestionRecord
 from shared.models.prediction import PredictionResult, SignalType
 from shared.supabase_news import (
@@ -60,16 +61,31 @@ def _symbol_to_pair(tag: str) -> str:
     return f"{t}USDT"
 
 
-def _infer_ui_tag(title: str, snippet: str) -> str:
-    """Match News page filter options: BTC | ETH | General."""
-    t = f"{title} {snippet}".lower()
-    has_btc = "btc" in t or "bitcoin" in t
-    has_eth = "ethereum" in t or re.search(r"\beth\b", t) is not None
-    if has_btc and not has_eth:
+def _normalize_coin_tags(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    tags: list[str] = []
+    for item in value:
+        coin = str(item).strip()
+        if not coin:
+            continue
+        tags.append("General" if coin.upper() == "GENERAL" else coin.upper())
+    return sorted(set(tags))
+
+
+def _display_tag_from_coin(coin: list[str]) -> str:
+    if "BTC" in coin and "ETH" in coin:
+        return "BTC & ETH"
+    if "BTC" in coin:
         return "BTC"
-    if has_eth and not has_btc:
+    if "ETH" in coin:
         return "ETH"
     return "General"
+
+
+def _infer_ui_coin(title: str, snippet: str) -> list[str]:
+    tags = sorted(detect_asset_tags(title, snippet))
+    return tags if tags else ["General"]
 
 
 def _clamp_unit_sentiment(value: float) -> float:
@@ -96,7 +112,10 @@ def _ingestion_to_news_article(record: IngestionRecord, sentiment_score: float =
         else (record.article_name[:280] + "…" if len(record.article_name) > 280 else record.article_name)
     )
     resolved = snippet or ""
-    ui_tag = _infer_ui_tag(record.article_name or "", resolved)
+    coin = _normalize_coin_tags(record.metadata.get("coin"))
+    if not coin:
+        coin = _infer_ui_coin(record.article_name or "", resolved)
+    ui_tag = _display_tag_from_coin(coin)
     return {
         "id": record.id,
         "title": record.article_name,
@@ -107,6 +126,7 @@ def _ingestion_to_news_article(record: IngestionRecord, sentiment_score: float =
         "sentiment": sentiment,
         "summary": record.summary,
         "sentimentScore": s,
+        "coin": coin,
         "tag": ui_tag,
     }
 

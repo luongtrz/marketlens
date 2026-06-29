@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # List views: omit ``content`` → much smaller payloads than ``select=*`` (major latency win).
 # ``news_articles`` in Supabase stores only ``sentiment_score`` (numeric); label is derived in code.
-_NEWS_LITE_COLUMNS = "id,header,source_url,publish_at,crawled_at,sentiment_score,summary"
+_NEWS_LITE_COLUMNS = "id,header,source_url,publish_at,crawled_at,sentiment_score,summary,coin"
 
 
 def _coerce_sentiment_float(value: object) -> float:
@@ -85,6 +85,21 @@ def _stable_id(source_url: str) -> str:
     return hashlib.sha256(source_url.encode()).hexdigest()[:32]
 
 
+def _normalize_coin_tags(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    out: list[str] = []
+    for item in value:
+        coin = str(item).strip()
+        if not coin:
+            continue
+        if coin.upper() == "GENERAL":
+            out.append("General")
+        else:
+            out.append(coin.upper())
+    return sorted(set(out))
+
+
 def supabase_row_to_ingestion(row: dict[str, Any]) -> IngestionRecord:
     """Map a PostgREST row from ``news_articles`` to :class:`IngestionRecord`."""
     source_url = str(row.get("source_url") or "")
@@ -104,6 +119,7 @@ def supabase_row_to_ingestion(row: dict[str, Any]) -> IngestionRecord:
         summary_val = db_summary.strip()[:8000]
     else:
         summary_val = (content[:2000] if content else None)
+    coin_tags = _normalize_coin_tags(row.get("coin"))
     return IngestionRecord(
         id=rid,
         article_name=header[:500],
@@ -116,28 +132,31 @@ def supabase_row_to_ingestion(row: dict[str, Any]) -> IngestionRecord:
         sentiment_label=sentiment_label,
         factors=[],
         raw_text=content or None,
-        metadata={},
+        metadata={"coin": coin_tags},
     )
 
 
-def _row_text_matches_symbol(header: str, content: str, symbol: str) -> bool:
-    """Match articles to a trading pair using whole tokens, not naive substrings.
+def _row_text_matches_symbol(
+    header: str,
+    content: str,
+    symbol: str,
+    coin: object | None = None,
+) -> bool:
+    """Match articles to a trading pair, preferring Supabase ``coin`` tags when present."""
 
-    Substrings like ``"eth" in "tether"`` falsely tag stablecoin/podcast headlines as ETH.
-    """
-    sym = symbol.upper().strip()
-    text = f"{header} {content}".strip()
-    if not sym:
-        return True
-    if "BTC" in sym:
-        return bool(re.search(r"\b(btc|bitcoin)\b", text, re.IGNORECASE))
-    if "ETH" in sym:
-        return bool(re.search(r"\b(eth|ethereum)\b", text, re.IGNORECASE))
-    # Other pairs e.g. SOLUSDT → require the base ticker as a word.
-    base = sym.replace("USDT", "").replace("USD", "").replace("BUSD", "")
-    if base.isalpha() and 2 <= len(base) <= 8:
-        return bool(re.search(rf"\b{re.escape(base)}\b", text, re.IGNORECASE))
-    return False
+    sym = (symbol or "").upper().strip()
+    coin_tags = _normalize_coin_tags(coin)
+    if coin_tags:
+        if "BTC" in sym:
+            return "BTC" in coin_tags
+        if "ETH" in sym:
+            return "ETH" in coin_tags
+        if "GENERAL" in sym:
+            return "General" in coin_tags
+
+    from shared.asset_tags import text_matches_symbol
+
+    return text_matches_symbol(header, content, symbol)
 
 
 def _fmt_postgrest_dt(dt: datetime) -> str:
@@ -176,6 +195,19 @@ def _source_url_filter_params(source_host: str | None) -> dict[str, str]:
     if not hn:
         return {}
     return {"source_url": f"ilike.%{hn}%"}
+
+
+def _coin_filter_params(symbol: str) -> dict[str, str]:
+    sym = (symbol or "").upper().strip()
+    if not sym:
+        return {}
+    if "BTC" in sym:
+        return {"coin": "cs.{BTC}"}
+    if "ETH" in sym:
+        return {"coin": "cs.{ETH}"}
+    if "GENERAL" in sym:
+        return {"coin": "cs.{General}"}
+    return {}
 
 
 async def fetch_recent_news_source_hosts(
@@ -256,6 +288,26 @@ async def fetch_news_articles_from_supabase(
     dup_filters = _publish_dup_filters(publish_gte, publish_lte)
     url_host_extra = _source_url_filter_params(source_host)
 
+    coin_extra = _coin_filter_params(symbol)
+    if symbol and coin_extra:
+        rows = await svc.select_rows(
+            order="publish_at.desc",
+            limit=max(1, limit),
+            offset=max(0, offset),
+            columns=_NEWS_LITE_COLUMNS if lite else "*",
+            extra_params={**url_host_extra, **coin_extra} or None,
+            extra_duplicate_params=dup_filters or None,
+        )
+        out: list[IngestionRecord] = []
+        for raw in rows:
+            if not isinstance(raw, dict):
+                continue
+            try:
+                out.append(supabase_row_to_ingestion(raw))
+            except Exception as exc:
+                logger.warning("Skipping malformed Supabase row: %s", str(exc)[:120])
+        return out
+
     if symbol:
         # Need enough scanned rows before Python symbol filter — worst case (all scanned rows match pair).
         scan_floor = offset + limit + 50
@@ -280,7 +332,12 @@ async def fetch_news_articles_from_supabase(
             except Exception as exc:
                 logger.warning("Skipping malformed Supabase row: %s", str(exc)[:120])
                 continue
-            if not _row_text_matches_symbol(rec.article_name, rec.raw_text or "", symbol):
+            if not _row_text_matches_symbol(
+                rec.article_name,
+                rec.raw_text or "",
+                symbol,
+                rec.metadata.get("coin"),
+            ):
                 continue
             filtered.append(rec)
         chunk = filtered[offset : offset + limit]
@@ -355,6 +412,17 @@ async def count_news_articles_matching_symbol_from_supabase(
 
     dup_filters = _publish_dup_filters(publish_gte, publish_lte)
     url_host_extra = _source_url_filter_params(source_host)
+    coin_extra = _coin_filter_params(symbol)
+
+    if coin_extra:
+        total = await svc.count_rows(
+            columns="id",
+            order="publish_at.desc",
+            extra_params={**url_host_extra, **coin_extra} or None,
+            extra_duplicate_params=dup_filters or None,
+        )
+        return int(total or 0)
+
     rows = await svc.select_rows(
         order="publish_at.desc",
         limit=_SYM_FILTER_SCAN_CAP,
@@ -371,7 +439,12 @@ async def count_news_articles_matching_symbol_from_supabase(
             rec = supabase_row_to_ingestion(raw)
         except Exception:
             continue
-        if _row_text_matches_symbol(rec.article_name, rec.raw_text or "", symbol):
+        if _row_text_matches_symbol(
+            rec.article_name,
+            rec.raw_text or "",
+            symbol,
+            rec.metadata.get("coin"),
+        ):
             matched += 1
 
     return matched
