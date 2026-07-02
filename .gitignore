@@ -48,11 +48,17 @@ crawler/pids/
 ..myspace
 
 # Research artifacts — large data files, regenerable from scripts
+artifacts/
 artifacts/predictions/
 artifacts/datasets/
+results_tables/
+submission/
 
 # StockMem data — large JSON datasets (not code)
 stockmem/data/*.json
+
+# Generated experimental retriever artifacts
+stockmem/config/learned_retriever_head_aligned*.json
 
 # Reference papers / external docs (not code)
 docs/upgrade/PatchTST/
