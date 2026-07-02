@@ -23,4 +23,12 @@ class LLMClient(ABC):
         # Remove leading/trailing code fences
         raw = re.sub(r"^```(?:json)?\s*", "", raw.strip())
         raw = re.sub(r"\s*```$", "", raw.strip())
-        return json.loads(raw)  # type: ignore[no-any-return]
+        try:
+            return json.loads(raw)  # type: ignore[no-any-return]
+        except json.JSONDecodeError:
+            start = raw.find("{")
+            if start != -1:
+                decoder = json.JSONDecoder()
+                parsed, _ = decoder.raw_decode(raw[start:])
+                return parsed  # type: ignore[no-any-return]
+            raise

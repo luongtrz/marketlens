@@ -1,11 +1,20 @@
 """Groq LLM client — native Groq SDK backend with response cleaning for OSS models."""
 
+import asyncio
+import logging
+import os
 import re
 from dataclasses import dataclass, field
 
-from groq import AsyncGroq
+from groq import AsyncGroq, BadRequestError, RateLimitError
 
 from aihub.src.llm.base import LLMClient
+
+logger = logging.getLogger(__name__)
+_RETRY_AFTER_RE = re.compile(
+    r"please try again in (?:(?P<hours>\d+)h)?(?:(?P<minutes>\d+)m)?(?P<seconds>[0-9.]+)s",
+    flags=re.IGNORECASE,
+)
 
 
 @dataclass
@@ -42,6 +51,33 @@ class GroqClient(LLMClient):
     ) -> None:
         self._client = AsyncGroq(api_key=api_key)
         self._model = model
+        self._max_completion_tokens = int(os.environ.get("AIHUB_GROQ_MAX_COMPLETION_TOKENS", "64"))
+
+    @staticmethod
+    def _parse_retry_after_seconds(message: str) -> float | None:
+        match = _RETRY_AFTER_RE.search(message)
+        if not match:
+            return None
+        hours = int(match.group("hours") or 0)
+        minutes = int(match.group("minutes") or 0)
+        seconds = float(match.group("seconds") or 0.0)
+        return hours * 3600 + minutes * 60 + seconds
+
+    async def _create_with_backoff(self, create_kwargs: dict) -> object:
+        while True:
+            try:
+                return await self._client.chat.completions.create(**create_kwargs)
+            except RateLimitError as exc:
+                delay_seconds = self._parse_retry_after_seconds(str(exc))
+                if delay_seconds is None:
+                    raise
+                wait_seconds = min(delay_seconds + 1.0, 3600.0)
+                logger.warning(
+                    "Groq rate limit for model %s; sleeping %.1fs before retry",
+                    self._model,
+                    wait_seconds,
+                )
+                await asyncio.sleep(wait_seconds)
 
     async def _generate_raw(self, prompt: str, system: str | None = None) -> str:
         """Internal method to generate a raw response using the native Groq SDK."""
@@ -53,8 +89,8 @@ class GroqClient(LLMClient):
         create_kwargs: dict = dict(
             model=self._model,
             messages=messages,  # type: ignore[arg-type]
-            temperature=0.5,
-            max_completion_tokens=2048,
+            temperature=0.2,
+            max_completion_tokens=self._max_completion_tokens,
             top_p=1,
             stream=False,
             stop=None,
@@ -64,7 +100,16 @@ class GroqClient(LLMClient):
         if "gpt-oss" in self._model.lower():
             create_kwargs["reasoning_effort"] = "low"
 
-        resp = await self._client.chat.completions.create(**create_kwargs)
+        try:
+            resp = await self._create_with_backoff(create_kwargs)
+        except BadRequestError as exc:
+            message = str(exc).lower()
+            if "json_validate_failed" not in message:
+                raise
+            # Some Groq-hosted models reject strict JSON mode even when they can
+            # still follow a JSON-only prompt. Retry once without response_format.
+            create_kwargs.pop("response_format", None)
+            resp = await self._create_with_backoff(create_kwargs)
         return resp.choices[0].message.content or ""
 
     async def generate(self, prompt: str, system: str | None = None) -> str:
