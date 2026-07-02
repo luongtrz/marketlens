@@ -10,9 +10,10 @@
 ## Maintainability Note
 
 This report is written as a long-form academic paper, but it is structured so
-future revisions are easy to maintain. It uses plain Markdown plus small
-machine-readable blocks so that future OpenAI-assisted or human edits can
-update facts without rewriting the whole narrative. The report separates:
+future revisions are easy to maintain in a Prism/LaTeX workflow. It uses plain
+Markdown plus small machine-readable blocks so that future OpenAI-assisted or
+human edits can update facts without rewriting the whole narrative. The report
+separates:
 
 - **the system objective**: demonstrate a structured StockMem pipeline for
   historical evidence retrieval;
@@ -23,12 +24,12 @@ update facts without rewriting the whole narrative. The report separates:
 - **the citation layer**: references are centralized in the final section and
   mirrored in `docs/references.md`.
 
-The report also uses a PRISMA-like evidence ledger in Section 3. It is not a
-formal medical PRISMA review; it borrows the transparency principle from the
-PRISMA reporting tradition [10] and adapts it into a screening table for
-internal experiments, retained artifacts, and reported claims.
+The report also uses a structured evidence ledger in Section 3. It is a
+lightweight paper-maintenance device: experiments, artifacts, tables, and
+claims are separated so the document can be converted to LaTeX or revised with
+OpenAI assistance without losing traceability.
 
-### Report Maintenance Schema
+### Prism/LaTeX Maintenance Schema
 
 The report can be maintained by updating the following conceptual schema:
 
@@ -62,6 +63,22 @@ report:
 When new results are produced, update this schema first, then update the
 corresponding table and interpretation section. This keeps historical claims,
 current evidence, and citation dependencies separate.
+
+For LaTeX conversion, the intended mapping is:
+
+```yaml
+latex_mapping:
+  title: "document title"
+  abstract: "abstract environment"
+  sections: "numbered section/subsection hierarchy"
+  math_blocks: "equation or align environments"
+  result_tables: "table environments sourced from compact markdown/csv exports"
+  appendices: "appendix sections for formulas, traceability, and commands"
+  references: "bibtex-ready bibliography entries"
+```
+
+This keeps the report editable as Markdown while preserving the structure
+needed for a formal paper or thesis chapter.
 
 ---
 
@@ -265,8 +282,9 @@ hybrid retrieval variants.
 ## 3. Evidence Ledger And Audit Method
 
 This section records how internal evidence was selected for the maintained
-report. It is inspired by the transparency goals of PRISMA-style reviews, but
-adapted to engineering artifacts and experiments.
+report. The ledger is a Prism/LaTeX-ready structure for engineering artifacts:
+each claim should point to a table, each table should point to an artifact, and
+each artifact should have a clear evaluation protocol.
 
 The goal is claim traceability. Every numerical statement in the paper should
 map to one of four objects:
@@ -277,7 +295,7 @@ artifact -> table -> interpretation -> claim
 
 If an artifact changes, the corresponding table and claim can be updated
 without changing unrelated sections. This is the main maintenance benefit of
-the PRISMA-like structure.
+the structured ledger.
 
 ### 3.1 Evidence Sources
 
@@ -1937,5 +1955,3 @@ current D7 evaluation.
 [8] Dissemination-aware FinGPT reference. OpenReview: https://openreview.net/forum?id=l2nHuTk6nc
 
 [9] Yuqi Nie, Nam H. Nguyen, Phanwadee Sinthong, and Jayant Kalagnanam. *A Time Series is Worth 64 Words: Long-term Forecasting with Transformers*. arXiv:2211.14730, 2022. https://arxiv.org/abs/2211.14730
-
-[10] Matthew J. Page, Joanne E. McKenzie, Patrick M. Bossuyt, Isabelle Boutron, Tammy C. Hoffmann, Cynthia D. Mulrow, et al. *The PRISMA 2020 statement: an updated guideline for reporting systematic reviews*. BMJ 372:n71, 2021. https://doi.org/10.1136/bmj.n71

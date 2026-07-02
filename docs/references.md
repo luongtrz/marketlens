@@ -11,7 +11,6 @@
 7. StockMem event-reflection memory reference. arXiv:2512.02720. Local copy: `docs/upgrade/StockMem event-reflection memory.pdf`.
 8. Dissemination-aware FinGPT reference. OpenReview: https://openreview.net/forum?id=l2nHuTk6nc
 9. Yuqi Nie, Nam H. Nguyen, Phanwadee Sinthong, and Jayant Kalagnanam. *A Time Series is Worth 64 Words: Long-term Forecasting with Transformers*. arXiv:2211.14730, 2022. https://arxiv.org/abs/2211.14730
-10. Matthew J. Page, Joanne E. McKenzie, Patrick M. Bossuyt, Isabelle Boutron, Tammy C. Hoffmann, Cynthia D. Mulrow, et al. *The PRISMA 2020 statement: an updated guideline for reporting systematic reviews*. BMJ 372:n71, 2021. https://doi.org/10.1136/bmj.n71
 
 ## Local Reference Material
 
