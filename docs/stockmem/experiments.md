@@ -91,3 +91,5 @@ fixed kNN retriever + learned stable decision head
 
 The broader research conclusion is that StockMem is useful as structured
 historical memory, but more learned retrieval is not automatically better.
+
+For the full academic write-up, see [academic_paper.md](academic_paper.md).
