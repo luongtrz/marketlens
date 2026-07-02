@@ -1,7 +1,0 @@
-aihub
-crawler
-factor_ledge
-main_controller
-market_data
-shared
-stockmem

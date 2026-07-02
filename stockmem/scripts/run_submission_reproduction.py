@@ -48,6 +48,11 @@ def main() -> None:
     parser.add_argument("--dataset", default="data/exports/stockmem_records.ndjson")
     parser.add_argument("--out-dir", default="submission/stockmem_2026_07")
     parser.add_argument("--skip-llm", action="store_true", help="Skip Groq-backed naive LLM run")
+    parser.add_argument(
+        "--naive-summary",
+        default="artifacts/current_context_ai_eval/summary.json",
+        help="Existing naive LLM summary used when --skip-llm is set.",
+    )
     parser.add_argument("--llm-prompt-style", default="legacy", choices=["compact", "legacy"])
     args = parser.parse_args()
 
@@ -118,7 +123,11 @@ def main() -> None:
 
     naive_summary = naive_dir / "summary.json"
     if args.skip_llm:
-        naive_summary = Path("artifacts/current_context_ai_eval/summary.json")
+        naive_summary = Path(args.naive_summary)
+        if not naive_summary.exists():
+            raise FileNotFoundError(
+                f"--skip-llm requires an existing naive summary: {naive_summary}"
+            )
     _run(
         [
             py,

@@ -27,6 +27,7 @@ Thumbs.db
 # Python
 .venv/
 venv/
+*.egg-info/
 __pycache__/
 **/__pycache__/
 *.pyc
@@ -53,6 +54,8 @@ artifacts/predictions/
 artifacts/datasets/
 results_tables/
 submission/
+data/backtests/
+data/exports/
 
 # StockMem data — large JSON datasets (not code)
 stockmem/data/*.json

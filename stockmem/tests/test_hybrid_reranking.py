@@ -7,12 +7,12 @@ import numpy as np
 import pytest
 
 from stockmem.scripts.cem_dataset import LabeledRow
-from stockmem.scripts.evaluate_hybrid_retrieval import (
+from stockmem.scripts.experimental.evaluate_hybrid_retrieval import (
     _fixed_ranked,
     _with_basic_components,
     evaluate_ranker,
 )
-from stockmem.scripts.hybrid_reranking import (
+from stockmem.scripts.experimental.hybrid_reranking import (
     HybridRerankWeights,
     d7_label,
     rerank_knn_candidates,

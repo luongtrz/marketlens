@@ -1,48 +1,47 @@
-# Crypto News Intelligence Pipeline
+# MarketLens
 
-A modular, microservice-based system that continuously monitors crypto-related news, scores articles with AI models, correlates with market data, stores and retrieves historical patterns, and uses retrieval-augmented generation (RAG) to produce trading signal explanations and predictions.
+MarketLens is a crypto market intelligence system with news ingestion,
+market-data enrichment, StockMem historical retrieval, and AI-assisted
+prediction tooling. This branch is organized for a production-ready
+graduation-project submission: app code is kept, generated artifacts are
+ignored, and the maintained docs are grouped by domain.
 
-## Architecture
+## Start Here
 
-The system consists of 6 independent modules, each exposing its own HTTP REST API:
+- [Documentation map](docs/README.md)
+- [System architecture](docs/system/architecture.md)
+- [StockMem methodology](docs/stockmem/methodology.md)
+- [StockMem experiments](docs/stockmem/experiments.md)
+- [Reproducibility](docs/stockmem/reproducibility.md)
 
-| Module | Port | Responsibility |
-|---|---|---|
-| **Crawler** | 8000 | RSS feed polling, article enrichment via LLM |
-| **AIHub** | 8001 | Sentiment analysis (CryptoBert), factor extraction (SKGP), RAG prediction |
-| **MarketData** | 8002 | OHLCV data from Binance/TradingView, technical indicators |
-| **StockMem** | 8003 | Daily record storage, vector similarity search |
-| **FactorLedge** | 8004 | Factor normalization, cleaning, enrichment |
-| **MainController** | 8005 | Pipeline orchestration, scheduling, result assembly |
-| **LLMGateway** | 8006 | OpenCode Go gateway for final BUY/HOLD/SELL decisions |
-
-## Quick Start
+## Official StockMem Reproduction
 
 ```bash
-# Start all services
-docker-compose up -d
-
-# Trigger a pipeline run
-curl -X POST http://localhost:8005/run -d '{"symbol": "BTCUSDT", "trigger": "manual"}'
-
-# Check result
-curl http://localhost:8005/result/{run_id}
+docker run --rm \
+  --env-file .env \
+  -v "$PWD:/app" \
+  -w /app \
+  --entrypoint /bin/sh \
+  marketlens-aihub:latest \
+  -lc "PYTHONPATH=/app python stockmem/scripts/run_submission_reproduction.py \
+    --dataset data/exports/stockmem_records.ndjson \
+    --out-dir submission/stockmem_2026_07"
 ```
+
+If Groq quota is unavailable, use `--skip-llm` to reproduce the structured
+StockMem tables and reuse the existing local LLM summary.
 
 ## Development
 
 ```bash
-# Install dependencies
 pip install -e ".[dev]"
-
-# Run tests
 pytest
-
-# Run a single module
-uvicorn aihub.src.api:app --port 8001 --reload
-uvicorn llm_gateway.src.api:app --port 8006 --reload
 ```
 
-## Configuration
+The Docker image used during the experiments did not include `pytest`; use a
+development environment with the `dev` extras for the full test suite.
 
-Each module reads from environment variables and optional `config.yaml` files. See `architecture.md` for the full configuration reference.
+Generated folders such as `artifacts/`, `results_tables/`, `submission/`, and
+local dataset exports are intentionally ignored. To reproduce StockMem metrics,
+place the NDJSON export at `data/exports/stockmem_records.ndjson` or pass a
+custom `--dataset` path.
