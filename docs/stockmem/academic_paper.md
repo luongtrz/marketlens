@@ -42,13 +42,15 @@ report:
     label_threshold_pct: 2.0
   primary_claims:
     - structured_memory_beats_naive_llm
-    - fixed_knn_is_robust_retriever
-    - learned_head_is_strict_test_winner
-    - learned_and_hybrid_are_diagnostic_not_replacements
+    - learned_recency_retriever_is_current_evidence_winner
+    - consensus_head_is_current_directional_decision_winner
+    - pure_learned_retrieval_is_not_sufficient_without_trend_awareness
   primary_tables:
     - artifacts/current_context_ai_eval/summary.json
     - artifacts/learned_strict_test_v3/summary.json
     - artifacts/fixed_knn_component_ablation/summary.json
+    - artifacts/majority_consensus_retriever_eval_20260703/summary.json
+    - artifacts/consensus_retriever_heads_20260703/summary.json
   appendix_tables:
     - artifacts/hybrid_retrieval_frozen_v2/d7_consistency_eval.json
     - artifacts/learned_strict_test_head_aligned/summary.json
@@ -108,21 +110,23 @@ The results support a layered conclusion. First, the structured StockMem
 pipeline outperforms the naive LLM baseline on the shared held-out split:
 `fixed_knn_rolling_stable` reaches `0.3180` overall accuracy and `0.4236`
 active accuracy, compared with `0.2787` and `0.4031` for the naive LLM
-baseline. Second, the strongest strict structured variant is not a fully
-learned retriever. It is fixed kNN retrieval combined with a learned stable
-decision head, reaching `0.3508` overall accuracy, `0.4500` active accuracy,
-and `0.8525` coverage. Third, learned retrieval improves some retrieval and
-classification diagnostics, especially `Hit@5_same_sign`, but it does not
-clearly replace fixed kNN as the robust retrieval engine. Hybrid reranking and
-head-aligned retriever training were useful negative experiments: they
-clarified that learned scores can help some ranking or downstream metrics, but
-they do not yet dominate fixed kNN evidence retrieval.
+baseline. Second, the older strict structured table showed that fixed kNN plus
+a learned stable decision head was stronger than replacing the retriever alone,
+reaching `0.3508` overall accuracy, `0.4500` active accuracy, and `0.8525`
+coverage. Third, the stricter evidence-retrieval audit shows that
+`Hit@5_same_sign` was too permissive: pure fixed and pure learned retrieval
+both trail trend-aware evidence retrieval on `majority_same@10`. The current
+evidence winner is `learned_recency_50_50`, a fusion of learned historical
+similarity and recency decay, with test `majority@10 = 0.5443` and full-history
+`majority@10 = 0.5106`. When a validation-selected evidence-consensus head is
+placed over this retriever, the held-out test result improves to `0.5475`
+overall accuracy, `0.6826` active accuracy, and `0.7114` SELL DA.
 
 The main contribution is therefore not a claim that the most complex model is
 best. It is a defensible applied methodology: structured, leakage-controlled
 historical memory is more reliable than naive current-context LLM prompting for
-this task, and the current best StockMem architecture is a deterministic fixed
-kNN retriever with a validation-selected learned stable head.
+this task, and the best maintained pipeline is learned memory made trend-aware
+followed by a simple evidence-consensus decision head.
 
 ---
 
@@ -154,22 +158,25 @@ reranked the candidate set. Finally, mechanism-focused ablations separated the
 retriever from the decision head and compared the structured pipeline with a
 naive current-context LLM baseline.
 
-The result is nuanced but useful. Fixed kNN remains a strong retrieval method.
-Learned retrieval contains real signal, but it is not a clean replacement for
-fixed kNN on the final strict test. The largest strict-test gain comes from the
-learned stable decision head applied to fixed-kNN candidates. This matters for
-an applied graduation project because it shows not only that the pipeline works,
-but also why it works: a stable historical-memory retriever provides the
-evidence set, while the learned head improves how that evidence is converted
-into a decision.
+The result is nuanced but useful. Fixed kNN remains a strong baseline, and
+learned retrieval contains real signal, but neither pure fixed nor pure learned
+retrieval is the current evidence winner. The majority-consensus audit shows
+that D7 evidence retrieval must be trend-aware. The best maintained evidence
+retriever is `learned_recency_50_50`, which combines learned historical
+similarity with recency decay. Separately, the largest strict-test decision
+gain comes from the learned stable decision head applied to fixed-kNN
+candidates. This matters for an applied graduation project because it shows not
+only that the pipeline works, but also why it works: memory retrieval supplies
+auditable evidence, trend awareness improves evidence coherence, and the head
+controls how evidence becomes a decision.
 
 The paper makes five claims:
 
 1. **Structured memory beats naive prompting** on the official held-out split.
-2. **Fixed kNN is a robust evidence generator**, not a weak baseline.
-3. **The learned stable head is the main source of the strict-test gain**.
-4. **Learned retrieval and hybrid reranking are useful but not dominant** under
-   the current objective.
+2. **Trend-aware learned memory is the current evidence-retrieval winner**.
+3. **The learned stable head is the main source of the strict-test decision gain**.
+4. **Pure learned retrieval and hybrid reranking are useful but not dominant**
+   without trend awareness.
 5. **Negative results strengthen the methodology** because they separate
    retrieval quality from downstream decision quality.
 
@@ -234,7 +241,36 @@ StockMem experiments therefore use chronological splits, mature historical
 pools, rolling validation for hybrid tuning, and a final untouched held-out
 test period.
 
-### 2.5 Retrieval-Augmented Financial Forecasting
+### 2.5 Trend-Aware Evidence Retrieval
+
+The majority-consensus audit adds a second time-aware idea: the retriever
+itself must recognize trend persistence. This is not the same as using future
+data. For a query day `q` and historical candidate `c`, recency is known at
+inference:
+
+```text
+recency(q,c) = exp(-age_days(q,c) / h)
+```
+
+where `h` is a half-life-like decay constant. The maintained evidence retriever
+uses:
+
+```text
+score(q,c) =
+  0.5 * s_learned(q,c)
+  + 0.5 * recency(q,c)
+```
+
+with `h = 21` days. The learned component preserves historical analog
+matching, while recency acts as trend awareness. This design follows the same
+general logic as hybrid retrieval fusion [3], but the fused signals are
+financial-memory signals rather than lexical and dense document scores.
+
+This mechanism has a known failure mode: it can over-trust recent continuation
+when the market is near a reversal. The paper therefore treats the retriever as
+an evidence selector, not as a complete forecasting model.
+
+### 2.6 Retrieval-Augmented Financial Forecasting
 
 Recent financial RAG systems, including FinSeer-style financial time-series
 retrieval and StockMem-like event-reflection memory papers, motivate the
@@ -248,7 +284,7 @@ This project differs by emphasizing an applied, audit-friendly pipeline rather
 than an end-to-end learned model. It asks which component actually improves
 performance under strict held-out evaluation.
 
-### 2.6 Financial LLMs And Time-Series Forecasting Baselines
+### 2.7 Financial LLMs And Time-Series Forecasting Baselines
 
 Financial LLM work such as FinGPT shows why domain-specific financial language
 processing is useful, but also why data curation and controlled evaluation are
@@ -340,6 +376,7 @@ because a later corrected `v2` run fixed the global selector aggregation.
 | Feature-block ablation | Mechanism audit, with caveat that not every block is necessary. |
 | Hybrid reranking final and ablation summaries | Negative result for learned reranking as retrieval replacement. |
 | Head-aligned retriever test | Negative result showing overfit and event-block collapse. |
+| Majority-consensus retriever evaluation | Primary evidence-retrieval result using `majority_same@10`. |
 
 ### 3.5 Claim Ledger
 
@@ -349,8 +386,9 @@ paper:
 | Claim | Evidence source | Status |
 | --- | --- | --- |
 | Structured StockMem beats naive current-context LLM prompting. | `artifacts/current_context_ai_eval/summary.json` | Supported on the 305-row held-out test. |
-| Fixed kNN is a robust evidence generator. | strict comparison and hybrid retrieval results | Supported as the recommended retriever. |
-| Learned retrieval improves some evidence diagnostics. | `Hit@5_same_sign` in strict comparison | Supported but not sufficient for replacement. |
+| Fixed kNN is a robust baseline. | strict comparison and hybrid retrieval results | Supported as baseline, not final evidence retriever. |
+| Learned retrieval alone is insufficient. | majority-consensus retriever evaluation | Supported: learned-only does not beat trend-aware models on test/full. |
+| Learned memory plus trend awareness is the current evidence winner. | `artifacts/majority_consensus_retriever_eval_20260703/summary.json` | Supported by test and full-history `majority_same@10`. |
 | The learned stable head is the strongest strict-test decision layer. | `learned_strict_test_v3` | Supported by overall, active, and coverage metrics. |
 | Hybrid reranking is not the current winner. | hybrid reranking final and two-score ablation | Supported as a negative result. |
 | Every representation block is individually necessary. | feature-block ablation | Not supported; claim rejected. |
@@ -595,7 +633,37 @@ This is a metric-learning approach to nearest-neighbor retrieval. It can
 emphasize individual dimensions and blocks that are predictive under the
 training objective.
 
-### 6.4 Hybrid Reranking
+### 6.4 Trend-Aware Learned-Memory Retrieval
+
+The maintained evidence retriever combines learned historical similarity with
+known temporal proximity:
+
+```text
+s_current(q,c) =
+  0.5 * s_learned(q,c)
+  + 0.5 * exp(-age_days(q,c) / 21)
+```
+
+The model artifact is:
+
+```text
+stockmem/config/majority_consensus_retriever.learned_recency_50_50.json
+```
+
+This retriever is selected for evidence coherence, not final classifier
+accuracy. The selection metric is:
+
+```text
+majority_same@10 =
+  1 if at least 5 of top-10 retrieved candidates share the query D7 label
+  0 otherwise
+```
+
+The metric is stricter than `Hit@5_same_sign`, which only requires one matching
+candidate in the evidence set. The stricter metric better captures whether the
+retrieved evidence is directionally coherent enough to support a decision.
+
+### 6.5 Hybrid Reranking
 
 Hybrid reranking separates candidate generation from ordering:
 
@@ -816,7 +884,21 @@ Hit@5_same_sign(q) =
 
 The metric is averaged across queries.
 
-### 9.5 nDCG@5
+### 9.5 Majority Same D7 At 10
+
+For a query `q`, let `E_10(q)` be the top ten retrieved evidence records.
+
+```text
+majority_same@10(q) =
+  1 if sum_{c in E_10(q)} 1[label(c) = label(q)] >= 5
+  0 otherwise
+```
+
+This is stricter than `Hit@5_same_sign`: it measures whether the retrieved
+evidence set is directionally coherent, not merely whether it contains one
+matching case.
+
+### 9.6 nDCG@5
 
 Normalized discounted cumulative gain measures whether more relevant evidence
 is ranked closer to the top:
@@ -828,7 +910,7 @@ nDCG@5 = DCG@5 / IDCG@5
 
 where `IDCG@5` is the ideal DCG for the same candidate pool.
 
-### 9.6 Bootstrap Confidence Intervals
+### 9.7 Bootstrap Confidence Intervals
 
 For paired model comparison, the evaluation resamples rows with replacement,
 computes metric deltas, and reports the 2.5% and 97.5% quantiles:
@@ -838,7 +920,7 @@ Delta_m = m(challenger) - m(baseline)
 CI_95 = [Q_0.025(Delta_m), Q_0.975(Delta_m)]
 ```
 
-### 9.7 McNemar Exact Test
+### 9.8 McNemar Exact Test
 
 McNemar's test uses discordant paired correctness outcomes:
 
@@ -930,7 +1012,25 @@ decision?
 The answer from the first run is no. The artifact overfit validation and
 collapsed nearly all block weight onto the event block.
 
-### 10.6 Algorithmic Description
+### 10.6 Experiment F: Majority-Consensus Evidence Retrieval
+
+This experiment asks:
+
+```text
+Which retriever returns a top-10 evidence set with majority D7 consistency?
+```
+
+It compares:
+
+- fixed-only similarity,
+- learned-only similarity,
+- recency-only retrieval,
+- fixed/learned plus recency fusions,
+- constrained memory-first trend-aware retrievers.
+
+The maintained current evidence retriever is `learned_recency_50_50`.
+
+### 10.7 Algorithmic Description
 
 The official structured evaluation can be summarized as:
 
@@ -977,7 +1077,7 @@ y_hat = LLM(prompt)
 It has no `pool`, no historical evidence set, and no deterministic neighbor
 audit trail.
 
-### 10.7 Why The Test Is Strict
+### 10.8 Why The Test Is Strict
 
 The strict test is intentionally conservative:
 
@@ -1075,7 +1175,64 @@ McNemar p = 0.550709
 The full learned pipeline is descriptively better than fixed stable, but the
 paired uncertainty is wider.
 
-### 11.4 Feature-Block Ablation
+### 11.4 Majority-Consensus Evidence Retrieval
+
+Source: `artifacts/majority_consensus_retriever_eval_20260703/summary.json`.
+
+| Model | Val Majority@10 | Test Majority@10 | Full Majority@10 |
+| --- | ---: | ---: | ---: |
+| `fixed_only` | 0.4368 | 0.3639 | 0.3817 |
+| `learned_only` | 0.5057 | 0.3541 | 0.3755 |
+| `recency_only` | 0.6264 | 0.5180 | 0.5075 |
+| `unconstrained` | **0.6379** | 0.5246 | 0.5092 |
+| `memory_first_learned030` | 0.5977 | 0.5279 | 0.4967 |
+| `learned_recency_50_50` | 0.5920 | **0.5443** | **0.5106** |
+
+The evidence audit changes the retrieval interpretation. `Hit@5_same_sign`
+showed that learned retrieval could find at least one relevant case, but
+`majority_same@10` shows that pure learned similarity is not sufficient for a
+coherent evidence set. Recency is a strong continuation baseline, and the best
+maintained model is a learned-memory plus recency fusion.
+
+This does not mean old historical records are useless. It means that historical
+memory works best when conditioned by current trend phase. The paper therefore
+claims a trend-aware memory retriever, not a pure semantic learned retriever.
+
+### 11.5 Consensus Decision Head Over Trend-Aware Evidence
+
+Source: `artifacts/consensus_retriever_heads_20260703/summary.json`.
+
+After selecting `learned_recency_50_50` as the evidence retriever, the next
+audit searched simple deterministic heads over the retrieved top-10 set. The
+search was performed on validation only and compared count-vote, median-return,
+and mean-return heads. The selected head was:
+
+```text
+count_vote_buy3_sell4
+```
+
+This head emits `BUY` when at least 3 of the top-10 records are BUY and BUY
+outnumbers SELL. It emits `SELL` when at least 4 records are SELL and SELL is
+at least as frequent as BUY. Otherwise it emits `HOLD`.
+
+| Model | Split | n | Overall | Active | Coverage | BUY DA | HOLD DA | SELL DA |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `learned_recency_50_50 + count_vote_buy3_sell4` | val | 174 | 0.6379 | 0.7658 | 0.9080 | 0.7614 | 0.0345 | 0.7544 |
+| `learned_recency_50_50 + count_vote_buy3_sell4` | test | 305 | **0.5475** | **0.6826** | **0.9607** | 0.6224 | 0.0000 | **0.7114** |
+| old `fixed_knn_rolling_stable` | test | 305 | 0.3180 | 0.4236 | 0.7508 | 0.6327 | 0.2759 | 0.1275 |
+| old `fixed_retriever_learned_head` | test | 305 | 0.3508 | 0.4500 | 0.8525 | **0.7041** | 0.1552 | 0.1946 |
+| old `learned_finbert_rolling_stable` | test | 305 | 0.3410 | 0.4393 | 0.7836 | 0.5408 | 0.2414 | 0.2483 |
+
+Mean-return heads were also strong. The best validation-ranked mean head,
+`mean_d7_only_buy0.50_sell0.50`, reached `0.5508` overall test accuracy,
+`0.6840` active accuracy, and `0.7047` SELL DA. The count-vote head remains the
+official choice because it was selected by the validation criterion.
+
+This result should be interpreted as directional evidence aggregation rather
+than balanced three-class classification. The new head substantially improves
+SELL recognition, but HOLD DA is `0.0000` on the held-out test split.
+
+### 11.6 Feature-Block Ablation
 
 Source: `artifacts/fixed_knn_component_ablation/summary.json`.
 
@@ -1100,7 +1257,7 @@ correct interpretation is narrower:
 - future work should retune weights under the strict objective if block-level
   necessity is a primary claim.
 
-### 11.5 Hybrid Reranking
+### 11.7 Hybrid Reranking
 
 The corrected stable hybrid selected:
 
@@ -1134,7 +1291,7 @@ Hybrid reranking did not beat fixed kNN on the main retrieval objective. The
 contains ranking information, but it did not improve the main top-5 sign
 consistency target.
 
-### 11.6 Head-Aligned Retriever
+### 11.8 Head-Aligned Retriever
 
 The head-aligned retriever was trained to rank candidates that support the
 frozen learned head. It overfit:
@@ -1267,9 +1424,10 @@ evidence that the project tested plausible alternatives:
 
 This is important because a simple report could cherry-pick only the winning
 pipeline. The present report instead shows that the final recommendation is
-the result of a mechanism search. Fixed kNN plus learned head is selected not
-because it is the newest method, but because it gives the best strict-test
-tradeoff among tested variants.
+the result of a mechanism search. The older fixed-kNN plus learned-head result
+showed that the decision layer matters, while the newer consensus-head audit
+shows that the strongest maintained path is trend-aware learned-memory
+retrieval followed by a validation-selected evidence-consensus head.
 
 ### 12.9 Why This Is Defensible As An Applied Academic Project
 
@@ -1461,10 +1619,11 @@ variants.
 ### 15.4 Better Learned Retrieval Objective
 
 The learned retriever should not be retrained only to match semantic or event
-similarity. A better objective would optimize:
+similarity. The majority-consensus audit already shows that pure learned
+similarity is not enough. A better objective would optimize:
 
 ```text
-retrieval relevance + head decision quality + regime robustness
+retrieval relevance + trend awareness + reversal robustness + head decision quality
 ```
 
 without allowing event-block collapse. Constraints on block weights or
@@ -1472,10 +1631,10 @@ regularization against single-block dominance may help.
 
 ### 15.5 Multi-Asset Generalization
 
-The StockMem method should be tested on assets beyond BTC. If fixed kNN remains
-strong across assets, it strengthens the memory-based thesis. If learned
-retrieval helps more on smaller assets, it would clarify when semantic/event
-learning is most valuable.
+The StockMem method should be tested on assets beyond BTC. If trend-aware
+learned memory remains strong across assets, it strengthens the memory-based
+thesis. If pure recency dominates on some assets, it would clarify when the
+system is acting as a momentum baseline rather than a historical-memory system.
 
 ---
 
@@ -1490,13 +1649,13 @@ current market/news context
 structured StockMem record
         |
         v
-fixed weighted kNN retrieval
+trend-aware learned-memory retrieval
         |
         v
-top-5 historical evidence
+top-10 historical evidence
         |
         v
-learned stable decision head
+evidence consensus / learned stable decision head
         |
         v
 BUY / HOLD / SELL
@@ -1504,12 +1663,13 @@ BUY / HOLD / SELL
 
 This pipeline is defensible because:
 
-1. the retrieval stage is deterministic and interpretable;
+1. the evidence retrieval stage is deterministic, interpretable, and
+   trend-aware;
 2. the evidence pool is leakage-controlled;
 3. the decision head is validation-selected;
 4. the held-out test improves over naive LLM prompting;
-5. negative experiments show that more complex retrievers were tested but not
-   blindly adopted.
+5. negative experiments show that pure learned retrieval and hybrid reranking
+   were tested but not blindly adopted.
 
 ---
 
@@ -1519,18 +1679,22 @@ StockMem provides a structured historical-memory layer for crypto market
 decision support. The experiments show that a naive LLM given only current
 market and news context underperforms the structured StockMem pipeline on the
 shared held-out test. They also show that fixed kNN retrieval is a strong
-baseline and should not be dismissed as a weak heuristic. The best strict
-structured variant uses fixed kNN retrieval with a learned stable decision
-head, indicating that the main current gain comes from evidence aggregation
-rather than learned retriever replacement.
+baseline and should not be dismissed as a weak heuristic. However, the stricter
+majority-consensus audit changes the evidence-retrieval recommendation: the
+best maintained evidence retriever is `learned_recency_50_50`, which combines
+learned historical similarity with trend-aware recency. A validation-selected
+count-vote head over this evidence set becomes the maintained decision path,
+substantially improving directional test accuracy and SELL recognition over the
+older strict decision-table variants.
 
 The broader academic lesson is that retrieval-augmented market systems should
 evaluate mechanisms separately. Evidence retrieval, semantic similarity,
-decision aggregation, and trading policy are not the same objective. StockMem's
-current evidence supports a conservative and useful design: keep fixed kNN as
-the robust retrieval engine, use the learned stable head for decision support,
-and treat learned retrieval and hybrid reranking as research directions until
-they beat fixed kNN under the primary evidence target.
+trend awareness, decision aggregation, and trading policy are not the same
+objective. StockMem's current evidence supports a conservative and useful
+design: use learned-memory plus recency for evidence retrieval, use the
+validation-selected evidence-consensus head for directional decisions, and
+treat pure learned retrieval or hybrid reranking as research directions until
+they beat the trend-aware retriever under `majority_same@10`.
 
 ---
 
@@ -1911,17 +2075,18 @@ the recommended structure is:
    Describe MarketLens, StockMem, daily records, point-in-time constraints,
    and the role of retrieval in the pipeline.
 4. **Method**
-   Formalize labels, fixed kNN, learned diagonal retrieval, hybrid reranking,
-   and learned stable head.
+   Formalize labels, fixed kNN, learned diagonal retrieval, trend-aware
+   learned-memory retrieval, hybrid reranking, and learned stable head.
 5. **Experimental Protocol**
    Define train/validation/test windows, maturity guard, metrics, confidence
    intervals, and McNemar tests.
 6. **Results**
-   Present naive LLM comparison, structured model comparison, feature ablation,
-   hybrid reranking, and head-aligned negative result.
+   Present naive LLM comparison, structured model comparison, majority-consensus
+   retrieval, feature ablation, hybrid reranking, and head-aligned negative
+   result.
 7. **Discussion**
-   Explain why StockMem works, why fixed kNN remains strong, why learned head
-   helps, and why learned retrieval is not yet the production winner.
+   Explain why StockMem works, why trend awareness matters, why learned memory
+   must be fused with recency, and why pure learned retrieval is not yet enough.
 8. **Threats To Validity**
    Discuss BTC-only scope, test size, threshold sensitivity, prompt drift, and
    regime dependence.

@@ -43,6 +43,9 @@ docker run --rm \
 | `aihub/scripts/evaluate_naive_llm_baseline.py` | Current-context LLM baseline with resume/retry behavior. |
 | `stockmem/scripts/evaluate_stockmem_strict_models.py` | Strict structured model comparison. |
 | `stockmem/scripts/evaluate_stockmem_feature_ablation.py` | Fixed-kNN feature-block ablation. |
+| `stockmem/scripts/experimental/train_majority_consensus_retriever.py` | Train trend-aware majority-consensus retriever configs. |
+| `stockmem/scripts/experimental/evaluate_majority_consensus_retrievers.py` | Evaluate `majority_same@10` on val, test, and full history. |
+| `stockmem/scripts/experimental/evaluate_consensus_retriever_heads.py` | Select and test decision heads over the maintained consensus retriever. |
 | `stockmem/scripts/export_stockmem_report_tables.py` | Compact Markdown/CSV table export. |
 | `stockmem/scripts/run_submission_reproduction.py` | End-to-end reproduction orchestrator. |
 
@@ -56,6 +59,85 @@ docker run --rm \
 | `submission/stockmem_2026_07/fixed_knn_component_ablation/summary.json` | Feature-block ablation. |
 | `submission/stockmem_2026_07/tables/*.md` | Report-ready compact tables. |
 | `submission/stockmem_2026_07/tables/*.csv` | Spreadsheet-friendly tables. |
+
+## Trend-Aware Retrieval Reproduction
+
+The maintained evidence retriever is stored at:
+
+```text
+stockmem/config/majority_consensus_retriever.learned_recency_50_50.json
+```
+
+Re-evaluate it against fixed-only, learned-only, recency-only, and constrained
+memory-first variants:
+
+```bash
+docker run --rm \
+  -v "$PWD:/app" \
+  -w /app \
+  --entrypoint /usr/local/bin/python \
+  marketlens-aihub:latest \
+  stockmem/scripts/experimental/evaluate_majority_consensus_retrievers.py \
+    --data data/exports/stockmem_records.ndjson \
+    --weights stockmem/config/weights.auto.json \
+    --artifact stockmem/config/learned_retriever_finbert.json \
+    --out-dir artifacts/majority_consensus_retriever_eval_20260703 \
+    --top-k 10 \
+    --min-pool-size 10 \
+    --full-start-date 2018-01-01 \
+    --config learned_recency_50_50:stockmem/config/majority_consensus_retriever.learned_recency_50_50.json
+```
+
+Expected maintained result for `learned_recency_50_50`:
+
+| Split | n | Majority@10 | Mean same@10 | SELL majority@10 |
+| --- | ---: | ---: | ---: | ---: |
+| Validation | 174 | 0.5920 | 5.7874 | 0.7193 |
+| Test | 305 | 0.5443 | 5.2754 | 0.6779 |
+| Full history | 2871 | 0.5106 | 4.9721 | 0.5544 |
+
+Evaluate the validation-selected decision head over that retriever:
+
+```bash
+docker run --rm \
+  -v "$PWD:/app" \
+  -w /app \
+  --entrypoint /usr/local/bin/python \
+  marketlens-aihub:latest \
+  stockmem/scripts/experimental/evaluate_consensus_retriever_heads.py \
+    --data data/exports/stockmem_records.ndjson \
+    --weights stockmem/config/weights.auto.json \
+    --artifact stockmem/config/learned_retriever_finbert.json \
+    --config stockmem/config/majority_consensus_retriever.learned_recency_50_50.json \
+    --out-dir artifacts/consensus_retriever_heads_20260703 \
+    --top-k 10
+```
+
+Expected maintained test result:
+
+| Model | n | Overall | Active | Coverage | BUY DA | HOLD DA | SELL DA |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `learned_recency_50_50 + count_vote_buy3_sell4` | 305 | 0.5475 | 0.6826 | 0.9607 | 0.6224 | 0.0000 | 0.7114 |
+
+To retrain the constrained memory-first candidate:
+
+```bash
+docker run --rm \
+  -v "$PWD:/app" \
+  -w /app \
+  --entrypoint /usr/local/bin/python \
+  marketlens-aihub:latest \
+  stockmem/scripts/experimental/train_majority_consensus_retriever.py \
+    --data data/exports/stockmem_records.ndjson \
+    --weights stockmem/config/weights.auto.json \
+    --artifact stockmem/config/learned_retriever_finbert.json \
+    --out-dir artifacts/memory_first_retriever_20260703/min_learned_030 \
+    --top-k 10 \
+    --grid-step 0.1 \
+    --min-memory-weight 0.5 \
+    --min-learned-weight 0.3 \
+    --max-recency-weight 0.4
+```
 
 ## Audit Rules
 

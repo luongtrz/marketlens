@@ -58,15 +58,9 @@ def _knn_probabilities(
     # shift scores to [0, 1]: sim_shifted = (sim + 1) / 2
     weights = [(s + 1) / 2 for s, _ in scored]
     total_w = sum(weights) + 1e-12
-    p_up = (
-        sum(w for w, (_, c) in zip(weights, scored) if c.row.future_return_7d > 0)
-        / total_w
-    )
-    p_down = (
-        sum(w for w, (_, c) in zip(weights, scored) if c.row.future_return_7d < 0)
-        / total_w
-    )
-    p_hold = max(0.0, 1.0 - p_up - p_down)
+    p_up = sum(w for w, (_, c) in zip(weights, scored) if c.direction > 0) / total_w
+    p_down = sum(w for w, (_, c) in zip(weights, scored) if c.direction < 0) / total_w
+    p_hold = sum(w for w, (_, c) in zip(weights, scored) if c.direction == 0) / total_w
     return p_up, p_down, p_hold
 
 
@@ -78,13 +72,19 @@ def _brier_score(
     probs: list[tuple[float, float, float]],
     actuals: list[int],
 ) -> float:
-    """Multi-class Brier score. actual in {-1, 0, 1}."""
+    """Multi-class Brier score.
+
+    Probabilities are ordered as ``(p_up, p_down, p_hold)`` and actual labels
+    are encoded as ``{-1, 0, 1}``.
+    """
     if not probs:
         return 0.0
     total = 0.0
-    for (pu, ph, pd), act in zip(probs, actuals):
-        y = [float(act > 0), float(act == 0), float(act < 0)]
-        total += (pu - y[0]) ** 2 + (ph - y[1]) ** 2 + (pd - y[2]) ** 2
+    for (pu, pd, ph), act in zip(probs, actuals):
+        y_up = float(act > 0)
+        y_down = float(act < 0)
+        y_hold = float(act == 0)
+        total += (pu - y_up) ** 2 + (pd - y_down) ** 2 + (ph - y_hold) ** 2
     return total / len(probs)
 
 
@@ -174,12 +174,12 @@ def _evaluate_split(
             signal = "HOLD"
 
         actual_return = query.row.future_return_7d
-        actual_dir = 1 if actual_return > 0 else (-1 if actual_return < 0 else 0)
+        actual_dir = query.direction
 
         is_correct = (
-            (signal == "BUY" and actual_return > 0)
-            or (signal == "SELL" and actual_return < 0)
-            or (signal == "HOLD")
+            (signal == "BUY" and actual_dir > 0)
+            or (signal == "SELL" and actual_dir < 0)
+            or (signal == "HOLD" and actual_dir == 0)
         )
         correct += int(is_correct)
 

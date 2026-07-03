@@ -7,6 +7,8 @@ StockMem là memory/retrieval layer của hệ thống: lưu record thị trư�
 - Lưu `StockMemRecord` theo khóa duy nhất `(date, symbol)`.
 - Chuẩn hóa record thành vector đặc trưng.
 - Tìm `k` record gần nhất bằng weighted similarity.
+- Hỗ trợ audit evidence retriever theo `majority_same@10`, gồm learned memory
+  và trend-aware recency fusion.
 - Quản lý nhãn forward return (`future_return_1d/7d/30d`) để backtest và tối ưu trọng số.
 - Tự động re-train trọng số similarity hằng ngày bằng Bayesian optimization (Optuna/TPE) nếu bật cấu hình.
 
@@ -67,6 +69,7 @@ StockMem là memory/retrieval layer của hệ thống: lưu record thị trư�
     - `score = w1*sim(factor) + w2*sim(indicator) + w3*sim(price)`
   - `learned_linear` dùng learned per-feature diagonal metric và exact scan để đồng nhất với offline evaluation.
   - Nếu artifact không tồn tại, `learned_linear` fallback về `fixed_knn`.
+  - Regime detection đọc được cả candle object và `recent_candles` dạng dict.
   - Chỉ search trong cùng `symbol` với query.
   - Hỗ trợ `before_date` để tránh look-ahead trong backtest.
 - `stockmem/src/search/event_memory.py`
@@ -186,6 +189,24 @@ Việc tính return theo giá tương lai đang được orchestrate bởi Main 
   - Grid search tau trên VAL only → policy.json (tau=0.22).
   - Report Brier score, ECE, Sharpe, Sortino, max drawdown.
 
+**Trend-aware majority evidence retrieval:**
+- `stockmem/scripts/experimental/train_majority_consensus_retriever.py`: tune
+  fusion weights for `majority_same@10`.
+- `stockmem/scripts/experimental/evaluate_majority_consensus_retrievers.py`:
+  evaluate fixed-only, learned-only, recency-only, and maintained consensus
+  configs on validation, held-out test, and full history.
+- `stockmem/scripts/experimental/evaluate_consensus_retriever_heads.py`:
+  validation-select simple decision heads over the maintained top-10 evidence
+  set.
+- Current maintained evidence config:
+  `stockmem/config/majority_consensus_retriever.learned_recency_50_50.json`.
+- Current primary evidence retriever:
+  `0.5 * learned_finbert_similarity + 0.5 * recency_decay(half_life=21d)`.
+- Current maintained decision head:
+  `count_vote_buy3_sell4` over top-10 evidence
+  (`overall=0.5475`, `active=0.6826`, `SELL_DA=0.7114` on the held-out
+  305-row test split).
+
 **Backtest & utilities:**
 - `stockmem/scripts/backtest_api.py`: walk-forward backtest qua API.
 - `stockmem/scripts/generate_mock_data.py`: tạo mock dataset.
@@ -197,6 +218,7 @@ Chỉ dùng `--no-maturity-guard` để tái tạo kết quả legacy có look-a
 ### Config artifacts
 - `stockmem/config/weights.auto.json`: weights Bayesian-optimized (w1=0.544/w2=0.309/w3=0.142).
 - `stockmem/config/learned_retriever.json`: learned diagonal metric, 4 blocks (event85+factor75+indicator5+price60=225d).
+- `stockmem/config/majority_consensus_retriever.learned_recency_50_50.json`: maintained trend-aware learned-memory evidence retriever.
 - `stockmem/config/policy.json`: calibrated policy (tau=0.22, method=knn_platt_v1).
 
 ### Data

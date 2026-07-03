@@ -6,9 +6,15 @@ The maintained result set answers two practical questions:
    prompting?
 2. Which StockMem mechanism is strongest: fixed kNN, learned retrieval, learned
    head, or hybrid reranking?
+3. Which retriever gives the most directionally coherent historical evidence
+   under the stricter `majority_same@10` target?
+4. Does the new trend-aware evidence retriever support a stronger decision
+   head than the older strict classifier table?
 
-All official tables use the held-out `2025-07-01` to `2026-05-01` split with
-`305` rows and D7 labels from `future_return_7d` at `±2%`.
+The strict decision tables use the held-out `2025-07-01` to `2026-05-01`
+split with `305` rows and D7 labels from `future_return_7d` at `±2%`.
+The evidence-retrieval audit additionally reports validation and full-history
+results from `2018-01-01` to `2026-06-08`.
 
 ## Primary Structured Model Table
 
@@ -30,9 +36,100 @@ Primary paired statistics against `fixed_knn_rolling_stable`:
 | `fixed_retriever_learned_head` | coverage | +0.1014 | [+0.0623, +0.1410] | 0.087159 |
 | `learned_finbert_rolling_stable` | overall_acc | +0.0222 | [-0.0393, +0.0852] | 0.550709 |
 
-Interpretation: the best strict structured classifier is fixed retrieval plus
-the learned stable head. Learned retrieval improves Hit@5 but does not dominate
-the decision metric.
+Interpretation: this table is now an older strict baseline. At that stage, the
+best structured classifier was fixed retrieval plus the learned stable head.
+The newer consensus-head audit below supersedes it for the recommended
+decision path.
+
+## Consensus Retriever Decision Head Audit
+
+Source: `artifacts/consensus_retriever_heads_20260703/summary.json`.
+
+After selecting `learned_recency_50_50` as the evidence retriever, a second
+validation-only search compared simple decision heads over its top-10 evidence:
+
+- count-vote heads over D7 `BUY/HOLD/SELL` classes,
+- median D7-return threshold heads,
+- mean future-return threshold heads.
+
+The selected head was:
+
+```text
+count_vote_buy3_sell4
+```
+
+It predicts `BUY` when at least 3 of the top-10 records are BUY and BUY is
+stronger than SELL; it predicts `SELL` when at least 4 of the top-10 records are
+SELL and SELL is at least as strong as BUY; otherwise it emits `HOLD`.
+
+| Model | Split | n | Overall | Active | Coverage | BUY DA | HOLD DA | SELL DA | Majority@10 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `learned_recency_50_50 + count_vote_buy3_sell4` | val | 174 | 0.6379 | 0.7658 | 0.9080 | 0.7614 | 0.0345 | 0.7544 | 0.5920 |
+| `learned_recency_50_50 + count_vote_buy3_sell4` | test | 305 | **0.5475** | **0.6826** | **0.9607** | 0.6224 | 0.0000 | **0.7114** | 0.5443 |
+| old `fixed_knn_rolling_stable` | test | 305 | 0.3180 | 0.4236 | 0.7508 | 0.6327 | 0.2759 | 0.1275 | n/a |
+| old `fixed_retriever_learned_head` | test | 305 | 0.3508 | 0.4500 | 0.8525 | **0.7041** | 0.1552 | 0.1946 | n/a |
+| old `learned_finbert_rolling_stable` | test | 305 | 0.3410 | 0.4393 | 0.7836 | 0.5408 | 0.2414 | 0.2483 | n/a |
+
+The best validation-selected mean-return head was close but not the official
+winner:
+
+| Head | Test Overall | Test Active | Test Coverage | Test BUY DA | Test SELL DA |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `mean_d7_only_buy0.50_sell0.50` | 0.5508 | 0.6840 | 0.9443 | 0.6122 | 0.7047 |
+| `count_vote_buy3_sell4` | 0.5475 | 0.6826 | 0.9607 | 0.6224 | 0.7114 |
+
+Interpretation: the new retriever does support a much stronger decision layer.
+The main gain is downside recognition: SELL DA rises from `0.1275-0.2483` in
+the older strict baselines to `0.7114`. The cost is that HOLD DA is effectively
+zero, so this should be described as a high-coverage directional decision head,
+not as a balanced three-class classifier.
+
+## Evidence Retrieval Majority Audit
+
+Source: `artifacts/majority_consensus_retriever_eval_20260703/summary.json`.
+
+The earlier `Hit@5_same_sign` metric is useful as a recall check, but it is too
+easy for evidence quality because it only requires one matching case in the
+top-k set. The stricter retrieval target is:
+
+```text
+majority_same@10 = at least 5 of top-10 historical records share the query D7 class
+```
+
+The current primary evidence retriever is:
+
+```text
+learned_recency_50_50
+```
+
+with config:
+
+```text
+stockmem/config/majority_consensus_retriever.learned_recency_50_50.json
+```
+
+It combines learned historical similarity and trend awareness:
+
+```text
+score(q,c) = 0.5 * learned_similarity(q,c) + 0.5 * exp(-age_days(q,c) / 21)
+```
+
+| Model | Val Majority@10 | Test Majority@10 | Full Majority@10 |
+| --- | ---: | ---: | ---: |
+| `fixed_only` | 0.4368 | 0.3639 | 0.3817 |
+| `learned_only` | 0.5057 | 0.3541 | 0.3755 |
+| `recency_only` | 0.6264 | 0.5180 | 0.5075 |
+| `unconstrained` | **0.6379** | 0.5246 | 0.5092 |
+| `memory_first_learned030` | 0.5977 | 0.5279 | 0.4967 |
+| `learned_recency_50_50` | 0.5920 | **0.5443** | **0.5106** |
+
+Full-history uses `2871` eligible rows from `2018-01-01` to `2026-06-08`
+after skipping 14 early rows with insufficient matured pool.
+
+Interpretation: pure learned retrieval is not enough, and pure recency is a
+strong continuation baseline. The best current evidence retriever is learned
+memory plus trend awareness. This is a stronger and more honest claim than
+"learned retrieval beats fixed kNN."
 
 ## Naive LLM Baseline
 
@@ -83,13 +180,19 @@ validation shortcut rather than a production improvement.
 
 ## Practical Conclusion
 
-The most defensible production recommendation is:
+The maintained recommendation is now layered:
 
 ```text
-fixed kNN retriever + learned stable decision head
+evidence retriever: learned_recency_50_50
+decision head: count_vote_buy3_sell4 over the top-10 evidence set
 ```
 
 The broader research conclusion is that StockMem is useful as structured
-historical memory, but more learned retrieval is not automatically better.
+historical memory, but retrieval must be trend-aware. Pure fixed kNN and pure
+learned similarity both underperform the new evidence retriever on
+`majority_same@10`, and the evidence-consensus head substantially improves
+directional test accuracy relative to the older strict classifier table.
 
 For the full academic write-up, see [academic_paper.md](academic_paper.md).
+For the retrieval-specific audit, see
+[trend_aware_retrieval.md](trend_aware_retrieval.md).

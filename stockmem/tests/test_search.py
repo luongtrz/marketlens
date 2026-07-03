@@ -13,7 +13,7 @@ from stockmem.src.search.event_memory import build_daily_event_state
 from stockmem.src.search.index import MemoryVectorIndex
 from stockmem.src.search.index import ScoredId
 from stockmem.src.search.learned_metric import LearnedDiagonalMetric
-from stockmem.src.search.searcher import RecordSearcher
+from stockmem.src.search.searcher import RecordSearcher, _get_regime
 from stockmem.src.service import StockMemService
 
 
@@ -111,6 +111,32 @@ def test_search_returns_top_k_with_similarity_bounds() -> None:
     assert results[0].record.id == "a"
     assert results[0].retriever_version == "fixed_knn_v1"
     assert "event_vector_cosine" in results[0].event_match
+
+
+def test_regime_detection_reads_recent_candles_dicts() -> None:
+    closes = [100.0] * 10 + [96.0, 93.0, 90.0, 88.0, 86.0]
+    record = StockMemRecord(
+        id="bear",
+        date=date(2026, 4, 10),
+        symbol="BTC",
+        sentiment_score=0.0,
+        factors=["Major exchange hack"],
+        market_snapshot=MarketSnapshot(
+            rsi=40.0,
+            recent_candles=[
+                {
+                    "open": close,
+                    "high": close * 1.01,
+                    "low": close * 0.99,
+                    "close": close,
+                    "volume": 1_000_000.0,
+                }
+                for close in closes
+            ],
+        ),
+    )
+
+    assert _get_regime(record) == "bear"
 
 
 def test_weighted_ranking_changes_with_weights() -> None:

@@ -11,7 +11,7 @@ docs focus on the research contribution.
 | Crawler | 8000 | Poll RSS/news sources, deduplicate articles, persist raw/enriched news. |
 | AIHub | 8001 | Sentiment, factor extraction, LLM clients, prediction/evaluation helpers. |
 | MarketData | 8002 | OHLCV snapshots, historical candles, technical indicators. |
-| StockMem | 8003 | Daily memory records, vector embeddings, fixed and learned retrieval. |
+| StockMem | 8003 | Daily memory records, vector embeddings, fixed/learned retrieval, and trend-aware evidence retrieval audits. |
 | FactorLedge | 8004 | Factor normalization and factor summary APIs. |
 | MainController | 8005 | Orchestrates pipeline runs and result assembly. |
 | LLMGateway | 8006 | Optional external LLM decision gateway. |
@@ -58,5 +58,9 @@ structured StockMem baselines, and reports compact tables.
 - Generated outputs are ignored: `artifacts/`, `results_tables/`, `submission/`.
 - The official StockMem test window is `2025-07-01` to `2026-05-01`.
 - The official D7 label threshold is `±2%` on `future_return_7d`.
+- The maintained evidence retriever is `learned_recency_50_50`, documented in
+  `docs/stockmem/trend_aware_retrieval.md`.
+- The maintained offline decision head is `count_vote_buy3_sell4` over that
+  retriever's top-10 evidence set.
 - The main reproducibility command lives in
   `stockmem/scripts/run_submission_reproduction.py`.

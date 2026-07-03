@@ -16,6 +16,19 @@ _REGIME_SAME_BONUS: float = 0.15
 _REGIME_OPP_PENALTY: float = -0.15
 
 
+def _candle_value(candle: object, key: str) -> float | None:
+    if isinstance(candle, dict):
+        value = candle.get(key)
+    else:
+        value = getattr(candle, key, None)
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _get_regime(record: StockMemRecord) -> str:
     """Classify record's market regime as 'bull', 'bear', or 'neutral'.
 
@@ -29,8 +42,8 @@ def _get_regime(record: StockMemRecord) -> str:
     )
     ret_14d = 0.0
     if len(candles) >= 15:
-        close_now = getattr(candles[-1], "close", None)
-        close_14d = getattr(candles[-15], "close", None)
+        close_now = _candle_value(candles[-1], "close")
+        close_14d = _candle_value(candles[-15], "close")
         if close_now and close_14d and float(close_14d) > 0:
             ret_14d = (float(close_now) - float(close_14d)) / float(close_14d) * 100.0
 

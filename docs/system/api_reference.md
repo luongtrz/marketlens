@@ -33,8 +33,12 @@ export.
 | `POST /search` | Retrieve similar historical records. |
 | `GET /record/{record_id}` | Fetch a stored record by id. |
 
-StockMem supports fixed weighted kNN and learned diagonal metric retrieval.
-The official evaluation scripts use offline NDJSON data for reproducibility.
+StockMem runtime search supports fixed weighted kNN and learned diagonal metric
+retrieval. The maintained evidence-retrieval model for the research report is
+the offline `learned_recency_50_50` consensus retriever documented in
+`docs/stockmem/trend_aware_retrieval.md`; its maintained decision head is
+`count_vote_buy3_sell4` over top-10 evidence. These report models are evaluated
+from the frozen NDJSON export for reproducibility.
 
 ## Other Services
 

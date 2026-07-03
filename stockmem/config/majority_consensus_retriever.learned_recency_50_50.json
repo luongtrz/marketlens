@@ -1,0 +1,46 @@
+{
+  "version": "majority_consensus_retriever_learned_recency_50_50_v1",
+  "type": "time_aware_consensus",
+  "top_k": 10,
+  "label_threshold": 2.0,
+  "components": [
+    "learned_similarity",
+    "recency_decay"
+  ],
+  "normalization": "per_query_minmax_for_similarity_components",
+  "config": {
+    "w_fixed": 0.0,
+    "w_learned": 0.5,
+    "w_recency": 0.5,
+    "w_regime": 0.0,
+    "recency_half_life_days": 21.0
+  },
+  "selection_protocol": {
+    "selection_basis": "post-audit primary evidence retriever",
+    "objective": "majority_same_at_10 with learned memory retained",
+    "dataset": "data/exports/stockmem_records.ndjson",
+    "validation_split": "2025-01-01_to_2025-06-23",
+    "test_split": "2025-07-01_to_2026-05-01",
+    "full_history_range": "2018-01-01_to_2026-06-08",
+    "artifact_source": "artifacts/majority_consensus_retriever_eval_20260703/summary.json"
+  },
+  "test_summary": {
+    "n": 305,
+    "hit_at_10": 0.8361,
+    "majority_at_10": 0.5443,
+    "mean_same_at_10": 5.2754,
+    "buy_majority_at_10": 0.5816,
+    "hold_majority_at_10": 0.1379,
+    "sell_majority_at_10": 0.6779
+  },
+  "full_history_summary": {
+    "n": 2871,
+    "hit_at_10": 0.8687,
+    "majority_at_10": 0.5106,
+    "mean_same_at_10": 4.9721,
+    "buy_majority_at_10": 0.5989,
+    "hold_majority_at_10": 0.1917,
+    "sell_majority_at_10": 0.5544
+  },
+  "interpretation": "Primary evidence retriever after majority-consensus audit. It combines learned historical similarity with trend awareness; it is not a pure recency baseline."
+}
