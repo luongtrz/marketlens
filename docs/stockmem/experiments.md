@@ -227,3 +227,27 @@ ETH profile: ETH-trained learned_recency_50_50 + ETH-selected head
 The ETH report keeps diagnostic fixed/recency comparisons for audit, but the
 chosen product direction remains learned memory plus recency `50/50` for both
 assets.
+
+## ETH Fine-Tuned Profile
+
+Source: [eth_finetune.md](eth_finetune.md).
+
+The maintained ETH profile after fine-tuning is:
+
+```text
+retriever: eth_learned_recency_50_50_h30
+head: mean_learned_weights_buy0.50_sell0.75
+```
+
+| Split | n | Overall | Active | Coverage | BUY DA | HOLD DA | SELL DA | Majority@10 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Validation | 174 | 0.6494 | 0.7530 | 0.9540 | 0.5472 | 0.0714 | 0.8817 | 0.5575 |
+| Test | 305 | 0.6000 | 0.6793 | 0.9508 | 0.7077 | 0.0526 | 0.6496 | 0.5246 |
+
+Compared with the zero-shot BTC artifact on ETH, this improves:
+
+```text
+overall: 0.5344 -> 0.6000
+active:  0.6014 -> 0.6793
+SELL DA: 0.6204 -> 0.6496
+```

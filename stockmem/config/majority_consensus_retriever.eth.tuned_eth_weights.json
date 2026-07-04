@@ -1,0 +1,23 @@
+{
+  "name": "eth_tuned_eth_weights_consensus",
+  "description": "ETH validation-selected majority-consensus retriever using ETH fixed-kNN weights and the ETH-trained learned retriever.",
+  "config": {
+    "w_fixed": 0.2,
+    "w_learned": 0.3,
+    "w_recency": 0.4,
+    "w_regime": 0.1,
+    "recency_half_life_days": 21.0
+  },
+  "selection": {
+    "asset": "ETH",
+    "dataset": "data/exports/stockmem_records_eth.ndjson",
+    "fixed_weights": "stockmem/config/weights.eth.auto.json",
+    "learned_retriever_artifact": "stockmem/config/learned_retriever_finbert.eth.json",
+    "source": "artifacts/eth_fusion_tune_eth_weights_20260704/summary.json",
+    "top_k": 10,
+    "label_threshold": 2.0,
+    "validation_objective": 0.583640305640589,
+    "validation_majority_at_10": 0.5747,
+    "test_majority_at_10": 0.5508
+  }
+}

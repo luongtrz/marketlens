@@ -13,11 +13,12 @@
     "ETH": {
       "dataset": "data/exports/stockmem_records_eth.ndjson",
       "learned_retriever_artifact": "stockmem/config/learned_retriever_finbert.eth.json",
-      "consensus_retriever_config": "stockmem/config/majority_consensus_retriever.eth.learned_recency_50_50.json",
-      "decision_head": "pending_eth_validation_selection",
+      "fixed_weights": "stockmem/config/weights.eth.auto.json",
+      "consensus_retriever_config": "stockmem/config/majority_consensus_retriever.eth.learned_recency_50_50_h30.json",
+      "decision_head": "mean_learned_weights_buy0.50_sell0.75",
       "evidence_top_k": 10,
       "label_threshold": 2.0,
-      "status": "prepared_for_finetune"
+      "status": "maintained_after_eth_finetune"
     }
   }
 }

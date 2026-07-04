@@ -1,0 +1,61 @@
+{
+  "w1_factor": 0.3488,
+  "w2_indicator": 0.2885,
+  "w3_price": 0.3627,
+  "optimized_at": "2026-07-04T05:26:44.173938",
+  "best_score": 0.3492,
+  "metric": "0.6*DA + 0.4*Sharpe (horizon=7d, objective=single_walk_forward)",
+  "da": 0.5332,
+  "sharpe": 0.1463,
+  "n_trials": 30,
+  "n_records": 2908,
+  "train_records": 2326,
+  "holdout_records": 582,
+  "warmup": 250,
+  "sharpe_mode": "nonoverlap",
+  "seed": 42,
+  "evaluation_protocol": {
+    "version": "maturity_guard_v1",
+    "maturity_guard": true
+  },
+  "cv": {
+    "folds_requested": 1,
+    "holdout_ratio": 0.2,
+    "min_holdout": 120
+  },
+  "stable_selection": {
+    "mode": "median_top_trials",
+    "top_k_requested": 10,
+    "top_k_used": 10
+  },
+  "best_trial_weights": {
+    "w1_factor": 0.3185,
+    "w2_indicator": 0.3313,
+    "w3_price": 0.3502
+  },
+  "train_metrics": {
+    "da": 0.5207,
+    "sharpe": 0.1319,
+    "combined": 0.3388
+  },
+  "train_metrics_best": {
+    "da": 0.5332,
+    "sharpe": 0.1463,
+    "combined": 0.3492
+  },
+  "holdout_metrics_best": {
+    "da": 0.4742,
+    "sharpe": -0.1466,
+    "combined": 0.2552
+  },
+  "holdout_metrics_stable": {
+    "da": 0.4811,
+    "sharpe": -0.1865,
+    "combined": 0.2514
+  },
+  "holdout_metrics_baseline": {
+    "da": 0.4622,
+    "sharpe": 0.0658,
+    "combined": 0.2905
+  }
+}

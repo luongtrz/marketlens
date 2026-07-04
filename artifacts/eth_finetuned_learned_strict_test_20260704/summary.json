@@ -1,0 +1,224 @@
+{
+  "data_path": "data/exports/stockmem_records_eth.ndjson",
+  "weights_path": "stockmem/config/weights.auto.json",
+  "artifact_path": "stockmem/config/learned_retriever_finbert.eth.json",
+  "fixed_head_path": "stockmem/config/knn_head.fixed_knn_rolling_stable.json",
+  "learned_head_path": "stockmem/config/knn_head.learned_finbert_rolling_stable.json",
+  "label_threshold": 2.0,
+  "models": [
+    {
+      "name": "fixed_knn_rolling_stable",
+      "n": 305,
+      "overall_acc": 0.3180327868852459,
+      "active_acc": 0.4497816593886463,
+      "coverage": 0.7508196721311475,
+      "buy_rate": 0.4426229508196721,
+      "hold_rate": 0.24918032786885247,
+      "sell_rate": 0.3081967213114754,
+      "avg_confidence": 0.7124000000000009,
+      "hit_at_5_same_sign": 0.8655737704918033,
+      "actual_counts": {
+        "BUY": 130,
+        "SELL": 137,
+        "HOLD": 38
+      },
+      "predicted_counts": {
+        "SELL": 94,
+        "HOLD": 76,
+        "BUY": 135
+      },
+      "confusion": {
+        "BUY": {
+          "BUY": 53,
+          "HOLD": 32,
+          "SELL": 45
+        },
+        "HOLD": {
+          "BUY": 19,
+          "HOLD": 7,
+          "SELL": 12
+        },
+        "SELL": {
+          "BUY": 63,
+          "HOLD": 37,
+          "SELL": 37
+        }
+      }
+    },
+    {
+      "name": "fixed_retriever_learned_head",
+      "n": 305,
+      "overall_acc": 0.3442622950819672,
+      "active_acc": 0.46613545816733065,
+      "coverage": 0.8229508196721311,
+      "buy_rate": 0.4491803278688525,
+      "hold_rate": 0.17704918032786884,
+      "sell_rate": 0.3737704918032787,
+      "avg_confidence": 0.7250295081967221,
+      "hit_at_5_same_sign": 0.8655737704918033,
+      "actual_counts": {
+        "BUY": 130,
+        "SELL": 137,
+        "HOLD": 38
+      },
+      "predicted_counts": {
+        "SELL": 114,
+        "HOLD": 54,
+        "BUY": 137
+      },
+      "confusion": {
+        "BUY": {
+          "BUY": 54,
+          "HOLD": 24,
+          "SELL": 52
+        },
+        "HOLD": {
+          "BUY": 21,
+          "HOLD": 3,
+          "SELL": 14
+        },
+        "SELL": {
+          "BUY": 62,
+          "HOLD": 27,
+          "SELL": 48
+        }
+      }
+    },
+    {
+      "name": "learned_retriever_fixed_head",
+      "n": 305,
+      "overall_acc": 0.3737704918032787,
+      "active_acc": 0.4818181818181818,
+      "coverage": 0.7213114754098361,
+      "buy_rate": 0.4885245901639344,
+      "hold_rate": 0.2786885245901639,
+      "sell_rate": 0.23278688524590163,
+      "avg_confidence": 0.7033311475409845,
+      "hit_at_5_same_sign": 0.8688524590163934,
+      "actual_counts": {
+        "BUY": 130,
+        "SELL": 137,
+        "HOLD": 38
+      },
+      "predicted_counts": {
+        "SELL": 71,
+        "HOLD": 85,
+        "BUY": 149
+      },
+      "confusion": {
+        "BUY": {
+          "BUY": 64,
+          "HOLD": 37,
+          "SELL": 29
+        },
+        "HOLD": {
+          "BUY": 14,
+          "HOLD": 16,
+          "SELL": 8
+        },
+        "SELL": {
+          "BUY": 71,
+          "HOLD": 32,
+          "SELL": 34
+        }
+      }
+    },
+    {
+      "name": "learned_finbert_rolling_stable",
+      "n": 305,
+      "overall_acc": 0.3901639344262295,
+      "active_acc": 0.4979919678714859,
+      "coverage": 0.8163934426229508,
+      "buy_rate": 0.4786885245901639,
+      "hold_rate": 0.18360655737704917,
+      "sell_rate": 0.3377049180327869,
+      "avg_confidence": 0.714698360655739,
+      "hit_at_5_same_sign": 0.8688524590163934,
+      "actual_counts": {
+        "BUY": 130,
+        "SELL": 137,
+        "HOLD": 38
+      },
+      "predicted_counts": {
+        "SELL": 103,
+        "HOLD": 56,
+        "BUY": 146
+      },
+      "confusion": {
+        "BUY": {
+          "BUY": 64,
+          "HOLD": 23,
+          "SELL": 43
+        },
+        "HOLD": {
+          "BUY": 15,
+          "HOLD": 9,
+          "SELL": 14
+        },
+        "SELL": {
+          "BUY": 67,
+          "HOLD": 24,
+          "SELL": 46
+        }
+      }
+    }
+  ],
+  "paired_stats": {
+    "best_vs_fixed": {
+      "mcnemar": {
+        "left_only_correct": 9,
+        "right_only_correct": 17,
+        "discordant": 26,
+        "p_value": 0.16863754391670227
+      },
+      "overall_acc": {
+        "mean_delta": 0.026428852459016394,
+        "ci_low": -0.006557377049180304,
+        "ci_high": 0.06229508196721312
+      },
+      "active_acc": {
+        "mean_delta": 0.01650148885536284,
+        "ci_low": -0.009804779290389006,
+        "ci_high": 0.043591093293831554
+      },
+      "coverage": {
+        "mean_delta": 0.07172131147540983,
+        "ci_low": 0.032786885245901676,
+        "ci_high": 0.11147540983606563
+      },
+      "hit_at_5_same_sign": {
+        "mean_delta": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0
+      }
+    },
+    "full_learned_vs_fixed": {
+      "mcnemar": {
+        "left_only_correct": 41,
+        "right_only_correct": 63,
+        "discordant": 104,
+        "p_value": 0.03895793340131187
+      },
+      "overall_acc": {
+        "mean_delta": 0.0718950819672131,
+        "ci_low": 0.006557377049180357,
+        "ci_high": 0.1377049180327869
+      },
+      "active_acc": {
+        "mean_delta": 0.048313133020409633,
+        "ci_low": -0.026123177471614953,
+        "ci_high": 0.12261059681914756
+      },
+      "coverage": {
+        "mean_delta": 0.06530426229508196,
+        "ci_low": -0.003278688524590123,
+        "ci_high": 0.1311475409836066
+      },
+      "hit_at_5_same_sign": {
+        "mean_delta": 0.0033495081967213104,
+        "ci_low": -0.0360655737704918,
+        "ci_high": 0.042622950819672156
+      }
+    }
+  }
+}

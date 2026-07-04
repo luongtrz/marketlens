@@ -1,0 +1,4545 @@
+{
+  "data_path": "data/exports/stockmem_records_eth.ndjson",
+  "fixed_weights_path": "stockmem/config/weights.auto.json",
+  "learned_artifact_path": "stockmem/config/learned_retriever_finbert.eth.json",
+  "top_k": 10,
+  "label_threshold": 2.0,
+  "constraints": {
+    "min_memory_weight": 0.5,
+    "max_recency_weight": 0.7,
+    "min_learned_weight": 0.3,
+    "exclude_recent_days": 0
+  },
+  "selected_config": {
+    "w_fixed": 0.2,
+    "w_learned": 0.3,
+    "w_recency": 0.5,
+    "w_regime": 0.0,
+    "recency_half_life_days": 30.0
+  },
+  "selected_validation_objective": 0.5770168348679325,
+  "selected_validation": {
+    "n": 174,
+    "distribution": {
+      "0": 30,
+      "1": 8,
+      "2": 14,
+      "3": 15,
+      "4": 9,
+      "5": 16,
+      "6": 9,
+      "7": 13,
+      "8": 16,
+      "9": 23,
+      "10": 21
+    },
+    "hit_at_k": 0.8275862068965517,
+    "majority_same_at_k": 0.5632183908045977,
+    "mean_same_count": 5.097701149425287,
+    "weighted_same_score": 0.5097701149425288,
+    "top_k": 10,
+    "majority_threshold": 5,
+    "by_actual": {
+      "BUY": {
+        "n": 53,
+        "distribution": {
+          "0": 15,
+          "1": 4,
+          "2": 5,
+          "3": 8,
+          "4": 5,
+          "5": 2,
+          "6": 1,
+          "7": 1,
+          "8": 1,
+          "9": 5,
+          "10": 6
+        },
+        "hit_at_k": 0.7169811320754716,
+        "majority_same_at_k": 0.3018867924528302,
+        "mean_same_count": 3.660377358490566,
+        "weighted_same_score": 0.3660377358490566
+      },
+      "HOLD": {
+        "n": 28,
+        "distribution": {
+          "0": 12,
+          "1": 2,
+          "2": 5,
+          "3": 4,
+          "4": 2,
+          "5": 3
+        },
+        "hit_at_k": 0.5714285714285714,
+        "majority_same_at_k": 0.10714285714285714,
+        "mean_same_count": 1.6785714285714286,
+        "weighted_same_score": 0.16785714285714287
+      },
+      "SELL": {
+        "n": 93,
+        "distribution": {
+          "0": 3,
+          "1": 2,
+          "2": 4,
+          "3": 3,
+          "4": 2,
+          "5": 11,
+          "6": 8,
+          "7": 12,
+          "8": 15,
+          "9": 18,
+          "10": 15
+        },
+        "hit_at_k": 0.967741935483871,
+        "majority_same_at_k": 0.8494623655913979,
+        "mean_same_count": 6.946236559139785,
+        "weighted_same_score": 0.6946236559139785
+      }
+    }
+  },
+  "test_comparison": [
+    {
+      "name": "fixed_only",
+      "config": {
+        "w_fixed": 1.0,
+        "w_learned": 0.0,
+        "w_recency": 0.0,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 4,
+          "1": 16,
+          "2": 28,
+          "3": 31,
+          "4": 50,
+          "5": 26,
+          "6": 12,
+          "7": 5,
+          "8": 2
+        },
+        "hit_at_k": 0.9770114942528736,
+        "majority_same_at_k": 0.25862068965517243,
+        "mean_same_count": 3.5517241379310347,
+        "weighted_same_score": 0.35517241379310344,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 2,
+              "1": 10,
+              "2": 10,
+              "3": 12,
+              "4": 16,
+              "5": 2,
+              "7": 1
+            },
+            "hit_at_k": 0.9622641509433962,
+            "majority_same_at_k": 0.05660377358490566,
+            "mean_same_count": 2.7735849056603774,
+            "weighted_same_score": 0.27735849056603773
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 1,
+              "1": 4,
+              "2": 6,
+              "3": 7,
+              "4": 9,
+              "5": 1
+            },
+            "hit_at_k": 0.9642857142857143,
+            "majority_same_at_k": 0.03571428571428571,
+            "mean_same_count": 2.7857142857142856,
+            "weighted_same_score": 0.2785714285714286
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 1,
+              "1": 2,
+              "2": 12,
+              "3": 12,
+              "4": 25,
+              "5": 23,
+              "6": 12,
+              "7": 4,
+              "8": 2
+            },
+            "hit_at_k": 0.989247311827957,
+            "majority_same_at_k": 0.44086021505376344,
+            "mean_same_count": 4.225806451612903,
+            "weighted_same_score": 0.4225806451612903
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 7,
+          "1": 19,
+          "2": 55,
+          "3": 68,
+          "4": 69,
+          "5": 48,
+          "6": 28,
+          "7": 10,
+          "9": 1
+        },
+        "hit_at_k": 0.9770491803278688,
+        "majority_same_at_k": 0.28524590163934427,
+        "mean_same_count": 3.59344262295082,
+        "weighted_same_score": 0.35934426229508193,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 3,
+              "1": 4,
+              "2": 22,
+              "3": 35,
+              "4": 28,
+              "5": 25,
+              "6": 10,
+              "7": 3
+            },
+            "hit_at_k": 0.9769230769230769,
+            "majority_same_at_k": 0.2923076923076923,
+            "mean_same_count": 3.623076923076923,
+            "weighted_same_score": 0.36230769230769233
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 2,
+              "1": 10,
+              "2": 15,
+              "3": 8,
+              "4": 3
+            },
+            "hit_at_k": 0.9473684210526315,
+            "majority_same_at_k": 0.0,
+            "mean_same_count": 2.0,
+            "weighted_same_score": 0.19999999999999998
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "0": 2,
+              "1": 5,
+              "2": 18,
+              "3": 25,
+              "4": 38,
+              "5": 23,
+              "6": 18,
+              "7": 7,
+              "9": 1
+            },
+            "hit_at_k": 0.9854014598540146,
+            "majority_same_at_k": 0.35766423357664234,
+            "mean_same_count": 4.007299270072993,
+            "weighted_same_score": 0.40072992700729926
+          }
+        }
+      }
+    },
+    {
+      "name": "learned_only",
+      "config": {
+        "w_fixed": 0.0,
+        "w_learned": 1.0,
+        "w_recency": 0.0,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 5,
+          "1": 11,
+          "2": 33,
+          "3": 34,
+          "4": 41,
+          "5": 31,
+          "6": 12,
+          "7": 5,
+          "8": 2
+        },
+        "hit_at_k": 0.9712643678160919,
+        "majority_same_at_k": 0.28735632183908044,
+        "mean_same_count": 3.5689655172413794,
+        "weighted_same_score": 0.3568965517241379,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 3,
+              "1": 5,
+              "2": 12,
+              "3": 14,
+              "4": 9,
+              "5": 5,
+              "6": 3,
+              "7": 2
+            },
+            "hit_at_k": 0.9433962264150944,
+            "majority_same_at_k": 0.18867924528301888,
+            "mean_same_count": 3.0943396226415096,
+            "weighted_same_score": 0.30943396226415093
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 1,
+              "1": 3,
+              "2": 7,
+              "3": 10,
+              "4": 5,
+              "5": 2
+            },
+            "hit_at_k": 0.9642857142857143,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 2.75,
+            "weighted_same_score": 0.275
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 1,
+              "1": 3,
+              "2": 14,
+              "3": 10,
+              "4": 27,
+              "5": 24,
+              "6": 9,
+              "7": 3,
+              "8": 2
+            },
+            "hit_at_k": 0.989247311827957,
+            "majority_same_at_k": 0.40860215053763443,
+            "mean_same_count": 4.086021505376344,
+            "weighted_same_score": 0.40860215053763443
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 8,
+          "1": 16,
+          "2": 62,
+          "3": 69,
+          "4": 61,
+          "5": 52,
+          "6": 28,
+          "7": 6,
+          "8": 2,
+          "9": 1
+        },
+        "hit_at_k": 0.9737704918032787,
+        "majority_same_at_k": 0.29180327868852457,
+        "mean_same_count": 3.560655737704918,
+        "weighted_same_score": 0.3560655737704918,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 2,
+              "1": 4,
+              "2": 31,
+              "3": 27,
+              "4": 26,
+              "5": 27,
+              "6": 8,
+              "7": 4,
+              "9": 1
+            },
+            "hit_at_k": 0.9846153846153847,
+            "majority_same_at_k": 0.3076923076923077,
+            "mean_same_count": 3.623076923076923,
+            "weighted_same_score": 0.36230769230769233
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 5,
+              "1": 9,
+              "2": 11,
+              "3": 11,
+              "4": 2
+            },
+            "hit_at_k": 0.868421052631579,
+            "majority_same_at_k": 0.0,
+            "mean_same_count": 1.894736842105263,
+            "weighted_same_score": 0.18947368421052632
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "0": 1,
+              "1": 3,
+              "2": 20,
+              "3": 31,
+              "4": 33,
+              "5": 25,
+              "6": 20,
+              "7": 2,
+              "8": 2
+            },
+            "hit_at_k": 0.9927007299270073,
+            "majority_same_at_k": 0.35766423357664234,
+            "mean_same_count": 3.9635036496350367,
+            "weighted_same_score": 0.3963503649635036
+          }
+        }
+      }
+    },
+    {
+      "name": "recency_only",
+      "config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.0,
+        "w_recency": 1.0,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 31,
+          "1": 2,
+          "2": 9,
+          "3": 25,
+          "4": 11,
+          "5": 11,
+          "6": 15,
+          "7": 19,
+          "8": 8,
+          "9": 11,
+          "10": 32
+        },
+        "hit_at_k": 0.8218390804597702,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 5.172413793103448,
+        "weighted_same_score": 0.5172413793103449,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 15,
+              "1": 1,
+              "3": 12,
+              "4": 7,
+              "5": 3,
+              "6": 2,
+              "7": 1,
+              "8": 1,
+              "9": 2,
+              "10": 9
+            },
+            "hit_at_k": 0.7169811320754716,
+            "majority_same_at_k": 0.33962264150943394,
+            "mean_same_count": 4.056603773584905,
+            "weighted_same_score": 0.4056603773584906
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 13,
+              "1": 1,
+              "2": 7,
+              "3": 2,
+              "5": 4,
+              "6": 1
+            },
+            "hit_at_k": 0.5357142857142857,
+            "majority_same_at_k": 0.17857142857142858,
+            "mean_same_count": 1.6785714285714286,
+            "weighted_same_score": 0.16785714285714287
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "2": 2,
+              "3": 11,
+              "4": 4,
+              "5": 4,
+              "6": 12,
+              "7": 18,
+              "8": 7,
+              "9": 9,
+              "10": 23
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.7849462365591398,
+            "mean_same_count": 6.860215053763441,
+            "weighted_same_score": 0.6860215053763441
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 30,
+          "1": 38,
+          "2": 33,
+          "3": 20,
+          "4": 19,
+          "5": 13,
+          "6": 16,
+          "7": 19,
+          "8": 20,
+          "9": 8,
+          "10": 89
+        },
+        "hit_at_k": 0.9016393442622951,
+        "majority_same_at_k": 0.5409836065573771,
+        "mean_same_count": 5.4295081967213115,
+        "weighted_same_score": 0.5429508196721311,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 13,
+              "1": 11,
+              "2": 5,
+              "3": 7,
+              "4": 12,
+              "5": 6,
+              "6": 10,
+              "7": 5,
+              "8": 6,
+              "9": 2,
+              "10": 53
+            },
+            "hit_at_k": 0.9,
+            "majority_same_at_k": 0.6307692307692307,
+            "mean_same_count": 6.2384615384615385,
+            "weighted_same_score": 0.6238461538461539
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 13,
+              "1": 6,
+              "2": 10,
+              "3": 2,
+              "4": 3,
+              "5": 3,
+              "6": 1
+            },
+            "hit_at_k": 0.6578947368421053,
+            "majority_same_at_k": 0.10526315789473684,
+            "mean_same_count": 1.7105263157894737,
+            "weighted_same_score": 0.17105263157894737
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "0": 4,
+              "1": 21,
+              "2": 18,
+              "3": 11,
+              "4": 4,
+              "5": 4,
+              "6": 5,
+              "7": 14,
+              "8": 14,
+              "9": 6,
+              "10": 36
+            },
+            "hit_at_k": 0.9708029197080292,
+            "majority_same_at_k": 0.5766423357664233,
+            "mean_same_count": 5.693430656934306,
+            "weighted_same_score": 0.5693430656934306
+          }
+        }
+      }
+    },
+    {
+      "name": "regime_only",
+      "config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.0,
+        "w_recency": 0.0,
+        "w_regime": 1.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 32,
+          "1": 27,
+          "2": 6,
+          "3": 15,
+          "4": 13,
+          "5": 7,
+          "6": 15,
+          "7": 11,
+          "8": 18,
+          "9": 21,
+          "10": 9
+        },
+        "hit_at_k": 0.8160919540229885,
+        "majority_same_at_k": 0.46551724137931033,
+        "mean_same_count": 4.373563218390805,
+        "weighted_same_score": 0.4373563218390805,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 11,
+              "1": 15,
+              "2": 4,
+              "3": 9,
+              "4": 6,
+              "5": 1,
+              "6": 1,
+              "8": 3,
+              "9": 3
+            },
+            "hit_at_k": 0.7924528301886793,
+            "majority_same_at_k": 0.1509433962264151,
+            "mean_same_count": 2.5660377358490565,
+            "weighted_same_score": 0.2566037735849057
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 17,
+              "1": 7,
+              "2": 1,
+              "3": 1,
+              "4": 2
+            },
+            "hit_at_k": 0.39285714285714285,
+            "majority_same_at_k": 0.0,
+            "mean_same_count": 0.7142857142857143,
+            "weighted_same_score": 0.07142857142857142
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 4,
+              "1": 5,
+              "2": 1,
+              "3": 5,
+              "4": 5,
+              "5": 6,
+              "6": 14,
+              "7": 11,
+              "8": 15,
+              "9": 18,
+              "10": 9
+            },
+            "hit_at_k": 0.956989247311828,
+            "majority_same_at_k": 0.7849462365591398,
+            "mean_same_count": 6.505376344086022,
+            "weighted_same_score": 0.6505376344086021
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 41,
+          "1": 34,
+          "2": 35,
+          "3": 24,
+          "4": 24,
+          "5": 43,
+          "6": 25,
+          "7": 32,
+          "8": 17,
+          "9": 16,
+          "10": 14
+        },
+        "hit_at_k": 0.8655737704918033,
+        "majority_same_at_k": 0.4819672131147541,
+        "mean_same_count": 4.2,
+        "weighted_same_score": 0.42,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 14,
+              "1": 3,
+              "2": 5,
+              "3": 14,
+              "4": 7,
+              "5": 30,
+              "6": 11,
+              "7": 21,
+              "8": 8,
+              "9": 10,
+              "10": 7
+            },
+            "hit_at_k": 0.8923076923076924,
+            "majority_same_at_k": 0.6692307692307692,
+            "mean_same_count": 5.153846153846154,
+            "weighted_same_score": 0.5153846153846153
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 15,
+              "1": 13,
+              "2": 6,
+              "3": 2,
+              "4": 2
+            },
+            "hit_at_k": 0.6052631578947368,
+            "majority_same_at_k": 0.0,
+            "mean_same_count": 1.0263157894736843,
+            "weighted_same_score": 0.10263157894736843
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "0": 12,
+              "1": 18,
+              "2": 24,
+              "3": 8,
+              "4": 15,
+              "5": 13,
+              "6": 14,
+              "7": 11,
+              "8": 9,
+              "9": 6,
+              "10": 7
+            },
+            "hit_at_k": 0.9124087591240876,
+            "majority_same_at_k": 0.43795620437956206,
+            "mean_same_count": 4.175182481751825,
+            "weighted_same_score": 0.4175182481751825
+          }
+        }
+      }
+    },
+    {
+      "name": "fixed_recency_50_50",
+      "config": {
+        "w_fixed": 0.5,
+        "w_learned": 0.0,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 31,
+          "1": 14,
+          "2": 11,
+          "3": 13,
+          "4": 10,
+          "5": 9,
+          "6": 11,
+          "7": 14,
+          "8": 16,
+          "9": 30,
+          "10": 15
+        },
+        "hit_at_k": 0.8218390804597702,
+        "majority_same_at_k": 0.5459770114942529,
+        "mean_same_count": 5.011494252873563,
+        "weighted_same_score": 0.5011494252873563,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 16,
+              "1": 4,
+              "2": 4,
+              "3": 10,
+              "4": 3,
+              "5": 2,
+              "6": 1,
+              "7": 1,
+              "8": 2,
+              "9": 5,
+              "10": 5
+            },
+            "hit_at_k": 0.6981132075471698,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.547169811320755,
+            "weighted_same_score": 0.3547169811320755
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 11,
+              "1": 6,
+              "2": 3,
+              "3": 3,
+              "4": 3,
+              "5": 2
+            },
+            "hit_at_k": 0.6071428571428571,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 1.5357142857142858,
+            "weighted_same_score": 0.1535714285714286
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 4,
+              "1": 4,
+              "2": 4,
+              "4": 4,
+              "5": 5,
+              "6": 10,
+              "7": 13,
+              "8": 14,
+              "9": 25,
+              "10": 10
+            },
+            "hit_at_k": 0.956989247311828,
+            "majority_same_at_k": 0.8279569892473119,
+            "mean_same_count": 6.89247311827957,
+            "weighted_same_score": 0.689247311827957
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 32,
+          "1": 33,
+          "2": 27,
+          "3": 33,
+          "4": 18,
+          "5": 15,
+          "6": 10,
+          "7": 13,
+          "8": 36,
+          "9": 17,
+          "10": 71
+        },
+        "hit_at_k": 0.8950819672131147,
+        "majority_same_at_k": 0.5311475409836065,
+        "mean_same_count": 5.360655737704918,
+        "weighted_same_score": 0.5360655737704918,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 8,
+              "1": 9,
+              "2": 7,
+              "3": 17,
+              "4": 7,
+              "5": 10,
+              "6": 6,
+              "7": 7,
+              "8": 10,
+              "9": 6,
+              "10": 43
+            },
+            "hit_at_k": 0.9384615384615385,
+            "majority_same_at_k": 0.6307692307692307,
+            "mean_same_count": 6.161538461538462,
+            "weighted_same_score": 0.6161538461538462
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 14,
+              "1": 8,
+              "2": 6,
+              "3": 6,
+              "4": 3,
+              "5": 1
+            },
+            "hit_at_k": 0.631578947368421,
+            "majority_same_at_k": 0.02631578947368421,
+            "mean_same_count": 1.4473684210526316,
+            "weighted_same_score": 0.14473684210526316
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "0": 10,
+              "1": 16,
+              "2": 14,
+              "3": 10,
+              "4": 8,
+              "5": 4,
+              "6": 4,
+              "7": 6,
+              "8": 26,
+              "9": 11,
+              "10": 28
+            },
+            "hit_at_k": 0.927007299270073,
+            "majority_same_at_k": 0.5766423357664233,
+            "mean_same_count": 5.686131386861314,
+            "weighted_same_score": 0.5686131386861314
+          }
+        }
+      }
+    },
+    {
+      "name": "learned_recency_50_50",
+      "config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.5,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 29,
+          "1": 6,
+          "2": 12,
+          "3": 20,
+          "4": 10,
+          "5": 13,
+          "6": 7,
+          "7": 17,
+          "8": 18,
+          "9": 20,
+          "10": 22
+        },
+        "hit_at_k": 0.8333333333333334,
+        "majority_same_at_k": 0.5574712643678161,
+        "mean_same_count": 5.172413793103448,
+        "weighted_same_score": 0.5172413793103449,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 14,
+              "1": 3,
+              "2": 3,
+              "3": 12,
+              "4": 5,
+              "5": 2,
+              "6": 1,
+              "7": 1,
+              "8": 1,
+              "9": 4,
+              "10": 7
+            },
+            "hit_at_k": 0.7358490566037735,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.811320754716981,
+            "weighted_same_score": 0.3811320754716981
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 5,
+              "3": 3,
+              "4": 3,
+              "5": 2,
+              "6": 1
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.10714285714285714,
+            "mean_same_count": 1.75,
+            "weighted_same_score": 0.17500000000000002
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 1,
+              "2": 4,
+              "3": 5,
+              "4": 2,
+              "5": 9,
+              "6": 5,
+              "7": 16,
+              "8": 17,
+              "9": 16,
+              "10": 15
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8387096774193549,
+            "mean_same_count": 6.978494623655914,
+            "weighted_same_score": 0.6978494623655914
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 27,
+          "1": 38,
+          "2": 35,
+          "3": 22,
+          "4": 23,
+          "5": 10,
+          "6": 14,
+          "7": 16,
+          "8": 26,
+          "9": 19,
+          "10": 75
+        },
+        "hit_at_k": 0.9114754098360656,
+        "majority_same_at_k": 0.5245901639344263,
+        "mean_same_count": 5.380327868852459,
+        "weighted_same_score": 0.5380327868852459,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 8,
+              "1": 9,
+              "2": 13,
+              "3": 9,
+              "4": 11,
+              "5": 6,
+              "6": 8,
+              "7": 5,
+              "8": 7,
+              "9": 7,
+              "10": 47
+            },
+            "hit_at_k": 0.9384615384615385,
+            "majority_same_at_k": 0.6153846153846154,
+            "mean_same_count": 6.2153846153846155,
+            "weighted_same_score": 0.6215384615384615
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 14,
+              "1": 8,
+              "2": 8,
+              "3": 2,
+              "4": 5,
+              "5": 1
+            },
+            "hit_at_k": 0.631578947368421,
+            "majority_same_at_k": 0.02631578947368421,
+            "mean_same_count": 1.4473684210526316,
+            "weighted_same_score": 0.14473684210526316
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "0": 5,
+              "1": 21,
+              "2": 14,
+              "3": 11,
+              "4": 7,
+              "5": 3,
+              "6": 6,
+              "7": 11,
+              "8": 19,
+              "9": 12,
+              "10": 28
+            },
+            "hit_at_k": 0.9635036496350365,
+            "majority_same_at_k": 0.5766423357664233,
+            "mean_same_count": 5.678832116788321,
+            "weighted_same_score": 0.567883211678832
+          }
+        }
+      }
+    },
+    {
+      "name": "memory_first_learned_recency_60_30_10",
+      "config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.6,
+        "w_recency": 0.3,
+        "w_regime": 0.1,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 30,
+          "1": 7,
+          "2": 21,
+          "3": 13,
+          "4": 6,
+          "5": 12,
+          "6": 6,
+          "7": 21,
+          "8": 28,
+          "9": 17,
+          "10": 13
+        },
+        "hit_at_k": 0.8275862068965517,
+        "majority_same_at_k": 0.5574712643678161,
+        "mean_same_count": 4.954022988505747,
+        "weighted_same_score": 0.49540229885057474,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 13,
+              "1": 4,
+              "2": 10,
+              "3": 7,
+              "4": 3,
+              "5": 4,
+              "6": 1,
+              "7": 2,
+              "8": 2,
+              "9": 3,
+              "10": 4
+            },
+            "hit_at_k": 0.7547169811320755,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.3962264150943398,
+            "weighted_same_score": 0.33962264150943394
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 13,
+              "1": 2,
+              "2": 4,
+              "3": 6,
+              "4": 1,
+              "5": 2
+            },
+            "hit_at_k": 0.5357142857142857,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 1.5,
+            "weighted_same_score": 0.15
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 4,
+              "1": 1,
+              "2": 7,
+              "4": 2,
+              "5": 6,
+              "6": 5,
+              "7": 19,
+              "8": 26,
+              "9": 14,
+              "10": 9
+            },
+            "hit_at_k": 0.956989247311828,
+            "majority_same_at_k": 0.8494623655913979,
+            "mean_same_count": 6.881720430107527,
+            "weighted_same_score": 0.6881720430107527
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 22,
+          "1": 42,
+          "2": 21,
+          "3": 29,
+          "4": 18,
+          "5": 23,
+          "6": 38,
+          "7": 18,
+          "8": 28,
+          "9": 29,
+          "10": 37
+        },
+        "hit_at_k": 0.9278688524590164,
+        "majority_same_at_k": 0.5672131147540984,
+        "mean_same_count": 5.137704918032787,
+        "weighted_same_score": 0.5137704918032787,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 5,
+              "1": 10,
+              "2": 6,
+              "3": 11,
+              "4": 11,
+              "5": 13,
+              "6": 18,
+              "7": 5,
+              "8": 14,
+              "9": 9,
+              "10": 28
+            },
+            "hit_at_k": 0.9615384615384616,
+            "majority_same_at_k": 0.6692307692307692,
+            "mean_same_count": 6.0,
+            "weighted_same_score": 0.6
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 14,
+              "1": 11,
+              "2": 4,
+              "3": 6,
+              "4": 3
+            },
+            "hit_at_k": 0.631578947368421,
+            "majority_same_at_k": 0.0,
+            "mean_same_count": 1.2894736842105263,
+            "weighted_same_score": 0.12894736842105264
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "0": 3,
+              "1": 21,
+              "2": 11,
+              "3": 12,
+              "4": 4,
+              "5": 10,
+              "6": 20,
+              "7": 13,
+              "8": 14,
+              "9": 20,
+              "10": 9
+            },
+            "hit_at_k": 0.9781021897810219,
+            "majority_same_at_k": 0.6277372262773723,
+            "mean_same_count": 5.386861313868613,
+            "weighted_same_score": 0.5386861313868613
+          }
+        }
+      }
+    },
+    {
+      "name": "memory_first_fixed_recency_60_30_10",
+      "config": {
+        "w_fixed": 0.6,
+        "w_learned": 0.0,
+        "w_recency": 0.3,
+        "w_regime": 0.1,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 23,
+          "1": 16,
+          "2": 18,
+          "3": 19,
+          "4": 5,
+          "5": 7,
+          "6": 16,
+          "7": 21,
+          "8": 27,
+          "9": 14,
+          "10": 8
+        },
+        "hit_at_k": 0.867816091954023,
+        "majority_same_at_k": 0.5344827586206896,
+        "mean_same_count": 4.764367816091954,
+        "weighted_same_score": 0.47643678160919545,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 10,
+              "1": 7,
+              "2": 11,
+              "3": 8,
+              "4": 2,
+              "5": 2,
+              "6": 3,
+              "7": 2,
+              "8": 4,
+              "9": 1,
+              "10": 3
+            },
+            "hit_at_k": 0.8113207547169812,
+            "majority_same_at_k": 0.2830188679245283,
+            "mean_same_count": 3.2830188679245285,
+            "weighted_same_score": 0.3283018867924528
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 10,
+              "1": 5,
+              "2": 4,
+              "3": 7,
+              "4": 2
+            },
+            "hit_at_k": 0.6428571428571429,
+            "majority_same_at_k": 0.0,
+            "mean_same_count": 1.5,
+            "weighted_same_score": 0.15
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 4,
+              "2": 3,
+              "3": 4,
+              "4": 1,
+              "5": 5,
+              "6": 13,
+              "7": 19,
+              "8": 23,
+              "9": 13,
+              "10": 5
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8387096774193549,
+            "mean_same_count": 6.591397849462366,
+            "weighted_same_score": 0.6591397849462366
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 24,
+          "1": 32,
+          "2": 28,
+          "3": 28,
+          "4": 32,
+          "5": 27,
+          "6": 27,
+          "7": 27,
+          "8": 27,
+          "9": 31,
+          "10": 22
+        },
+        "hit_at_k": 0.921311475409836,
+        "majority_same_at_k": 0.5278688524590164,
+        "mean_same_count": 4.921311475409836,
+        "weighted_same_score": 0.4921311475409836,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 6,
+              "1": 9,
+              "2": 8,
+              "3": 11,
+              "4": 10,
+              "5": 18,
+              "6": 13,
+              "7": 15,
+              "8": 11,
+              "9": 11,
+              "10": 18
+            },
+            "hit_at_k": 0.9538461538461539,
+            "majority_same_at_k": 0.6615384615384615,
+            "mean_same_count": 5.676923076923077,
+            "weighted_same_score": 0.5676923076923077
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 10,
+              "1": 12,
+              "2": 10,
+              "3": 4,
+              "4": 2
+            },
+            "hit_at_k": 0.7368421052631579,
+            "majority_same_at_k": 0.0,
+            "mean_same_count": 1.368421052631579,
+            "weighted_same_score": 0.1368421052631579
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "0": 8,
+              "1": 11,
+              "2": 10,
+              "3": 13,
+              "4": 20,
+              "5": 9,
+              "6": 14,
+              "7": 12,
+              "8": 16,
+              "9": 20,
+              "10": 4
+            },
+            "hit_at_k": 0.9416058394160584,
+            "majority_same_at_k": 0.5474452554744526,
+            "mean_same_count": 5.189781021897811,
+            "weighted_same_score": 0.518978102189781
+          }
+        }
+      }
+    },
+    {
+      "name": "balanced_fixed_learned_recency_regime",
+      "config": {
+        "w_fixed": 0.3,
+        "w_learned": 0.3,
+        "w_recency": 0.3,
+        "w_regime": 0.1,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 31,
+          "1": 8,
+          "2": 15,
+          "3": 19,
+          "4": 7,
+          "5": 9,
+          "6": 10,
+          "7": 23,
+          "8": 25,
+          "9": 19,
+          "10": 8
+        },
+        "hit_at_k": 0.8218390804597702,
+        "majority_same_at_k": 0.5402298850574713,
+        "mean_same_count": 4.827586206896552,
+        "weighted_same_score": 0.4827586206896552,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 15,
+              "1": 2,
+              "2": 10,
+              "3": 10,
+              "4": 1,
+              "5": 2,
+              "6": 1,
+              "7": 2,
+              "8": 5,
+              "9": 2,
+              "10": 3
+            },
+            "hit_at_k": 0.7169811320754716,
+            "majority_same_at_k": 0.2830188679245283,
+            "mean_same_count": 3.2830188679245285,
+            "weighted_same_score": 0.3283018867924528
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 3,
+              "2": 1,
+              "3": 8,
+              "4": 4
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.0,
+            "mean_same_count": 1.6071428571428572,
+            "weighted_same_score": 0.16071428571428573
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 4,
+              "1": 3,
+              "2": 4,
+              "3": 1,
+              "4": 2,
+              "5": 7,
+              "6": 9,
+              "7": 21,
+              "8": 20,
+              "9": 17,
+              "10": 5
+            },
+            "hit_at_k": 0.956989247311828,
+            "majority_same_at_k": 0.8494623655913979,
+            "mean_same_count": 6.67741935483871,
+            "weighted_same_score": 0.667741935483871
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 25,
+          "1": 33,
+          "2": 27,
+          "3": 27,
+          "4": 23,
+          "5": 29,
+          "6": 29,
+          "7": 28,
+          "8": 25,
+          "9": 29,
+          "10": 30
+        },
+        "hit_at_k": 0.9180327868852459,
+        "majority_same_at_k": 0.5573770491803278,
+        "mean_same_count": 5.036065573770492,
+        "weighted_same_score": 0.5036065573770492,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 7,
+              "1": 7,
+              "2": 8,
+              "3": 10,
+              "4": 8,
+              "5": 18,
+              "6": 14,
+              "7": 12,
+              "8": 11,
+              "9": 13,
+              "10": 22
+            },
+            "hit_at_k": 0.9461538461538461,
+            "majority_same_at_k": 0.6923076923076923,
+            "mean_same_count": 5.907692307692308,
+            "weighted_same_score": 0.5907692307692307
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 13,
+              "1": 12,
+              "2": 5,
+              "3": 4,
+              "4": 4
+            },
+            "hit_at_k": 0.6578947368421053,
+            "majority_same_at_k": 0.0,
+            "mean_same_count": 1.3157894736842106,
+            "weighted_same_score": 0.13157894736842105
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "0": 5,
+              "1": 14,
+              "2": 14,
+              "3": 13,
+              "4": 11,
+              "5": 11,
+              "6": 15,
+              "7": 16,
+              "8": 14,
+              "9": 16,
+              "10": 8
+            },
+            "hit_at_k": 0.9635036496350365,
+            "majority_same_at_k": 0.583941605839416,
+            "mean_same_count": 5.240875912408759,
+            "weighted_same_score": 0.5240875912408759
+          }
+        }
+      }
+    },
+    {
+      "name": "selected_majority_consensus",
+      "config": {
+        "w_fixed": 0.2,
+        "w_learned": 0.3,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 30,
+          "1": 8,
+          "2": 14,
+          "3": 15,
+          "4": 9,
+          "5": 16,
+          "6": 9,
+          "7": 13,
+          "8": 16,
+          "9": 23,
+          "10": 21
+        },
+        "hit_at_k": 0.8275862068965517,
+        "majority_same_at_k": 0.5632183908045977,
+        "mean_same_count": 5.097701149425287,
+        "weighted_same_score": 0.5097701149425288,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 15,
+              "1": 4,
+              "2": 5,
+              "3": 8,
+              "4": 5,
+              "5": 2,
+              "6": 1,
+              "7": 1,
+              "8": 1,
+              "9": 5,
+              "10": 6
+            },
+            "hit_at_k": 0.7169811320754716,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.660377358490566,
+            "weighted_same_score": 0.3660377358490566
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 5,
+              "3": 4,
+              "4": 2,
+              "5": 3
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.10714285714285714,
+            "mean_same_count": 1.6785714285714286,
+            "weighted_same_score": 0.16785714285714287
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 2,
+              "2": 4,
+              "3": 3,
+              "4": 2,
+              "5": 11,
+              "6": 8,
+              "7": 12,
+              "8": 15,
+              "9": 18,
+              "10": 15
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8494623655913979,
+            "mean_same_count": 6.946236559139785,
+            "weighted_same_score": 0.6946236559139785
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 28,
+          "1": 35,
+          "2": 34,
+          "3": 27,
+          "4": 20,
+          "5": 14,
+          "6": 12,
+          "7": 15,
+          "8": 26,
+          "9": 22,
+          "10": 72
+        },
+        "hit_at_k": 0.9081967213114754,
+        "majority_same_at_k": 0.5278688524590164,
+        "mean_same_count": 5.367213114754098,
+        "weighted_same_score": 0.5367213114754098,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 8,
+              "1": 8,
+              "2": 12,
+              "3": 11,
+              "4": 10,
+              "5": 9,
+              "6": 6,
+              "7": 6,
+              "8": 8,
+              "9": 9,
+              "10": 43
+            },
+            "hit_at_k": 0.9384615384615385,
+            "majority_same_at_k": 0.6230769230769231,
+            "mean_same_count": 6.176923076923077,
+            "weighted_same_score": 0.6176923076923077
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 15,
+              "1": 7,
+              "2": 7,
+              "3": 4,
+              "4": 4,
+              "5": 1
+            },
+            "hit_at_k": 0.6052631578947368,
+            "majority_same_at_k": 0.02631578947368421,
+            "mean_same_count": 1.4210526315789473,
+            "weighted_same_score": 0.14210526315789473
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "0": 5,
+              "1": 20,
+              "2": 15,
+              "3": 12,
+              "4": 6,
+              "5": 4,
+              "6": 6,
+              "7": 9,
+              "8": 18,
+              "9": 13,
+              "10": 29
+            },
+            "hit_at_k": 0.9635036496350365,
+            "majority_same_at_k": 0.5766423357664233,
+            "mean_same_count": 5.693430656934306,
+            "weighted_same_score": 0.5693430656934306
+          }
+        }
+      }
+    }
+  ],
+  "composite_test_comparison": [
+    {
+      "name": "selected_memory_plus_2_recent",
+      "recent_slots": 2,
+      "memory_config": {
+        "w_fixed": 0.2,
+        "w_learned": 0.3,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "recent_config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.0,
+        "w_recency": 1.0,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 30,
+          "1": 8,
+          "2": 12,
+          "3": 17,
+          "4": 11,
+          "5": 14,
+          "6": 9,
+          "7": 13,
+          "8": 16,
+          "9": 23,
+          "10": 21
+        },
+        "hit_at_k": 0.8275862068965517,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 5.097701149425287,
+        "weighted_same_score": 0.5097701149425288,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 15,
+              "1": 4,
+              "2": 4,
+              "3": 9,
+              "4": 5,
+              "5": 2,
+              "6": 1,
+              "7": 1,
+              "8": 1,
+              "9": 5,
+              "10": 6
+            },
+            "hit_at_k": 0.7169811320754716,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.6792452830188678,
+            "weighted_same_score": 0.36792452830188677
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 5,
+              "3": 4,
+              "4": 3,
+              "5": 2
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 1.6428571428571428,
+            "weighted_same_score": 0.1642857142857143
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 2,
+              "2": 3,
+              "3": 4,
+              "4": 3,
+              "5": 10,
+              "6": 8,
+              "7": 12,
+              "8": 15,
+              "9": 18,
+              "10": 15
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8387096774193549,
+            "mean_same_count": 6.946236559139785,
+            "weighted_same_score": 0.6946236559139785
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 28,
+          "1": 35,
+          "2": 35,
+          "3": 26,
+          "4": 20,
+          "5": 14,
+          "6": 12,
+          "7": 15,
+          "8": 26,
+          "9": 22,
+          "10": 72
+        },
+        "hit_at_k": 0.9081967213114754,
+        "majority_same_at_k": 0.5278688524590164,
+        "mean_same_count": 5.363934426229508,
+        "weighted_same_score": 0.5363934426229509,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 8,
+              "1": 8,
+              "2": 12,
+              "3": 11,
+              "4": 10,
+              "5": 9,
+              "6": 6,
+              "7": 6,
+              "8": 8,
+              "9": 9,
+              "10": 43
+            },
+            "hit_at_k": 0.9384615384615385,
+            "majority_same_at_k": 0.6230769230769231,
+            "mean_same_count": 6.176923076923077,
+            "weighted_same_score": 0.6176923076923077
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 15,
+              "1": 7,
+              "2": 7,
+              "3": 4,
+              "4": 4,
+              "5": 1
+            },
+            "hit_at_k": 0.6052631578947368,
+            "majority_same_at_k": 0.02631578947368421,
+            "mean_same_count": 1.4210526315789473,
+            "weighted_same_score": 0.14210526315789473
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "0": 5,
+              "1": 20,
+              "2": 16,
+              "3": 11,
+              "4": 6,
+              "5": 4,
+              "6": 6,
+              "7": 9,
+              "8": 18,
+              "9": 13,
+              "10": 29
+            },
+            "hit_at_k": 0.9635036496350365,
+            "majority_same_at_k": 0.5766423357664233,
+            "mean_same_count": 5.686131386861314,
+            "weighted_same_score": 0.5686131386861314
+          }
+        }
+      }
+    },
+    {
+      "name": "selected_memory_plus_3_recent",
+      "recent_slots": 3,
+      "memory_config": {
+        "w_fixed": 0.2,
+        "w_learned": 0.3,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "recent_config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.0,
+        "w_recency": 1.0,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 30,
+          "1": 7,
+          "2": 13,
+          "3": 17,
+          "4": 11,
+          "5": 14,
+          "6": 10,
+          "7": 12,
+          "8": 16,
+          "9": 23,
+          "10": 21
+        },
+        "hit_at_k": 0.8275862068965517,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 5.097701149425287,
+        "weighted_same_score": 0.5097701149425288,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 15,
+              "1": 3,
+              "2": 5,
+              "3": 9,
+              "4": 5,
+              "5": 2,
+              "6": 1,
+              "7": 1,
+              "8": 1,
+              "9": 5,
+              "10": 6
+            },
+            "hit_at_k": 0.7169811320754716,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.69811320754717,
+            "weighted_same_score": 0.369811320754717
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 5,
+              "3": 4,
+              "4": 3,
+              "5": 2
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 1.6428571428571428,
+            "weighted_same_score": 0.1642857142857143
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 2,
+              "2": 3,
+              "3": 4,
+              "4": 3,
+              "5": 10,
+              "6": 9,
+              "7": 11,
+              "8": 15,
+              "9": 18,
+              "10": 15
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8387096774193549,
+            "mean_same_count": 6.935483870967742,
+            "weighted_same_score": 0.6935483870967742
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 28,
+          "1": 34,
+          "2": 36,
+          "3": 26,
+          "4": 19,
+          "5": 17,
+          "6": 9,
+          "7": 15,
+          "8": 27,
+          "9": 22,
+          "10": 72
+        },
+        "hit_at_k": 0.9081967213114754,
+        "majority_same_at_k": 0.5311475409836065,
+        "mean_same_count": 5.370491803278688,
+        "weighted_same_score": 0.5370491803278689,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 8,
+              "1": 8,
+              "2": 12,
+              "3": 11,
+              "4": 10,
+              "5": 10,
+              "6": 4,
+              "7": 6,
+              "8": 9,
+              "9": 9,
+              "10": 43
+            },
+            "hit_at_k": 0.9384615384615385,
+            "majority_same_at_k": 0.6230769230769231,
+            "mean_same_count": 6.184615384615385,
+            "weighted_same_score": 0.6184615384615385
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 15,
+              "1": 6,
+              "2": 8,
+              "3": 4,
+              "4": 3,
+              "5": 2
+            },
+            "hit_at_k": 0.6052631578947368,
+            "majority_same_at_k": 0.05263157894736842,
+            "mean_same_count": 1.4736842105263157,
+            "weighted_same_score": 0.1473684210526316
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "0": 5,
+              "1": 20,
+              "2": 16,
+              "3": 11,
+              "4": 6,
+              "5": 5,
+              "6": 5,
+              "7": 9,
+              "8": 18,
+              "9": 13,
+              "10": 29
+            },
+            "hit_at_k": 0.9635036496350365,
+            "majority_same_at_k": 0.5766423357664233,
+            "mean_same_count": 5.678832116788321,
+            "weighted_same_score": 0.567883211678832
+          }
+        }
+      }
+    },
+    {
+      "name": "learned_memory_plus_2_recent",
+      "recent_slots": 2,
+      "memory_config": {
+        "w_fixed": 0.0,
+        "w_learned": 1.0,
+        "w_recency": 0.0,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "recent_config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.0,
+        "w_recency": 1.0,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 2,
+          "1": 14,
+          "2": 21,
+          "3": 32,
+          "4": 37,
+          "5": 32,
+          "6": 24,
+          "7": 12
+        },
+        "hit_at_k": 0.9885057471264368,
+        "majority_same_at_k": 0.39080459770114945,
+        "mean_same_count": 3.954022988505747,
+        "weighted_same_score": 0.3954022988505747,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 1,
+              "1": 2,
+              "2": 11,
+              "3": 16,
+              "4": 9,
+              "5": 7,
+              "6": 5,
+              "7": 2
+            },
+            "hit_at_k": 0.9811320754716981,
+            "majority_same_at_k": 0.2641509433962264,
+            "mean_same_count": 3.5283018867924527,
+            "weighted_same_score": 0.35283018867924526
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "1": 8,
+              "2": 8,
+              "3": 4,
+              "4": 7,
+              "5": 1
+            },
+            "hit_at_k": 1.0,
+            "majority_same_at_k": 0.03571428571428571,
+            "mean_same_count": 2.4642857142857144,
+            "weighted_same_score": 0.24642857142857144
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 1,
+              "1": 4,
+              "2": 2,
+              "3": 12,
+              "4": 21,
+              "5": 24,
+              "6": 19,
+              "7": 10
+            },
+            "hit_at_k": 0.989247311827957,
+            "majority_same_at_k": 0.5698924731182796,
+            "mean_same_count": 4.645161290322581,
+            "weighted_same_score": 0.4645161290322581
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 5,
+          "1": 30,
+          "2": 41,
+          "3": 61,
+          "4": 50,
+          "5": 56,
+          "6": 36,
+          "7": 18,
+          "8": 7,
+          "9": 1
+        },
+        "hit_at_k": 0.9836065573770492,
+        "majority_same_at_k": 0.38688524590163936,
+        "mean_same_count": 3.875409836065574,
+        "weighted_same_score": 0.38754098360655737,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 1,
+              "1": 10,
+              "2": 17,
+              "3": 27,
+              "4": 26,
+              "5": 19,
+              "6": 17,
+              "7": 10,
+              "8": 3
+            },
+            "hit_at_k": 0.9923076923076923,
+            "majority_same_at_k": 0.3769230769230769,
+            "mean_same_count": 4.0,
+            "weighted_same_score": 0.4
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 4,
+              "1": 12,
+              "2": 12,
+              "3": 9,
+              "4": 1
+            },
+            "hit_at_k": 0.8947368421052632,
+            "majority_same_at_k": 0.0,
+            "mean_same_count": 1.763157894736842,
+            "weighted_same_score": 0.1763157894736842
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "1": 8,
+              "2": 12,
+              "3": 25,
+              "4": 23,
+              "5": 37,
+              "6": 19,
+              "7": 8,
+              "8": 4,
+              "9": 1
+            },
+            "hit_at_k": 1.0,
+            "majority_same_at_k": 0.5036496350364964,
+            "mean_same_count": 4.343065693430657,
+            "weighted_same_score": 0.4343065693430657
+          }
+        }
+      }
+    },
+    {
+      "name": "learned_memory_plus_3_recent",
+      "recent_slots": 3,
+      "memory_config": {
+        "w_fixed": 0.0,
+        "w_learned": 1.0,
+        "w_recency": 0.0,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "recent_config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.0,
+        "w_recency": 1.0,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 3,
+          "1": 15,
+          "2": 23,
+          "3": 27,
+          "4": 26,
+          "5": 37,
+          "6": 24,
+          "7": 16,
+          "8": 3
+        },
+        "hit_at_k": 0.9827586206896551,
+        "majority_same_at_k": 0.45977011494252873,
+        "mean_same_count": 4.086206896551724,
+        "weighted_same_score": 0.4086206896551724,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 1,
+              "1": 1,
+              "2": 15,
+              "3": 13,
+              "4": 8,
+              "5": 8,
+              "6": 3,
+              "7": 4
+            },
+            "hit_at_k": 0.9811320754716981,
+            "majority_same_at_k": 0.2830188679245283,
+            "mean_same_count": 3.547169811320755,
+            "weighted_same_score": 0.3547169811320755
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 1,
+              "1": 11,
+              "2": 4,
+              "3": 7,
+              "4": 2,
+              "5": 3
+            },
+            "hit_at_k": 0.9642857142857143,
+            "majority_same_at_k": 0.10714285714285714,
+            "mean_same_count": 2.25,
+            "weighted_same_score": 0.22500000000000003
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 1,
+              "1": 3,
+              "2": 4,
+              "3": 7,
+              "4": 16,
+              "5": 26,
+              "6": 21,
+              "7": 12,
+              "8": 3
+            },
+            "hit_at_k": 0.989247311827957,
+            "majority_same_at_k": 0.6666666666666666,
+            "mean_same_count": 4.946236559139785,
+            "weighted_same_score": 0.4946236559139785
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 6,
+          "1": 32,
+          "2": 42,
+          "3": 47,
+          "4": 45,
+          "5": 55,
+          "6": 35,
+          "7": 27,
+          "8": 12,
+          "9": 4
+        },
+        "hit_at_k": 0.980327868852459,
+        "majority_same_at_k": 0.4360655737704918,
+        "mean_same_count": 4.075409836065574,
+        "weighted_same_score": 0.4075409836065574,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 1,
+              "1": 13,
+              "2": 13,
+              "3": 22,
+              "4": 18,
+              "5": 26,
+              "6": 14,
+              "7": 16,
+              "8": 5,
+              "9": 2
+            },
+            "hit_at_k": 0.9923076923076923,
+            "majority_same_at_k": 0.4846153846153846,
+            "mean_same_count": 4.315384615384615,
+            "weighted_same_score": 0.43153846153846154
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 5,
+              "1": 10,
+              "2": 18,
+              "3": 5
+            },
+            "hit_at_k": 0.868421052631579,
+            "majority_same_at_k": 0.0,
+            "mean_same_count": 1.605263157894737,
+            "weighted_same_score": 0.16052631578947368
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "1": 9,
+              "2": 11,
+              "3": 20,
+              "4": 27,
+              "5": 29,
+              "6": 21,
+              "7": 11,
+              "8": 7,
+              "9": 2
+            },
+            "hit_at_k": 1.0,
+            "majority_same_at_k": 0.5109489051094891,
+            "mean_same_count": 4.532846715328467,
+            "weighted_same_score": 0.45328467153284674
+          }
+        }
+      }
+    },
+    {
+      "name": "balanced_memory_plus_2_recent",
+      "recent_slots": 2,
+      "memory_config": {
+        "w_fixed": 0.4,
+        "w_learned": 0.4,
+        "w_recency": 0.0,
+        "w_regime": 0.2,
+        "recency_half_life_days": 30.0
+      },
+      "recent_config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.0,
+        "w_recency": 1.0,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 4,
+          "1": 13,
+          "2": 18,
+          "3": 33,
+          "4": 39,
+          "5": 37,
+          "6": 18,
+          "7": 9,
+          "8": 3
+        },
+        "hit_at_k": 0.9770114942528736,
+        "majority_same_at_k": 0.3850574712643678,
+        "mean_same_count": 3.9310344827586206,
+        "weighted_same_score": 0.3931034482758621,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 1,
+              "1": 6,
+              "2": 6,
+              "3": 14,
+              "4": 11,
+              "5": 12,
+              "6": 2,
+              "7": 1
+            },
+            "hit_at_k": 0.9811320754716981,
+            "majority_same_at_k": 0.2830188679245283,
+            "mean_same_count": 3.452830188679245,
+            "weighted_same_score": 0.34528301886792456
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 2,
+              "1": 6,
+              "2": 5,
+              "3": 7,
+              "4": 6,
+              "5": 2
+            },
+            "hit_at_k": 0.9285714285714286,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 2.5357142857142856,
+            "weighted_same_score": 0.2535714285714286
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 1,
+              "1": 1,
+              "2": 7,
+              "3": 12,
+              "4": 22,
+              "5": 23,
+              "6": 16,
+              "7": 8,
+              "8": 3
+            },
+            "hit_at_k": 0.989247311827957,
+            "majority_same_at_k": 0.5376344086021505,
+            "mean_same_count": 4.623655913978495,
+            "weighted_same_score": 0.46236559139784944
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 8,
+          "1": 26,
+          "2": 37,
+          "3": 60,
+          "4": 67,
+          "5": 53,
+          "6": 29,
+          "7": 18,
+          "8": 6,
+          "9": 1
+        },
+        "hit_at_k": 0.9737704918032787,
+        "majority_same_at_k": 0.35081967213114756,
+        "mean_same_count": 3.8360655737704916,
+        "weighted_same_score": 0.3836065573770492,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 1,
+              "1": 5,
+              "2": 22,
+              "3": 24,
+              "4": 28,
+              "5": 26,
+              "6": 14,
+              "7": 9,
+              "8": 1
+            },
+            "hit_at_k": 0.9923076923076923,
+            "majority_same_at_k": 0.38461538461538464,
+            "mean_same_count": 3.9846153846153847,
+            "weighted_same_score": 0.3984615384615385
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 7,
+              "1": 17,
+              "2": 4,
+              "3": 7,
+              "4": 3
+            },
+            "hit_at_k": 0.8157894736842105,
+            "majority_same_at_k": 0.0,
+            "mean_same_count": 1.5263157894736843,
+            "weighted_same_score": 0.15263157894736845
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "1": 4,
+              "2": 11,
+              "3": 29,
+              "4": 36,
+              "5": 27,
+              "6": 15,
+              "7": 9,
+              "8": 5,
+              "9": 1
+            },
+            "hit_at_k": 1.0,
+            "majority_same_at_k": 0.41605839416058393,
+            "mean_same_count": 4.335766423357664,
+            "weighted_same_score": 0.4335766423357664
+          }
+        }
+      }
+    },
+    {
+      "name": "balanced_memory_plus_3_recent",
+      "recent_slots": 3,
+      "memory_config": {
+        "w_fixed": 0.4,
+        "w_learned": 0.4,
+        "w_recency": 0.0,
+        "w_regime": 0.2,
+        "recency_half_life_days": 30.0
+      },
+      "recent_config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.0,
+        "w_recency": 1.0,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 6,
+          "1": 16,
+          "2": 16,
+          "3": 26,
+          "4": 35,
+          "5": 30,
+          "6": 28,
+          "7": 14,
+          "8": 2,
+          "9": 1
+        },
+        "hit_at_k": 0.9655172413793104,
+        "majority_same_at_k": 0.43103448275862066,
+        "mean_same_count": 4.063218390804598,
+        "weighted_same_score": 0.40632183908045977,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 1,
+              "1": 7,
+              "2": 7,
+              "3": 11,
+              "4": 12,
+              "5": 7,
+              "6": 6,
+              "7": 2
+            },
+            "hit_at_k": 0.9811320754716981,
+            "majority_same_at_k": 0.2830188679245283,
+            "mean_same_count": 3.5283018867924527,
+            "weighted_same_score": 0.35283018867924526
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 4,
+              "1": 7,
+              "2": 3,
+              "3": 6,
+              "4": 6,
+              "5": 2
+            },
+            "hit_at_k": 0.8571428571428571,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 2.3214285714285716,
+            "weighted_same_score": 0.23214285714285715
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 1,
+              "1": 2,
+              "2": 6,
+              "3": 9,
+              "4": 17,
+              "5": 21,
+              "6": 22,
+              "7": 12,
+              "8": 2,
+              "9": 1
+            },
+            "hit_at_k": 0.989247311827957,
+            "majority_same_at_k": 0.6236559139784946,
+            "mean_same_count": 4.89247311827957,
+            "weighted_same_score": 0.489247311827957
+          }
+        }
+      },
+      "test": {
+        "n": 305,
+        "distribution": {
+          "0": 9,
+          "1": 28,
+          "2": 36,
+          "3": 50,
+          "4": 63,
+          "5": 41,
+          "6": 43,
+          "7": 24,
+          "8": 9,
+          "9": 2
+        },
+        "hit_at_k": 0.9704918032786886,
+        "majority_same_at_k": 0.3901639344262295,
+        "mean_same_count": 4.00983606557377,
+        "weighted_same_score": 0.400983606557377,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 130,
+            "distribution": {
+              "0": 1,
+              "1": 5,
+              "2": 18,
+              "3": 26,
+              "4": 24,
+              "5": 17,
+              "6": 23,
+              "7": 15,
+              "8": 1
+            },
+            "hit_at_k": 0.9923076923076923,
+            "majority_same_at_k": 0.4307692307692308,
+            "mean_same_count": 4.2384615384615385,
+            "weighted_same_score": 0.4238461538461539
+          },
+          "HOLD": {
+            "n": 38,
+            "distribution": {
+              "0": 8,
+              "1": 16,
+              "2": 5,
+              "3": 7,
+              "4": 2
+            },
+            "hit_at_k": 0.7894736842105263,
+            "majority_same_at_k": 0.0,
+            "mean_same_count": 1.4473684210526316,
+            "weighted_same_score": 0.14473684210526316
+          },
+          "SELL": {
+            "n": 137,
+            "distribution": {
+              "1": 7,
+              "2": 13,
+              "3": 17,
+              "4": 37,
+              "5": 24,
+              "6": 20,
+              "7": 9,
+              "8": 8,
+              "9": 2
+            },
+            "hit_at_k": 1.0,
+            "majority_same_at_k": 0.45985401459854014,
+            "mean_same_count": 4.5036496350364965,
+            "weighted_same_score": 0.45036496350364963
+          }
+        }
+      }
+    }
+  ],
+  "top_validation_candidates": [
+    {
+      "rank": 1,
+      "objective": 0.5770168348679325,
+      "config": {
+        "w_fixed": 0.2,
+        "w_learned": 0.3,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 30,
+          "1": 8,
+          "2": 14,
+          "3": 15,
+          "4": 9,
+          "5": 16,
+          "6": 9,
+          "7": 13,
+          "8": 16,
+          "9": 23,
+          "10": 21
+        },
+        "hit_at_k": 0.8275862068965517,
+        "majority_same_at_k": 0.5632183908045977,
+        "mean_same_count": 5.097701149425287,
+        "weighted_same_score": 0.5097701149425288,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 15,
+              "1": 4,
+              "2": 5,
+              "3": 8,
+              "4": 5,
+              "5": 2,
+              "6": 1,
+              "7": 1,
+              "8": 1,
+              "9": 5,
+              "10": 6
+            },
+            "hit_at_k": 0.7169811320754716,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.660377358490566,
+            "weighted_same_score": 0.3660377358490566
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 5,
+              "3": 4,
+              "4": 2,
+              "5": 3
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.10714285714285714,
+            "mean_same_count": 1.6785714285714286,
+            "weighted_same_score": 0.16785714285714287
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 2,
+              "2": 4,
+              "3": 3,
+              "4": 2,
+              "5": 11,
+              "6": 8,
+              "7": 12,
+              "8": 15,
+              "9": 18,
+              "10": 15
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8494623655913979,
+            "mean_same_count": 6.946236559139785,
+            "weighted_same_score": 0.6946236559139785
+          }
+        }
+      }
+    },
+    {
+      "rank": 2,
+      "objective": 0.5764729766127283,
+      "config": {
+        "w_fixed": 0.1,
+        "w_learned": 0.4,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 30,
+          "1": 6,
+          "2": 13,
+          "3": 19,
+          "4": 8,
+          "5": 14,
+          "6": 9,
+          "7": 16,
+          "8": 15,
+          "9": 21,
+          "10": 23
+        },
+        "hit_at_k": 0.8275862068965517,
+        "majority_same_at_k": 0.5632183908045977,
+        "mean_same_count": 5.149425287356322,
+        "weighted_same_score": 0.5149425287356322,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 15,
+              "1": 2,
+              "2": 5,
+              "3": 10,
+              "4": 5,
+              "5": 2,
+              "6": 1,
+              "7": 1,
+              "8": 1,
+              "9": 4,
+              "10": 7
+            },
+            "hit_at_k": 0.7169811320754716,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.7547169811320753,
+            "weighted_same_score": 0.3754716981132075
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 5,
+              "3": 4,
+              "4": 1,
+              "5": 3,
+              "6": 1
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.14285714285714285,
+            "mean_same_count": 1.75,
+            "weighted_same_score": 0.17500000000000002
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 2,
+              "2": 3,
+              "3": 5,
+              "4": 2,
+              "5": 9,
+              "6": 7,
+              "7": 15,
+              "8": 14,
+              "9": 17,
+              "10": 16
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8387096774193549,
+            "mean_same_count": 6.967741935483871,
+            "weighted_same_score": 0.6967741935483871
+          }
+        }
+      }
+    },
+    {
+      "rank": 3,
+      "objective": 0.5750287793565177,
+      "config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.5,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 29,
+          "1": 6,
+          "2": 12,
+          "3": 20,
+          "4": 10,
+          "5": 13,
+          "6": 7,
+          "7": 17,
+          "8": 18,
+          "9": 20,
+          "10": 22
+        },
+        "hit_at_k": 0.8333333333333334,
+        "majority_same_at_k": 0.5574712643678161,
+        "mean_same_count": 5.172413793103448,
+        "weighted_same_score": 0.5172413793103449,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 14,
+              "1": 3,
+              "2": 3,
+              "3": 12,
+              "4": 5,
+              "5": 2,
+              "6": 1,
+              "7": 1,
+              "8": 1,
+              "9": 4,
+              "10": 7
+            },
+            "hit_at_k": 0.7358490566037735,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.811320754716981,
+            "weighted_same_score": 0.3811320754716981
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 5,
+              "3": 3,
+              "4": 3,
+              "5": 2,
+              "6": 1
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.10714285714285714,
+            "mean_same_count": 1.75,
+            "weighted_same_score": 0.17500000000000002
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 1,
+              "2": 4,
+              "3": 5,
+              "4": 2,
+              "5": 9,
+              "6": 5,
+              "7": 16,
+              "8": 17,
+              "9": 16,
+              "10": 15
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8387096774193549,
+            "mean_same_count": 6.978494623655914,
+            "weighted_same_score": 0.6978494623655914
+          }
+        }
+      }
+    },
+    {
+      "rank": 4,
+      "objective": 0.5738115276332793,
+      "config": {
+        "w_fixed": 0.1,
+        "w_learned": 0.4,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 14.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 29,
+          "1": 8,
+          "2": 9,
+          "3": 19,
+          "4": 12,
+          "5": 15,
+          "6": 9,
+          "7": 14,
+          "8": 15,
+          "9": 21,
+          "10": 23
+        },
+        "hit_at_k": 0.8333333333333334,
+        "majority_same_at_k": 0.5574712643678161,
+        "mean_same_count": 5.155172413793103,
+        "weighted_same_score": 0.5155172413793103,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 14,
+              "1": 4,
+              "2": 1,
+              "3": 12,
+              "4": 5,
+              "5": 3,
+              "6": 1,
+              "7": 1,
+              "8": 1,
+              "9": 4,
+              "10": 7
+            },
+            "hit_at_k": 0.7358490566037735,
+            "majority_same_at_k": 0.32075471698113206,
+            "mean_same_count": 3.849056603773585,
+            "weighted_same_score": 0.38490566037735846
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 5,
+              "3": 3,
+              "4": 3,
+              "5": 3
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.10714285714285714,
+            "mean_same_count": 1.7142857142857142,
+            "weighted_same_score": 0.17142857142857143
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 2,
+              "2": 3,
+              "3": 4,
+              "4": 4,
+              "5": 9,
+              "6": 8,
+              "7": 13,
+              "8": 14,
+              "9": 17,
+              "10": 16
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8279569892473119,
+            "mean_same_count": 6.935483870967742,
+            "weighted_same_score": 0.6935483870967742
+          }
+        }
+      }
+    },
+    {
+      "rank": 5,
+      "objective": 0.5721170785249059,
+      "config": {
+        "w_fixed": 0.2,
+        "w_learned": 0.3,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 45.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 31,
+          "1": 11,
+          "2": 13,
+          "3": 14,
+          "4": 8,
+          "5": 14,
+          "6": 7,
+          "7": 14,
+          "8": 20,
+          "9": 27,
+          "10": 15
+        },
+        "hit_at_k": 0.8218390804597702,
+        "majority_same_at_k": 0.5574712643678161,
+        "mean_same_count": 5.022988505747127,
+        "weighted_same_score": 0.5022988505747127,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 15,
+              "1": 5,
+              "2": 4,
+              "3": 9,
+              "4": 4,
+              "5": 2,
+              "6": 1,
+              "7": 1,
+              "8": 3,
+              "9": 3,
+              "10": 6
+            },
+            "hit_at_k": 0.7169811320754716,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.5849056603773586,
+            "weighted_same_score": 0.3584905660377358
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 13,
+              "1": 3,
+              "2": 4,
+              "3": 4,
+              "4": 2,
+              "5": 2
+            },
+            "hit_at_k": 0.5357142857142857,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 1.4642857142857142,
+            "weighted_same_score": 0.1464285714285714
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 3,
+              "2": 5,
+              "3": 1,
+              "4": 2,
+              "5": 10,
+              "6": 6,
+              "7": 13,
+              "8": 17,
+              "9": 24,
+              "10": 9
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8494623655913979,
+            "mean_same_count": 6.913978494623656,
+            "weighted_same_score": 0.6913978494623656
+          }
+        }
+      }
+    },
+    {
+      "rank": 6,
+      "objective": 0.5705937589634884,
+      "config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.6,
+        "w_recency": 0.3,
+        "w_regime": 0.1,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 30,
+          "1": 7,
+          "2": 21,
+          "3": 13,
+          "4": 6,
+          "5": 12,
+          "6": 6,
+          "7": 21,
+          "8": 28,
+          "9": 17,
+          "10": 13
+        },
+        "hit_at_k": 0.8275862068965517,
+        "majority_same_at_k": 0.5574712643678161,
+        "mean_same_count": 4.954022988505747,
+        "weighted_same_score": 0.49540229885057474,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 13,
+              "1": 4,
+              "2": 10,
+              "3": 7,
+              "4": 3,
+              "5": 4,
+              "6": 1,
+              "7": 2,
+              "8": 2,
+              "9": 3,
+              "10": 4
+            },
+            "hit_at_k": 0.7547169811320755,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.3962264150943398,
+            "weighted_same_score": 0.33962264150943394
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 13,
+              "1": 2,
+              "2": 4,
+              "3": 6,
+              "4": 1,
+              "5": 2
+            },
+            "hit_at_k": 0.5357142857142857,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 1.5,
+            "weighted_same_score": 0.15
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 4,
+              "1": 1,
+              "2": 7,
+              "4": 2,
+              "5": 6,
+              "6": 5,
+              "7": 19,
+              "8": 26,
+              "9": 14,
+              "10": 9
+            },
+            "hit_at_k": 0.956989247311828,
+            "majority_same_at_k": 0.8494623655913979,
+            "mean_same_count": 6.881720430107527,
+            "weighted_same_score": 0.6881720430107527
+          }
+        }
+      }
+    },
+    {
+      "rank": 7,
+      "objective": 0.5704077056767678,
+      "config": {
+        "w_fixed": 0.1,
+        "w_learned": 0.4,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 45.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 31,
+          "1": 9,
+          "2": 11,
+          "3": 16,
+          "4": 11,
+          "5": 12,
+          "6": 7,
+          "7": 14,
+          "8": 22,
+          "9": 23,
+          "10": 18
+        },
+        "hit_at_k": 0.8218390804597702,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 5.091954022988506,
+        "weighted_same_score": 0.5091954022988505,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 15,
+              "1": 4,
+              "2": 3,
+              "3": 10,
+              "4": 5,
+              "5": 2,
+              "6": 1,
+              "7": 1,
+              "8": 3,
+              "9": 3,
+              "10": 6
+            },
+            "hit_at_k": 0.7169811320754716,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.660377358490566,
+            "weighted_same_score": 0.36603773584905663
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 13,
+              "1": 2,
+              "2": 4,
+              "3": 4,
+              "4": 3,
+              "5": 2
+            },
+            "hit_at_k": 0.5357142857142857,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 1.5714285714285714,
+            "weighted_same_score": 0.15714285714285717
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 3,
+              "2": 4,
+              "3": 2,
+              "4": 3,
+              "5": 8,
+              "6": 6,
+              "7": 13,
+              "8": 19,
+              "9": 20,
+              "10": 12
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8387096774193549,
+            "mean_same_count": 6.967741935483871,
+            "weighted_same_score": 0.6967741935483871
+          }
+        }
+      }
+    },
+    {
+      "rank": 8,
+      "objective": 0.5698693429456909,
+      "config": {
+        "w_fixed": 0.1,
+        "w_learned": 0.4,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 21.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 29,
+          "1": 7,
+          "2": 10,
+          "3": 21,
+          "4": 11,
+          "5": 13,
+          "6": 10,
+          "7": 15,
+          "8": 13,
+          "9": 22,
+          "10": 23
+        },
+        "hit_at_k": 0.8333333333333334,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 5.149425287356322,
+        "weighted_same_score": 0.5149425287356322,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 14,
+              "1": 3,
+              "2": 2,
+              "3": 13,
+              "4": 5,
+              "5": 2,
+              "6": 1,
+              "7": 1,
+              "8": 1,
+              "9": 4,
+              "10": 7
+            },
+            "hit_at_k": 0.7358490566037735,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.830188679245283,
+            "weighted_same_score": 0.38301886792452833
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 5,
+              "3": 3,
+              "4": 3,
+              "5": 2,
+              "6": 1
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.10714285714285714,
+            "mean_same_count": 1.75,
+            "weighted_same_score": 0.17500000000000002
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 2,
+              "2": 3,
+              "3": 5,
+              "4": 3,
+              "5": 9,
+              "6": 8,
+              "7": 14,
+              "8": 12,
+              "9": 18,
+              "10": 16
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8279569892473119,
+            "mean_same_count": 6.924731182795699,
+            "weighted_same_score": 0.6924731182795699
+          }
+        }
+      }
+    },
+    {
+      "rank": 9,
+      "objective": 0.5694899531475024,
+      "config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.5,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 45.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 29,
+          "1": 9,
+          "2": 12,
+          "3": 17,
+          "4": 11,
+          "5": 11,
+          "6": 8,
+          "7": 15,
+          "8": 20,
+          "9": 23,
+          "10": 19
+        },
+        "hit_at_k": 0.8333333333333334,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 5.132183908045977,
+        "weighted_same_score": 0.5132183908045976,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 14,
+              "1": 4,
+              "2": 3,
+              "3": 11,
+              "4": 5,
+              "5": 2,
+              "6": 1,
+              "7": 1,
+              "8": 1,
+              "9": 5,
+              "10": 6
+            },
+            "hit_at_k": 0.7358490566037735,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.7547169811320753,
+            "weighted_same_score": 0.3754716981132075
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 5,
+              "3": 4,
+              "4": 2,
+              "5": 3
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.10714285714285714,
+            "mean_same_count": 1.6785714285714286,
+            "weighted_same_score": 0.16785714285714287
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 3,
+              "2": 4,
+              "3": 2,
+              "4": 4,
+              "5": 6,
+              "6": 7,
+              "7": 14,
+              "8": 19,
+              "9": 18,
+              "10": 13
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8279569892473119,
+            "mean_same_count": 6.956989247311828,
+            "weighted_same_score": 0.6956989247311828
+          }
+        }
+      }
+    },
+    {
+      "rank": 10,
+      "objective": 0.5692724095955674,
+      "config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.5,
+        "w_recency": 0.4,
+        "w_regime": 0.1,
+        "recency_half_life_days": 60.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 29,
+          "1": 11,
+          "2": 16,
+          "3": 16,
+          "4": 6,
+          "5": 8,
+          "6": 7,
+          "7": 20,
+          "8": 25,
+          "9": 21,
+          "10": 15
+        },
+        "hit_at_k": 0.8333333333333334,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 5.0344827586206895,
+        "weighted_same_score": 0.503448275862069,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 12,
+              "1": 6,
+              "2": 9,
+              "3": 7,
+              "4": 4,
+              "5": 2,
+              "6": 1,
+              "7": 2,
+              "8": 1,
+              "9": 4,
+              "10": 5
+            },
+            "hit_at_k": 0.7735849056603774,
+            "majority_same_at_k": 0.2830188679245283,
+            "mean_same_count": 3.490566037735849,
+            "weighted_same_score": 0.3490566037735849
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 13,
+              "1": 2,
+              "2": 4,
+              "3": 6,
+              "4": 1,
+              "5": 2
+            },
+            "hit_at_k": 0.5357142857142857,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 1.5,
+            "weighted_same_score": 0.15
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 4,
+              "1": 3,
+              "2": 3,
+              "3": 3,
+              "4": 1,
+              "5": 4,
+              "6": 6,
+              "7": 18,
+              "8": 24,
+              "9": 17,
+              "10": 10
+            },
+            "hit_at_k": 0.956989247311828,
+            "majority_same_at_k": 0.8494623655913979,
+            "mean_same_count": 6.978494623655914,
+            "weighted_same_score": 0.6978494623655914
+          }
+        }
+      }
+    },
+    {
+      "rank": 11,
+      "objective": 0.5689672562205985,
+      "config": {
+        "w_fixed": 0.2,
+        "w_learned": 0.3,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 14.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 30,
+          "1": 7,
+          "2": 11,
+          "3": 17,
+          "4": 13,
+          "5": 14,
+          "6": 10,
+          "7": 13,
+          "8": 15,
+          "9": 21,
+          "10": 23
+        },
+        "hit_at_k": 0.8275862068965517,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 5.126436781609195,
+        "weighted_same_score": 0.5126436781609196,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 15,
+              "1": 3,
+              "2": 3,
+              "3": 11,
+              "4": 4,
+              "5": 3,
+              "6": 1,
+              "7": 1,
+              "8": 1,
+              "9": 4,
+              "10": 7
+            },
+            "hit_at_k": 0.7169811320754716,
+            "majority_same_at_k": 0.32075471698113206,
+            "mean_same_count": 3.7735849056603774,
+            "weighted_same_score": 0.37735849056603776
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 5,
+              "3": 3,
+              "4": 3,
+              "5": 3
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.10714285714285714,
+            "mean_same_count": 1.7142857142857142,
+            "weighted_same_score": 0.17142857142857143
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 2,
+              "2": 3,
+              "3": 3,
+              "4": 6,
+              "5": 8,
+              "6": 9,
+              "7": 12,
+              "8": 14,
+              "9": 17,
+              "10": 16
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8172043010752689,
+            "mean_same_count": 6.924731182795699,
+            "weighted_same_score": 0.6924731182795699
+          }
+        }
+      }
+    },
+    {
+      "rank": 12,
+      "objective": 0.5689352100317114,
+      "config": {
+        "w_fixed": 0.2,
+        "w_learned": 0.3,
+        "w_recency": 0.4,
+        "w_regime": 0.1,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 31,
+          "1": 10,
+          "2": 16,
+          "3": 11,
+          "4": 10,
+          "5": 13,
+          "6": 6,
+          "7": 18,
+          "8": 20,
+          "9": 24,
+          "10": 15
+        },
+        "hit_at_k": 0.8218390804597702,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 4.988505747126437,
+        "weighted_same_score": 0.49885057471264366,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 14,
+              "1": 5,
+              "2": 8,
+              "3": 7,
+              "4": 2,
+              "5": 4,
+              "6": 1,
+              "8": 2,
+              "9": 4,
+              "10": 6
+            },
+            "hit_at_k": 0.7358490566037735,
+            "majority_same_at_k": 0.32075471698113206,
+            "mean_same_count": 3.547169811320755,
+            "weighted_same_score": 0.3547169811320755
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 13,
+              "1": 3,
+              "2": 3,
+              "3": 2,
+              "4": 6,
+              "5": 1
+            },
+            "hit_at_k": 0.5357142857142857,
+            "majority_same_at_k": 0.03571428571428571,
+            "mean_same_count": 1.5714285714285714,
+            "weighted_same_score": 0.15714285714285717
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 4,
+              "1": 2,
+              "2": 5,
+              "3": 2,
+              "4": 2,
+              "5": 8,
+              "6": 5,
+              "7": 18,
+              "8": 18,
+              "9": 20,
+              "10": 9
+            },
+            "hit_at_k": 0.956989247311828,
+            "majority_same_at_k": 0.8387096774193549,
+            "mean_same_count": 6.838709677419355,
+            "weighted_same_score": 0.6838709677419355
+          }
+        }
+      }
+    },
+    {
+      "rank": 13,
+      "objective": 0.568914154891079,
+      "config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.5,
+        "w_recency": 0.4,
+        "w_regime": 0.1,
+        "recency_half_life_days": 45.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 29,
+          "1": 12,
+          "2": 16,
+          "3": 13,
+          "4": 8,
+          "5": 10,
+          "6": 6,
+          "7": 18,
+          "8": 25,
+          "9": 22,
+          "10": 15
+        },
+        "hit_at_k": 0.8333333333333334,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 5.028735632183908,
+        "weighted_same_score": 0.5028735632183908,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 13,
+              "1": 6,
+              "2": 9,
+              "3": 7,
+              "4": 1,
+              "5": 4,
+              "6": 1,
+              "7": 1,
+              "8": 2,
+              "9": 4,
+              "10": 5
+            },
+            "hit_at_k": 0.7547169811320755,
+            "majority_same_at_k": 0.32075471698113206,
+            "mean_same_count": 3.4716981132075473,
+            "weighted_same_score": 0.3471698113207547
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 3,
+              "2": 4,
+              "3": 3,
+              "4": 4,
+              "5": 2
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 1.6428571428571428,
+            "weighted_same_score": 0.16428571428571428
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 4,
+              "1": 3,
+              "2": 3,
+              "3": 3,
+              "4": 3,
+              "5": 4,
+              "6": 5,
+              "7": 17,
+              "8": 23,
+              "9": 18,
+              "10": 10
+            },
+            "hit_at_k": 0.956989247311828,
+            "majority_same_at_k": 0.8279569892473119,
+            "mean_same_count": 6.935483870967742,
+            "weighted_same_score": 0.6935483870967742
+          }
+        }
+      }
+    },
+    {
+      "rank": 14,
+      "objective": 0.5688999194972552,
+      "config": {
+        "w_fixed": 0.2,
+        "w_learned": 0.3,
+        "w_recency": 0.4,
+        "w_regime": 0.1,
+        "recency_half_life_days": 21.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 28,
+          "1": 9,
+          "2": 15,
+          "3": 18,
+          "4": 8,
+          "5": 13,
+          "6": 9,
+          "7": 14,
+          "8": 20,
+          "9": 24,
+          "10": 16
+        },
+        "hit_at_k": 0.8390804597701149,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 5.045977011494253,
+        "weighted_same_score": 0.5045977011494253,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 13,
+              "1": 6,
+              "2": 7,
+              "3": 8,
+              "4": 2,
+              "5": 3,
+              "6": 2,
+              "8": 2,
+              "9": 4,
+              "10": 6
+            },
+            "hit_at_k": 0.7547169811320755,
+            "majority_same_at_k": 0.32075471698113206,
+            "mean_same_count": 3.6037735849056602,
+            "weighted_same_score": 0.36037735849056607
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 4,
+              "3": 5,
+              "4": 3,
+              "5": 2
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 1.6785714285714286,
+            "weighted_same_score": 0.16785714285714287
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 1,
+              "2": 4,
+              "3": 5,
+              "4": 3,
+              "5": 8,
+              "6": 7,
+              "7": 14,
+              "8": 18,
+              "9": 20,
+              "10": 10
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8279569892473119,
+            "mean_same_count": 6.881720430107527,
+            "weighted_same_score": 0.6881720430107527
+          }
+        }
+      }
+    },
+    {
+      "rank": 15,
+      "objective": 0.568127261797325,
+      "config": {
+        "w_fixed": 0.0,
+        "w_learned": 0.5,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 21.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 29,
+          "1": 6,
+          "2": 11,
+          "3": 21,
+          "4": 11,
+          "5": 11,
+          "6": 12,
+          "7": 14,
+          "8": 16,
+          "9": 20,
+          "10": 23
+        },
+        "hit_at_k": 0.8333333333333334,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 5.160919540229885,
+        "weighted_same_score": 0.5160919540229885,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 14,
+              "1": 3,
+              "2": 2,
+              "3": 12,
+              "4": 6,
+              "5": 2,
+              "6": 1,
+              "7": 1,
+              "8": 1,
+              "9": 4,
+              "10": 7
+            },
+            "hit_at_k": 0.7358490566037735,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.849056603773585,
+            "weighted_same_score": 0.38490566037735846
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 5,
+              "3": 3,
+              "4": 2,
+              "5": 3,
+              "6": 1
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.14285714285714285,
+            "mean_same_count": 1.7857142857142858,
+            "weighted_same_score": 0.17857142857142858
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 1,
+              "2": 4,
+              "3": 6,
+              "4": 3,
+              "5": 6,
+              "6": 10,
+              "7": 13,
+              "8": 15,
+              "9": 16,
+              "10": 16
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8172043010752689,
+            "mean_same_count": 6.924731182795699,
+            "weighted_same_score": 0.6924731182795699
+          }
+        }
+      }
+    },
+    {
+      "rank": 16,
+      "objective": 0.5678035955394184,
+      "config": {
+        "w_fixed": 0.1,
+        "w_learned": 0.4,
+        "w_recency": 0.4,
+        "w_regime": 0.1,
+        "recency_half_life_days": 21.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 27,
+          "1": 10,
+          "2": 14,
+          "3": 16,
+          "4": 11,
+          "5": 12,
+          "6": 9,
+          "7": 15,
+          "8": 20,
+          "9": 24,
+          "10": 16
+        },
+        "hit_at_k": 0.8448275862068966,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 5.086206896551724,
+        "weighted_same_score": 0.5086206896551724,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 12,
+              "1": 6,
+              "2": 6,
+              "3": 9,
+              "4": 3,
+              "5": 2,
+              "6": 3,
+              "8": 2,
+              "9": 4,
+              "10": 6
+            },
+            "hit_at_k": 0.7735849056603774,
+            "majority_same_at_k": 0.32075471698113206,
+            "mean_same_count": 3.7169811320754715,
+            "weighted_same_score": 0.37169811320754714
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 4,
+              "3": 4,
+              "4": 3,
+              "5": 3
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.10714285714285714,
+            "mean_same_count": 1.75,
+            "weighted_same_score": 0.17500000000000002
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 2,
+              "2": 4,
+              "3": 3,
+              "4": 5,
+              "5": 7,
+              "6": 6,
+              "7": 15,
+              "8": 18,
+              "9": 20,
+              "10": 10
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8172043010752689,
+            "mean_same_count": 6.870967741935484,
+            "weighted_same_score": 0.6870967741935484
+          }
+        }
+      }
+    },
+    {
+      "rank": 17,
+      "objective": 0.566591269674701,
+      "config": {
+        "w_fixed": 0.1,
+        "w_learned": 0.4,
+        "w_recency": 0.4,
+        "w_regime": 0.1,
+        "recency_half_life_days": 45.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 29,
+          "1": 12,
+          "2": 18,
+          "3": 12,
+          "4": 7,
+          "5": 11,
+          "6": 6,
+          "7": 20,
+          "8": 22,
+          "9": 23,
+          "10": 14
+        },
+        "hit_at_k": 0.8333333333333334,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 4.977011494252873,
+        "weighted_same_score": 0.4977011494252873,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 12,
+              "1": 7,
+              "2": 10,
+              "3": 5,
+              "4": 2,
+              "5": 5,
+              "7": 1,
+              "8": 1,
+              "9": 5,
+              "10": 5
+            },
+            "hit_at_k": 0.7735849056603774,
+            "majority_same_at_k": 0.32075471698113206,
+            "mean_same_count": 3.490566037735849,
+            "weighted_same_score": 0.3490566037735849
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 13,
+              "1": 2,
+              "2": 4,
+              "3": 5,
+              "4": 2,
+              "5": 2
+            },
+            "hit_at_k": 0.5357142857142857,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 1.5357142857142858,
+            "weighted_same_score": 0.15357142857142855
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 4,
+              "1": 3,
+              "2": 4,
+              "3": 2,
+              "4": 3,
+              "5": 4,
+              "6": 6,
+              "7": 19,
+              "8": 21,
+              "9": 18,
+              "10": 9
+            },
+            "hit_at_k": 0.956989247311828,
+            "majority_same_at_k": 0.8279569892473119,
+            "mean_same_count": 6.860215053763441,
+            "weighted_same_score": 0.6860215053763441
+          }
+        }
+      }
+    },
+    {
+      "rank": 18,
+      "objective": 0.566429104865444,
+      "config": {
+        "w_fixed": 0.1,
+        "w_learned": 0.4,
+        "w_recency": 0.4,
+        "w_regime": 0.1,
+        "recency_half_life_days": 60.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 29,
+          "1": 12,
+          "2": 19,
+          "3": 13,
+          "4": 5,
+          "5": 11,
+          "6": 5,
+          "7": 22,
+          "8": 23,
+          "9": 22,
+          "10": 13
+        },
+        "hit_at_k": 0.8333333333333334,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 4.942528735632184,
+        "weighted_same_score": 0.4942528735632184,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 13,
+              "1": 5,
+              "2": 10,
+              "3": 7,
+              "4": 3,
+              "5": 3,
+              "7": 3,
+              "9": 5,
+              "10": 4
+            },
+            "hit_at_k": 0.7547169811320755,
+            "majority_same_at_k": 0.2830188679245283,
+            "mean_same_count": 3.3773584905660377,
+            "weighted_same_score": 0.33773584905660375
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 3,
+              "2": 4,
+              "3": 6,
+              "4": 1,
+              "5": 2
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 1.5357142857142858,
+            "weighted_same_score": 0.15357142857142855
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 4,
+              "1": 4,
+              "2": 5,
+              "4": 1,
+              "5": 6,
+              "6": 5,
+              "7": 19,
+              "8": 23,
+              "9": 17,
+              "10": 9
+            },
+            "hit_at_k": 0.956989247311828,
+            "majority_same_at_k": 0.8494623655913979,
+            "mean_same_count": 6.860215053763441,
+            "weighted_same_score": 0.6860215053763441
+          }
+        }
+      }
+    },
+    {
+      "rank": 19,
+      "objective": 0.5661972996850849,
+      "config": {
+        "w_fixed": 0.1,
+        "w_learned": 0.5,
+        "w_recency": 0.3,
+        "w_regime": 0.1,
+        "recency_half_life_days": 30.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 29,
+          "1": 9,
+          "2": 19,
+          "3": 13,
+          "4": 8,
+          "5": 11,
+          "6": 6,
+          "7": 22,
+          "8": 29,
+          "9": 17,
+          "10": 11
+        },
+        "hit_at_k": 0.8333333333333334,
+        "majority_same_at_k": 0.5517241379310345,
+        "mean_same_count": 4.931034482758621,
+        "weighted_same_score": 0.49310344827586206,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 14,
+              "1": 3,
+              "2": 11,
+              "3": 6,
+              "4": 4,
+              "5": 3,
+              "7": 2,
+              "8": 3,
+              "9": 3,
+              "10": 4
+            },
+            "hit_at_k": 0.7358490566037735,
+            "majority_same_at_k": 0.2830188679245283,
+            "mean_same_count": 3.3773584905660377,
+            "weighted_same_score": 0.3377358490566038
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 11,
+              "1": 4,
+              "2": 3,
+              "3": 6,
+              "4": 2,
+              "5": 2
+            },
+            "hit_at_k": 0.6071428571428571,
+            "majority_same_at_k": 0.07142857142857142,
+            "mean_same_count": 1.6428571428571428,
+            "weighted_same_score": 0.16428571428571428
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 4,
+              "1": 2,
+              "2": 5,
+              "3": 1,
+              "4": 2,
+              "5": 6,
+              "6": 6,
+              "7": 20,
+              "8": 26,
+              "9": 14,
+              "10": 7
+            },
+            "hit_at_k": 0.956989247311828,
+            "majority_same_at_k": 0.8494623655913979,
+            "mean_same_count": 6.806451612903226,
+            "weighted_same_score": 0.6806451612903226
+          }
+        }
+      }
+    },
+    {
+      "rank": 20,
+      "objective": 0.5653624834722019,
+      "config": {
+        "w_fixed": 0.2,
+        "w_learned": 0.3,
+        "w_recency": 0.5,
+        "w_regime": 0.0,
+        "recency_half_life_days": 21.0
+      },
+      "validation": {
+        "n": 174,
+        "distribution": {
+          "0": 30,
+          "1": 6,
+          "2": 12,
+          "3": 18,
+          "4": 13,
+          "5": 12,
+          "6": 11,
+          "7": 13,
+          "8": 14,
+          "9": 22,
+          "10": 23
+        },
+        "hit_at_k": 0.8275862068965517,
+        "majority_same_at_k": 0.5459770114942529,
+        "mean_same_count": 5.132183908045977,
+        "weighted_same_score": 0.5132183908045976,
+        "top_k": 10,
+        "majority_threshold": 5,
+        "by_actual": {
+          "BUY": {
+            "n": 53,
+            "distribution": {
+              "0": 15,
+              "1": 2,
+              "2": 4,
+              "3": 11,
+              "4": 5,
+              "5": 2,
+              "6": 1,
+              "7": 1,
+              "8": 1,
+              "9": 4,
+              "10": 7
+            },
+            "hit_at_k": 0.7169811320754716,
+            "majority_same_at_k": 0.3018867924528302,
+            "mean_same_count": 3.7735849056603774,
+            "weighted_same_score": 0.37735849056603776
+          },
+          "HOLD": {
+            "n": 28,
+            "distribution": {
+              "0": 12,
+              "1": 2,
+              "2": 5,
+              "3": 3,
+              "4": 3,
+              "5": 2,
+              "6": 1
+            },
+            "hit_at_k": 0.5714285714285714,
+            "majority_same_at_k": 0.10714285714285714,
+            "mean_same_count": 1.75,
+            "weighted_same_score": 0.17500000000000002
+          },
+          "SELL": {
+            "n": 93,
+            "distribution": {
+              "0": 3,
+              "1": 2,
+              "2": 3,
+              "3": 4,
+              "4": 5,
+              "5": 8,
+              "6": 9,
+              "7": 12,
+              "8": 13,
+              "9": 18,
+              "10": 16
+            },
+            "hit_at_k": 0.967741935483871,
+            "majority_same_at_k": 0.8172043010752689,
+            "mean_same_count": 6.924731182795699,
+            "weighted_same_score": 0.6924731182795698
+          }
+        }
+      }
+    }
+  ]
+}

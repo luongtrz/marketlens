@@ -1,0 +1,2114 @@
+{
+  "data_path": "data/exports/stockmem_records_eth.ndjson",
+  "weights_path": "stockmem/config/weights.auto.json",
+  "artifact_path": "stockmem/config/learned_retriever_finbert.eth.json",
+  "config_path": "stockmem/config/majority_consensus_retriever.eth.tuned_validation.json",
+  "top_k": 10,
+  "label_threshold": 2.0,
+  "selected_head": "mean_learned_weights_buy0.50_sell0.50",
+  "selected_validation_score": 0.7024592048291182,
+  "comparison": [
+    {
+      "model": "learned_recency_50_50 + mean_learned_weights_buy0.50_sell0.50",
+      "split": "val",
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy0.50_sell0.50",
+        "n": 174,
+        "overall_acc": 0.6436781609195402,
+        "active_acc": 0.7294117647058823,
+        "coverage": 0.9770114942528736,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.022988505747126436,
+        "sell_rate": 0.6954022988505747,
+        "avg_confidence": 0.8502586206896566,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 121,
+          "BUY": 49,
+          "HOLD": 4
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 3,
+            "SELL": 21
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 0,
+            "SELL": 82
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8817204301075269,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      }
+    },
+    {
+      "model": "learned_recency_50_50 + mean_learned_weights_buy0.50_sell0.50",
+      "split": "test",
+      "metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy0.50_sell0.50",
+        "n": 305,
+        "overall_acc": 0.5901639344262295,
+        "active_acc": 0.6782006920415224,
+        "coverage": 0.9475409836065574,
+        "buy_rate": 0.5147540983606558,
+        "hold_rate": 0.05245901639344262,
+        "sell_rate": 0.43278688524590164,
+        "avg_confidence": 0.8091475409836091,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 157,
+          "HOLD": 16,
+          "SELL": 132
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 91,
+            "HOLD": 8,
+            "SELL": 31
+          },
+          "HOLD": {
+            "BUY": 24,
+            "HOLD": 1,
+            "SELL": 13
+          },
+          "SELL": {
+            "BUY": 42,
+            "HOLD": 7,
+            "SELL": 88
+          }
+        },
+        "buy_da": 0.7,
+        "hold_da": 0.02631578947368421,
+        "sell_da": 0.6423357664233577,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "model": "fixed_knn_rolling_stable",
+      "split": "test_old_strict",
+      "metrics": {
+        "name": "fixed_knn_rolling_stable",
+        "n": 305,
+        "overall_acc": 0.3180327868852459,
+        "active_acc": 0.42358078602620086,
+        "coverage": 0.7508196721311475,
+        "buy_rate": 0.6295081967213115,
+        "hold_rate": 0.24918032786885247,
+        "sell_rate": 0.12131147540983607,
+        "avg_confidence": 0.698301639344263,
+        "hit_at_5_same_sign": 0.8360655737704918,
+        "actual_counts": {
+          "BUY": 98,
+          "HOLD": 58,
+          "SELL": 149
+        },
+        "predicted_counts": {
+          "SELL": 37,
+          "BUY": 192,
+          "HOLD": 76
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 62,
+            "HOLD": 24,
+            "SELL": 12
+          },
+          "HOLD": {
+            "BUY": 36,
+            "HOLD": 16,
+            "SELL": 6
+          },
+          "SELL": {
+            "BUY": 94,
+            "HOLD": 36,
+            "SELL": 19
+          }
+        },
+        "buy_da": 0.6326530612244898,
+        "hold_da": 0.27586206896551724,
+        "sell_da": 0.12751677852348994,
+        "majority_same_at_10": null,
+        "mean_same_at_10": null
+      }
+    },
+    {
+      "model": "fixed_retriever_learned_head",
+      "split": "test_old_strict",
+      "metrics": {
+        "name": "fixed_retriever_learned_head",
+        "n": 305,
+        "overall_acc": 0.35081967213114756,
+        "active_acc": 0.45,
+        "coverage": 0.8524590163934426,
+        "buy_rate": 0.6721311475409836,
+        "hold_rate": 0.14754098360655737,
+        "sell_rate": 0.18032786885245902,
+        "avg_confidence": 0.7245278688524602,
+        "hit_at_5_same_sign": 0.8360655737704918,
+        "actual_counts": {
+          "BUY": 98,
+          "HOLD": 58,
+          "SELL": 149
+        },
+        "predicted_counts": {
+          "SELL": 55,
+          "BUY": 205,
+          "HOLD": 45
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 69,
+            "HOLD": 13,
+            "SELL": 16
+          },
+          "HOLD": {
+            "BUY": 39,
+            "HOLD": 9,
+            "SELL": 10
+          },
+          "SELL": {
+            "BUY": 97,
+            "HOLD": 23,
+            "SELL": 29
+          }
+        },
+        "buy_da": 0.7040816326530612,
+        "hold_da": 0.15517241379310345,
+        "sell_da": 0.19463087248322147,
+        "majority_same_at_10": null,
+        "mean_same_at_10": null
+      }
+    },
+    {
+      "model": "learned_finbert_rolling_stable",
+      "split": "test_old_strict",
+      "metrics": {
+        "name": "learned_finbert_rolling_stable",
+        "n": 305,
+        "overall_acc": 0.34098360655737703,
+        "active_acc": 0.4393305439330544,
+        "coverage": 0.7836065573770492,
+        "buy_rate": 0.5606557377049181,
+        "hold_rate": 0.21639344262295082,
+        "sell_rate": 0.22295081967213115,
+        "avg_confidence": 0.7221147540983616,
+        "hit_at_5_same_sign": 0.8459016393442623,
+        "actual_counts": {
+          "BUY": 98,
+          "HOLD": 58,
+          "SELL": 149
+        },
+        "predicted_counts": {
+          "HOLD": 66,
+          "BUY": 171,
+          "SELL": 68
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 53,
+            "HOLD": 26,
+            "SELL": 19
+          },
+          "HOLD": {
+            "BUY": 32,
+            "HOLD": 14,
+            "SELL": 12
+          },
+          "SELL": {
+            "BUY": 86,
+            "HOLD": 26,
+            "SELL": 37
+          }
+        },
+        "buy_da": 0.5408163265306123,
+        "hold_da": 0.2413793103448276,
+        "sell_da": 0.2483221476510067,
+        "majority_same_at_10": null,
+        "mean_same_at_10": null
+      }
+    }
+  ],
+  "top_validation_heads": [
+    {
+      "rank": 1,
+      "head": "mean_learned_weights_buy0.50_sell0.50",
+      "score": 0.7024592048291182,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy0.50_sell0.50",
+        "n": 174,
+        "overall_acc": 0.6436781609195402,
+        "active_acc": 0.7294117647058823,
+        "coverage": 0.9770114942528736,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.022988505747126436,
+        "sell_rate": 0.6954022988505747,
+        "avg_confidence": 0.8502586206896566,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 121,
+          "BUY": 49,
+          "HOLD": 4
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 3,
+            "SELL": 21
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 0,
+            "SELL": 82
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8817204301075269,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy0.50_sell0.50",
+        "n": 305,
+        "overall_acc": 0.5901639344262295,
+        "active_acc": 0.6782006920415224,
+        "coverage": 0.9475409836065574,
+        "buy_rate": 0.5147540983606558,
+        "hold_rate": 0.05245901639344262,
+        "sell_rate": 0.43278688524590164,
+        "avg_confidence": 0.8091475409836091,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 157,
+          "HOLD": 16,
+          "SELL": 132
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 91,
+            "HOLD": 8,
+            "SELL": 31
+          },
+          "HOLD": {
+            "BUY": 24,
+            "HOLD": 1,
+            "SELL": 13
+          },
+          "SELL": {
+            "BUY": 42,
+            "HOLD": 7,
+            "SELL": 88
+          }
+        },
+        "buy_da": 0.7,
+        "hold_da": 0.02631578947368421,
+        "sell_da": 0.6423357664233577,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 2,
+      "head": "mean_learned_weights_buy0.75_sell0.50",
+      "score": 0.7024592048291182,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy0.75_sell0.50",
+        "n": 174,
+        "overall_acc": 0.6436781609195402,
+        "active_acc": 0.7294117647058823,
+        "coverage": 0.9770114942528736,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.022988505747126436,
+        "sell_rate": 0.6954022988505747,
+        "avg_confidence": 0.8488735632183924,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 121,
+          "BUY": 49,
+          "HOLD": 4
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 3,
+            "SELL": 21
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 0,
+            "SELL": 82
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8817204301075269,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy0.75_sell0.50",
+        "n": 305,
+        "overall_acc": 0.580327868852459,
+        "active_acc": 0.6795774647887324,
+        "coverage": 0.9311475409836065,
+        "buy_rate": 0.49836065573770494,
+        "hold_rate": 0.06885245901639345,
+        "sell_rate": 0.43278688524590164,
+        "avg_confidence": 0.8042426229508223,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 152,
+          "HOLD": 21,
+          "SELL": 132
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 88,
+            "HOLD": 11,
+            "SELL": 31
+          },
+          "HOLD": {
+            "BUY": 24,
+            "HOLD": 1,
+            "SELL": 13
+          },
+          "SELL": {
+            "BUY": 40,
+            "HOLD": 9,
+            "SELL": 88
+          }
+        },
+        "buy_da": 0.676923076923077,
+        "hold_da": 0.02631578947368421,
+        "sell_da": 0.6423357664233577,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 3,
+      "head": "mean_learned_weights_buy1.00_sell0.50",
+      "score": 0.7024592048291182,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy1.00_sell0.50",
+        "n": 174,
+        "overall_acc": 0.6436781609195402,
+        "active_acc": 0.7294117647058823,
+        "coverage": 0.9770114942528736,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.022988505747126436,
+        "sell_rate": 0.6954022988505747,
+        "avg_confidence": 0.8474195402298866,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 121,
+          "BUY": 49,
+          "HOLD": 4
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 3,
+            "SELL": 21
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 0,
+            "SELL": 82
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8817204301075269,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy1.00_sell0.50",
+        "n": 305,
+        "overall_acc": 0.580327868852459,
+        "active_acc": 0.6857142857142857,
+        "coverage": 0.9180327868852459,
+        "buy_rate": 0.4852459016393443,
+        "hold_rate": 0.08196721311475409,
+        "sell_rate": 0.43278688524590164,
+        "avg_confidence": 0.7995803278688546,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 148,
+          "HOLD": 25,
+          "SELL": 132
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 87,
+            "HOLD": 12,
+            "SELL": 31
+          },
+          "HOLD": {
+            "BUY": 23,
+            "HOLD": 2,
+            "SELL": 13
+          },
+          "SELL": {
+            "BUY": 38,
+            "HOLD": 11,
+            "SELL": 88
+          }
+        },
+        "buy_da": 0.6692307692307692,
+        "hold_da": 0.05263157894736842,
+        "sell_da": 0.6423357664233577,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 4,
+      "head": "mean_learned_weights_buy1.25_sell0.50",
+      "score": 0.7024592048291182,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy1.25_sell0.50",
+        "n": 174,
+        "overall_acc": 0.6436781609195402,
+        "active_acc": 0.7294117647058823,
+        "coverage": 0.9770114942528736,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.022988505747126436,
+        "sell_rate": 0.6954022988505747,
+        "avg_confidence": 0.8459885057471279,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 121,
+          "BUY": 49,
+          "HOLD": 4
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 3,
+            "SELL": 21
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 0,
+            "SELL": 82
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8817204301075269,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy1.25_sell0.50",
+        "n": 305,
+        "overall_acc": 0.5836065573770491,
+        "active_acc": 0.6870503597122302,
+        "coverage": 0.9114754098360656,
+        "buy_rate": 0.4786885245901639,
+        "hold_rate": 0.08852459016393442,
+        "sell_rate": 0.43278688524590164,
+        "avg_confidence": 0.7952131147541002,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 146,
+          "HOLD": 27,
+          "SELL": 132
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 87,
+            "HOLD": 12,
+            "SELL": 31
+          },
+          "HOLD": {
+            "BUY": 22,
+            "HOLD": 3,
+            "SELL": 13
+          },
+          "SELL": {
+            "BUY": 37,
+            "HOLD": 12,
+            "SELL": 88
+          }
+        },
+        "buy_da": 0.6692307692307692,
+        "hold_da": 0.07894736842105263,
+        "sell_da": 0.6423357664233577,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 5,
+      "head": "mean_learned_weights_buy0.50_sell1.50",
+      "score": 0.6980203749944238,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy0.50_sell1.50",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7454545454545455,
+        "coverage": 0.9482758620689655,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.05172413793103448,
+        "sell_rate": 0.6666666666666666,
+        "avg_confidence": 0.8391781609195419,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 116,
+          "HOLD": 9,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 7,
+            "SELL": 17
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy0.50_sell1.50",
+        "n": 305,
+        "overall_acc": 0.580327868852459,
+        "active_acc": 0.6738351254480287,
+        "coverage": 0.9147540983606557,
+        "buy_rate": 0.5147540983606558,
+        "hold_rate": 0.08524590163934426,
+        "sell_rate": 0.4,
+        "avg_confidence": 0.7995573770491824,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 157,
+          "HOLD": 26,
+          "SELL": 122
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 91,
+            "HOLD": 9,
+            "SELL": 30
+          },
+          "HOLD": {
+            "BUY": 24,
+            "HOLD": 4,
+            "SELL": 10
+          },
+          "SELL": {
+            "BUY": 42,
+            "HOLD": 13,
+            "SELL": 82
+          }
+        },
+        "buy_da": 0.7,
+        "hold_da": 0.10526315789473684,
+        "sell_da": 0.5985401459854015,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 6,
+      "head": "mean_learned_weights_buy0.75_sell1.50",
+      "score": 0.6980203749944238,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy0.75_sell1.50",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7454545454545455,
+        "coverage": 0.9482758620689655,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.05172413793103448,
+        "sell_rate": 0.6666666666666666,
+        "avg_confidence": 0.8377931034482775,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 116,
+          "HOLD": 9,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 7,
+            "SELL": 17
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy0.75_sell1.50",
+        "n": 305,
+        "overall_acc": 0.5704918032786885,
+        "active_acc": 0.6751824817518248,
+        "coverage": 0.898360655737705,
+        "buy_rate": 0.49836065573770494,
+        "hold_rate": 0.10163934426229508,
+        "sell_rate": 0.4,
+        "avg_confidence": 0.7946524590163956,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 152,
+          "HOLD": 31,
+          "SELL": 122
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 88,
+            "HOLD": 12,
+            "SELL": 30
+          },
+          "HOLD": {
+            "BUY": 24,
+            "HOLD": 4,
+            "SELL": 10
+          },
+          "SELL": {
+            "BUY": 40,
+            "HOLD": 15,
+            "SELL": 82
+          }
+        },
+        "buy_da": 0.676923076923077,
+        "hold_da": 0.10526315789473684,
+        "sell_da": 0.5985401459854015,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 7,
+      "head": "mean_learned_weights_buy1.00_sell1.50",
+      "score": 0.6980203749944238,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy1.00_sell1.50",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7454545454545455,
+        "coverage": 0.9482758620689655,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.05172413793103448,
+        "sell_rate": 0.6666666666666666,
+        "avg_confidence": 0.8363390804597719,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 116,
+          "HOLD": 9,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 7,
+            "SELL": 17
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy1.00_sell1.50",
+        "n": 305,
+        "overall_acc": 0.5704918032786885,
+        "active_acc": 0.6814814814814815,
+        "coverage": 0.8852459016393442,
+        "buy_rate": 0.4852459016393443,
+        "hold_rate": 0.11475409836065574,
+        "sell_rate": 0.4,
+        "avg_confidence": 0.7899901639344279,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 148,
+          "HOLD": 35,
+          "SELL": 122
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 87,
+            "HOLD": 13,
+            "SELL": 30
+          },
+          "HOLD": {
+            "BUY": 23,
+            "HOLD": 5,
+            "SELL": 10
+          },
+          "SELL": {
+            "BUY": 38,
+            "HOLD": 17,
+            "SELL": 82
+          }
+        },
+        "buy_da": 0.6692307692307692,
+        "hold_da": 0.13157894736842105,
+        "sell_da": 0.5985401459854015,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 8,
+      "head": "mean_learned_weights_buy1.25_sell1.50",
+      "score": 0.6980203749944238,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy1.25_sell1.50",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7454545454545455,
+        "coverage": 0.9482758620689655,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.05172413793103448,
+        "sell_rate": 0.6666666666666666,
+        "avg_confidence": 0.8349080459770132,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 116,
+          "HOLD": 9,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 7,
+            "SELL": 17
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy1.25_sell1.50",
+        "n": 305,
+        "overall_acc": 0.5737704918032787,
+        "active_acc": 0.6828358208955224,
+        "coverage": 0.8786885245901639,
+        "buy_rate": 0.4786885245901639,
+        "hold_rate": 0.12131147540983607,
+        "sell_rate": 0.4,
+        "avg_confidence": 0.7856229508196735,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 146,
+          "HOLD": 37,
+          "SELL": 122
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 87,
+            "HOLD": 13,
+            "SELL": 30
+          },
+          "HOLD": {
+            "BUY": 22,
+            "HOLD": 6,
+            "SELL": 10
+          },
+          "SELL": {
+            "BUY": 37,
+            "HOLD": 18,
+            "SELL": 82
+          }
+        },
+        "buy_da": 0.6692307692307692,
+        "hold_da": 0.15789473684210525,
+        "sell_da": 0.5985401459854015,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 9,
+      "head": "mean_learned_weights_buy0.50_sell1.00",
+      "score": 0.6979843059533692,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy0.50_sell1.00",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7409638554216867,
+        "coverage": 0.9540229885057471,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.04597701149425287,
+        "sell_rate": 0.6724137931034483,
+        "avg_confidence": 0.8441781609195417,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 117,
+          "HOLD": 8,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 6,
+            "SELL": 18
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy0.50_sell1.00",
+        "n": 305,
+        "overall_acc": 0.5868852459016394,
+        "active_acc": 0.6784452296819788,
+        "coverage": 0.9278688524590164,
+        "buy_rate": 0.5147540983606558,
+        "hold_rate": 0.07213114754098361,
+        "sell_rate": 0.4131147540983607,
+        "avg_confidence": 0.8039770491803302,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 157,
+          "HOLD": 22,
+          "SELL": 126
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 91,
+            "HOLD": 9,
+            "SELL": 30
+          },
+          "HOLD": {
+            "BUY": 24,
+            "HOLD": 3,
+            "SELL": 11
+          },
+          "SELL": {
+            "BUY": 42,
+            "HOLD": 10,
+            "SELL": 85
+          }
+        },
+        "buy_da": 0.7,
+        "hold_da": 0.07894736842105263,
+        "sell_da": 0.6204379562043796,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 10,
+      "head": "mean_learned_weights_buy0.50_sell1.25",
+      "score": 0.6979843059533692,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy0.50_sell1.25",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7409638554216867,
+        "coverage": 0.9540229885057471,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.04597701149425287,
+        "sell_rate": 0.6724137931034483,
+        "avg_confidence": 0.8417701149425305,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 117,
+          "HOLD": 8,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 6,
+            "SELL": 18
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy0.50_sell1.25",
+        "n": 305,
+        "overall_acc": 0.5770491803278689,
+        "active_acc": 0.675,
+        "coverage": 0.9180327868852459,
+        "buy_rate": 0.5147540983606558,
+        "hold_rate": 0.08196721311475409,
+        "sell_rate": 0.40327868852459015,
+        "avg_confidence": 0.8015836065573793,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 157,
+          "HOLD": 25,
+          "SELL": 123
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 91,
+            "HOLD": 9,
+            "SELL": 30
+          },
+          "HOLD": {
+            "BUY": 24,
+            "HOLD": 3,
+            "SELL": 11
+          },
+          "SELL": {
+            "BUY": 42,
+            "HOLD": 13,
+            "SELL": 82
+          }
+        },
+        "buy_da": 0.7,
+        "hold_da": 0.07894736842105263,
+        "sell_da": 0.5985401459854015,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 11,
+      "head": "mean_learned_weights_buy0.75_sell1.00",
+      "score": 0.6979843059533692,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy0.75_sell1.00",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7409638554216867,
+        "coverage": 0.9540229885057471,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.04597701149425287,
+        "sell_rate": 0.6724137931034483,
+        "avg_confidence": 0.8427931034482774,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 117,
+          "HOLD": 8,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 6,
+            "SELL": 18
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy0.75_sell1.00",
+        "n": 305,
+        "overall_acc": 0.5770491803278689,
+        "active_acc": 0.6798561151079137,
+        "coverage": 0.9114754098360656,
+        "buy_rate": 0.49836065573770494,
+        "hold_rate": 0.08852459016393442,
+        "sell_rate": 0.4131147540983607,
+        "avg_confidence": 0.7990721311475434,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 152,
+          "HOLD": 27,
+          "SELL": 126
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 88,
+            "HOLD": 12,
+            "SELL": 30
+          },
+          "HOLD": {
+            "BUY": 24,
+            "HOLD": 3,
+            "SELL": 11
+          },
+          "SELL": {
+            "BUY": 40,
+            "HOLD": 12,
+            "SELL": 85
+          }
+        },
+        "buy_da": 0.676923076923077,
+        "hold_da": 0.07894736842105263,
+        "sell_da": 0.6204379562043796,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 12,
+      "head": "mean_learned_weights_buy0.75_sell1.25",
+      "score": 0.6979843059533692,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy0.75_sell1.25",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7409638554216867,
+        "coverage": 0.9540229885057471,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.04597701149425287,
+        "sell_rate": 0.6724137931034483,
+        "avg_confidence": 0.8403850574712662,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 117,
+          "HOLD": 8,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 6,
+            "SELL": 18
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy0.75_sell1.25",
+        "n": 305,
+        "overall_acc": 0.5672131147540984,
+        "active_acc": 0.6763636363636364,
+        "coverage": 0.9016393442622951,
+        "buy_rate": 0.49836065573770494,
+        "hold_rate": 0.09836065573770492,
+        "sell_rate": 0.40327868852459015,
+        "avg_confidence": 0.7966786885245924,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 152,
+          "HOLD": 30,
+          "SELL": 123
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 88,
+            "HOLD": 12,
+            "SELL": 30
+          },
+          "HOLD": {
+            "BUY": 24,
+            "HOLD": 3,
+            "SELL": 11
+          },
+          "SELL": {
+            "BUY": 40,
+            "HOLD": 15,
+            "SELL": 82
+          }
+        },
+        "buy_da": 0.676923076923077,
+        "hold_da": 0.07894736842105263,
+        "sell_da": 0.5985401459854015,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 13,
+      "head": "mean_learned_weights_buy1.00_sell1.00",
+      "score": 0.6979843059533692,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy1.00_sell1.00",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7409638554216867,
+        "coverage": 0.9540229885057471,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.04597701149425287,
+        "sell_rate": 0.6724137931034483,
+        "avg_confidence": 0.8413390804597718,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 117,
+          "HOLD": 8,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 6,
+            "SELL": 18
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy1.00_sell1.00",
+        "n": 305,
+        "overall_acc": 0.5770491803278689,
+        "active_acc": 0.6861313868613139,
+        "coverage": 0.898360655737705,
+        "buy_rate": 0.4852459016393443,
+        "hold_rate": 0.10163934426229508,
+        "sell_rate": 0.4131147540983607,
+        "avg_confidence": 0.7944098360655757,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 148,
+          "HOLD": 31,
+          "SELL": 126
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 87,
+            "HOLD": 13,
+            "SELL": 30
+          },
+          "HOLD": {
+            "BUY": 23,
+            "HOLD": 4,
+            "SELL": 11
+          },
+          "SELL": {
+            "BUY": 38,
+            "HOLD": 14,
+            "SELL": 85
+          }
+        },
+        "buy_da": 0.6692307692307692,
+        "hold_da": 0.10526315789473684,
+        "sell_da": 0.6204379562043796,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 14,
+      "head": "mean_learned_weights_buy1.00_sell1.25",
+      "score": 0.6979843059533692,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy1.00_sell1.25",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7409638554216867,
+        "coverage": 0.9540229885057471,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.04597701149425287,
+        "sell_rate": 0.6724137931034483,
+        "avg_confidence": 0.8389310344827605,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 117,
+          "HOLD": 8,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 6,
+            "SELL": 18
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy1.00_sell1.25",
+        "n": 305,
+        "overall_acc": 0.5672131147540984,
+        "active_acc": 0.6826568265682657,
+        "coverage": 0.8885245901639345,
+        "buy_rate": 0.4852459016393443,
+        "hold_rate": 0.11147540983606558,
+        "sell_rate": 0.40327868852459015,
+        "avg_confidence": 0.7920163934426248,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 148,
+          "HOLD": 34,
+          "SELL": 123
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 87,
+            "HOLD": 13,
+            "SELL": 30
+          },
+          "HOLD": {
+            "BUY": 23,
+            "HOLD": 4,
+            "SELL": 11
+          },
+          "SELL": {
+            "BUY": 38,
+            "HOLD": 17,
+            "SELL": 82
+          }
+        },
+        "buy_da": 0.6692307692307692,
+        "hold_da": 0.10526315789473684,
+        "sell_da": 0.5985401459854015,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 15,
+      "head": "mean_learned_weights_buy1.25_sell1.00",
+      "score": 0.6979843059533692,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy1.25_sell1.00",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7409638554216867,
+        "coverage": 0.9540229885057471,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.04597701149425287,
+        "sell_rate": 0.6724137931034483,
+        "avg_confidence": 0.839908045977013,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 117,
+          "HOLD": 8,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 6,
+            "SELL": 18
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy1.25_sell1.00",
+        "n": 305,
+        "overall_acc": 0.580327868852459,
+        "active_acc": 0.6875,
+        "coverage": 0.8918032786885246,
+        "buy_rate": 0.4786885245901639,
+        "hold_rate": 0.10819672131147541,
+        "sell_rate": 0.4131147540983607,
+        "avg_confidence": 0.7900426229508213,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 146,
+          "HOLD": 33,
+          "SELL": 126
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 87,
+            "HOLD": 13,
+            "SELL": 30
+          },
+          "HOLD": {
+            "BUY": 22,
+            "HOLD": 5,
+            "SELL": 11
+          },
+          "SELL": {
+            "BUY": 37,
+            "HOLD": 15,
+            "SELL": 85
+          }
+        },
+        "buy_da": 0.6692307692307692,
+        "hold_da": 0.13157894736842105,
+        "sell_da": 0.6204379562043796,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 16,
+      "head": "mean_learned_weights_buy1.25_sell1.25",
+      "score": 0.6979843059533692,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy1.25_sell1.25",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7409638554216867,
+        "coverage": 0.9540229885057471,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.04597701149425287,
+        "sell_rate": 0.6724137931034483,
+        "avg_confidence": 0.8375000000000018,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 117,
+          "HOLD": 8,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 6,
+            "SELL": 18
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy1.25_sell1.25",
+        "n": 305,
+        "overall_acc": 0.5704918032786885,
+        "active_acc": 0.6840148698884758,
+        "coverage": 0.8819672131147541,
+        "buy_rate": 0.4786885245901639,
+        "hold_rate": 0.1180327868852459,
+        "sell_rate": 0.40327868852459015,
+        "avg_confidence": 0.7876491803278705,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 146,
+          "HOLD": 36,
+          "SELL": 123
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 87,
+            "HOLD": 13,
+            "SELL": 30
+          },
+          "HOLD": {
+            "BUY": 22,
+            "HOLD": 5,
+            "SELL": 11
+          },
+          "SELL": {
+            "BUY": 37,
+            "HOLD": 18,
+            "SELL": 82
+          }
+        },
+        "buy_da": 0.6692307692307692,
+        "hold_da": 0.13157894736842105,
+        "sell_da": 0.5985401459854015,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 17,
+      "head": "mean_learned_weights_buy0.50_sell0.75",
+      "score": 0.697958993056106,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy0.50_sell0.75",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7365269461077845,
+        "coverage": 0.9597701149425287,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.040229885057471264,
+        "sell_rate": 0.6781609195402298,
+        "avg_confidence": 0.8468333333333349,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 118,
+          "HOLD": 7,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 5,
+            "SELL": 19
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy0.50_sell0.75",
+        "n": 305,
+        "overall_acc": 0.5901639344262295,
+        "active_acc": 0.6759581881533101,
+        "coverage": 0.940983606557377,
+        "buy_rate": 0.5147540983606558,
+        "hold_rate": 0.05901639344262295,
+        "sell_rate": 0.4262295081967213,
+        "avg_confidence": 0.8066819672131169,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 157,
+          "HOLD": 18,
+          "SELL": 130
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 91,
+            "HOLD": 8,
+            "SELL": 31
+          },
+          "HOLD": {
+            "BUY": 24,
+            "HOLD": 2,
+            "SELL": 12
+          },
+          "SELL": {
+            "BUY": 42,
+            "HOLD": 8,
+            "SELL": 87
+          }
+        },
+        "buy_da": 0.7,
+        "hold_da": 0.05263157894736842,
+        "sell_da": 0.635036496350365,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 18,
+      "head": "mean_learned_weights_buy0.75_sell0.75",
+      "score": 0.697958993056106,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy0.75_sell0.75",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7365269461077845,
+        "coverage": 0.9597701149425287,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.040229885057471264,
+        "sell_rate": 0.6781609195402298,
+        "avg_confidence": 0.8454482758620706,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 118,
+          "HOLD": 7,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 5,
+            "SELL": 19
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy0.75_sell0.75",
+        "n": 305,
+        "overall_acc": 0.580327868852459,
+        "active_acc": 0.6773049645390071,
+        "coverage": 0.9245901639344263,
+        "buy_rate": 0.49836065573770494,
+        "hold_rate": 0.07540983606557378,
+        "sell_rate": 0.4262295081967213,
+        "avg_confidence": 0.8017770491803301,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 152,
+          "HOLD": 23,
+          "SELL": 130
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 88,
+            "HOLD": 11,
+            "SELL": 31
+          },
+          "HOLD": {
+            "BUY": 24,
+            "HOLD": 2,
+            "SELL": 12
+          },
+          "SELL": {
+            "BUY": 40,
+            "HOLD": 10,
+            "SELL": 87
+          }
+        },
+        "buy_da": 0.676923076923077,
+        "hold_da": 0.05263157894736842,
+        "sell_da": 0.635036496350365,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 19,
+      "head": "mean_learned_weights_buy1.00_sell0.75",
+      "score": 0.697958993056106,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy1.00_sell0.75",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7365269461077845,
+        "coverage": 0.9597701149425287,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.040229885057471264,
+        "sell_rate": 0.6781609195402298,
+        "avg_confidence": 0.8439942528735651,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 118,
+          "HOLD": 7,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 5,
+            "SELL": 19
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy1.00_sell0.75",
+        "n": 305,
+        "overall_acc": 0.580327868852459,
+        "active_acc": 0.6834532374100719,
+        "coverage": 0.9114754098360656,
+        "buy_rate": 0.4852459016393443,
+        "hold_rate": 0.08852459016393442,
+        "sell_rate": 0.4262295081967213,
+        "avg_confidence": 0.7971147540983623,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 148,
+          "HOLD": 27,
+          "SELL": 130
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 87,
+            "HOLD": 12,
+            "SELL": 31
+          },
+          "HOLD": {
+            "BUY": 23,
+            "HOLD": 3,
+            "SELL": 12
+          },
+          "SELL": {
+            "BUY": 38,
+            "HOLD": 12,
+            "SELL": 87
+          }
+        },
+        "buy_da": 0.6692307692307692,
+        "hold_da": 0.07894736842105263,
+        "sell_da": 0.635036496350365,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    },
+    {
+      "rank": 20,
+      "head": "mean_learned_weights_buy1.25_sell0.75",
+      "score": 0.697958993056106,
+      "metrics": {
+        "name": "consensus_mean_learned_weights_buy1.25_sell0.75",
+        "n": 174,
+        "overall_acc": 0.6379310344827587,
+        "active_acc": 0.7365269461077845,
+        "coverage": 0.9597701149425287,
+        "buy_rate": 0.28160919540229884,
+        "hold_rate": 0.040229885057471264,
+        "sell_rate": 0.6781609195402298,
+        "avg_confidence": 0.8425632183908064,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "HOLD": 28,
+          "SELL": 93,
+          "BUY": 53
+        },
+        "predicted_counts": {
+          "SELL": 118,
+          "HOLD": 7,
+          "BUY": 49
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 29,
+            "HOLD": 5,
+            "SELL": 19
+          },
+          "HOLD": {
+            "BUY": 9,
+            "HOLD": 1,
+            "SELL": 18
+          },
+          "SELL": {
+            "BUY": 11,
+            "HOLD": 1,
+            "SELL": 81
+          }
+        },
+        "buy_da": 0.5471698113207547,
+        "hold_da": 0.03571428571428571,
+        "sell_da": 0.8709677419354839,
+        "mean_same_at_10": 5.097701149425287,
+        "majority_same_at_10": 0.5632183908045977
+      },
+      "test_metrics": {
+        "name": "learned_recency_50_50_mean_learned_weights_buy1.25_sell0.75",
+        "n": 305,
+        "overall_acc": 0.5836065573770491,
+        "active_acc": 0.6847826086956522,
+        "coverage": 0.9049180327868852,
+        "buy_rate": 0.4786885245901639,
+        "hold_rate": 0.09508196721311475,
+        "sell_rate": 0.4262295081967213,
+        "avg_confidence": 0.7927475409836081,
+        "hit_at_5_same_sign": 0.0,
+        "actual_counts": {
+          "BUY": 130,
+          "SELL": 137,
+          "HOLD": 38
+        },
+        "predicted_counts": {
+          "BUY": 146,
+          "HOLD": 29,
+          "SELL": 130
+        },
+        "confusion": {
+          "BUY": {
+            "BUY": 87,
+            "HOLD": 12,
+            "SELL": 31
+          },
+          "HOLD": {
+            "BUY": 22,
+            "HOLD": 4,
+            "SELL": 12
+          },
+          "SELL": {
+            "BUY": 37,
+            "HOLD": 13,
+            "SELL": 87
+          }
+        },
+        "buy_da": 0.6692307692307692,
+        "hold_da": 0.10526315789473684,
+        "sell_da": 0.635036496350365,
+        "mean_same_at_10": 5.367213114754098,
+        "majority_same_at_10": 0.5278688524590164
+      }
+    }
+  ]
+}

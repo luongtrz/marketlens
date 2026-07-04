@@ -160,7 +160,9 @@ The ETH profile reserves these paths:
 data/exports/stockmem_records_eth.ndjson
 stockmem/data/real_optimizer_finbert_eth.json
 stockmem/config/learned_retriever_finbert.eth.json
+stockmem/config/weights.eth.auto.json
 stockmem/config/majority_consensus_retriever.eth.learned_recency_50_50.json
+stockmem/config/majority_consensus_retriever.eth.learned_recency_50_50_h30.json
 ```
 
 Pull ETH StockMem records:
@@ -224,4 +226,11 @@ docker run --rm \
     --config stockmem/config/majority_consensus_retriever.eth.learned_recency_50_50.json \
     --out-dir artifacts/eth_finetuned_consensus_heads \
     --top-k 10
+```
+
+The maintained fine-tuned ETH profile is documented in
+[eth_finetune.md](eth_finetune.md). Its current endpoint config is:
+
+```text
+stockmem/config/majority_consensus_retriever.eth.learned_recency_50_50_h30.json
 ```
