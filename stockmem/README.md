@@ -206,6 +206,10 @@ Việc tính return theo giá tương lai đang được orchestrate bởi Main 
   `count_vote_buy3_sell4` over top-10 evidence
   (`overall=0.5475`, `active=0.6826`, `SELL_DA=0.7114` on the held-out
   305-row test split).
+- Multi-asset profile map:
+  `stockmem/config/model_profiles.json`.
+- ETH zero-shot report:
+  `docs/stockmem/eth_zero_shot.md`.
 
 **Backtest & utilities:**
 - `stockmem/scripts/backtest_api.py`: walk-forward backtest qua API.
@@ -219,6 +223,8 @@ Chỉ dùng `--no-maturity-guard` để tái tạo kết quả legacy có look-a
 - `stockmem/config/weights.auto.json`: weights Bayesian-optimized (w1=0.544/w2=0.309/w3=0.142).
 - `stockmem/config/learned_retriever.json`: learned diagonal metric, 4 blocks (event85+factor75+indicator5+price60=225d).
 - `stockmem/config/majority_consensus_retriever.learned_recency_50_50.json`: maintained trend-aware learned-memory evidence retriever.
+- `stockmem/config/majority_consensus_retriever.eth.learned_recency_50_50.json`: ETH learned+recency 50/50 profile placeholder for ETH-specific fine-tuning.
+- `stockmem/config/model_profiles.json`: BTC/ETH artifact path map.
 - `stockmem/config/policy.json`: calibrated policy (tau=0.22, method=knn_platt_v1).
 
 ### Data

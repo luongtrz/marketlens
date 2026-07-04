@@ -62,5 +62,8 @@ structured StockMem baselines, and reports compact tables.
   `docs/stockmem/trend_aware_retrieval.md`.
 - The maintained offline decision head is `count_vote_buy3_sell4` over that
   retriever's top-10 evidence set.
+- Multi-asset StockMem profiles are prepared in
+  `stockmem/config/model_profiles.json`; BTC uses the maintained artifact,
+  while ETH has reserved paths for ETH-specific fine-tuning.
 - The main reproducibility command lives in
   `stockmem/scripts/run_submission_reproduction.py`.

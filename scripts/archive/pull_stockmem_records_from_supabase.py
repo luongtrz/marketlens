@@ -21,7 +21,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = ROOT / "data" / "exports" / "stockmem_records.ndjson"
 
 

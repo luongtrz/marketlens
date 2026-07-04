@@ -196,3 +196,34 @@ directional test accuracy relative to the older strict classifier table.
 For the full academic write-up, see [academic_paper.md](academic_paper.md).
 For the retrieval-specific audit, see
 [trend_aware_retrieval.md](trend_aware_retrieval.md).
+
+## ETH Zero-Shot Extension
+
+Source: [eth_zero_shot.md](eth_zero_shot.md).
+
+ETH was evaluated with the existing BTC artifacts before ETH-specific training.
+The test split remains `2025-07-01` to `2026-05-01` with `305` rows.
+
+| Model | Overall | Active | Coverage | BUY DA | HOLD DA | SELL DA | Hit@5 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `fixed_knn_rolling_stable` | 0.3180 | 0.4498 | 0.7508 | 0.4077 | 0.1842 | 0.2701 | 0.8656 |
+| `fixed_retriever_learned_head` | 0.3443 | 0.4661 | 0.8230 | 0.4154 | 0.0789 | 0.3504 | 0.8656 |
+| `learned_retriever_fixed_head` | 0.3803 | 0.4792 | 0.7869 | 0.5769 | 0.2895 | 0.2190 | 0.8820 |
+| `learned_finbert_rolling_stable` | **0.4098** | **0.5020** | **0.8361** | 0.5308 | 0.2368 | 0.3431 | **0.8820** |
+
+The BTC-maintained `learned_recency_50_50` profile also transferred to ETH:
+
+| Model | Overall | Active | Coverage | BUY DA | HOLD DA | SELL DA | Majority@10 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `learned_recency_50_50 + mean_learned_weights_buy0.50_sell0.50` | 0.5344 | 0.6014 | 0.9705 | 0.5769 | 0.0789 | 0.6204 | 0.4754 |
+
+The zero-shot result supports a two-profile deployment plan:
+
+```text
+BTC profile: BTC-trained learned_recency_50_50 + BTC-selected head
+ETH profile: ETH-trained learned_recency_50_50 + ETH-selected head
+```
+
+The ETH report keeps diagnostic fixed/recency comparisons for audit, but the
+chosen product direction remains learned memory plus recency `50/50` for both
+assets.

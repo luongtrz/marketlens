@@ -40,6 +40,19 @@ the offline `learned_recency_50_50` consensus retriever documented in
 `count_vote_buy3_sell4` over top-10 evidence. These report models are evaluated
 from the frozen NDJSON export for reproducibility.
 
+For multi-asset reporting, model profiles are separated by symbol in:
+
+```text
+stockmem/config/model_profiles.json
+```
+
+The intended deployment shape is one StockMem decision profile per asset:
+
+| Symbol | Profile status | Learned retriever artifact |
+| --- | --- | --- |
+| `BTC` | maintained | `stockmem/config/learned_retriever_finbert.json` |
+| `ETH` | prepared for fine-tune | `stockmem/config/learned_retriever_finbert.eth.json` |
+
 ## Other Services
 
 - Crawler: article collection and news enrichment.

@@ -145,3 +145,83 @@ docker run --rm \
 - Use resume mode for LLM runs to avoid paying for completed rows again.
 - Keep `artifacts/`, `results_tables/`, and `submission/` out of git.
 - Treat per-record JSONL files and logs as audit artifacts, not thesis text.
+
+## ETH Fine-Tune Preparation
+
+The multi-asset profile map is:
+
+```text
+stockmem/config/model_profiles.json
+```
+
+The ETH profile reserves these paths:
+
+```text
+data/exports/stockmem_records_eth.ndjson
+stockmem/data/real_optimizer_finbert_eth.json
+stockmem/config/learned_retriever_finbert.eth.json
+stockmem/config/majority_consensus_retriever.eth.learned_recency_50_50.json
+```
+
+Pull ETH StockMem records:
+
+```bash
+python3 scripts/archive/pull_stockmem_records_from_supabase.py \
+  --output data/exports/stockmem_records_eth.ndjson \
+  --symbol ETH
+```
+
+Train the ETH learned retriever without overwriting BTC artifacts:
+
+```bash
+docker run --rm \
+  -v "$PWD:/app" \
+  -w /app \
+  --entrypoint /usr/local/bin/python \
+  marketlens-aihub:latest \
+  stockmem/scripts/retrain_finbert_retriever.py \
+    --input-ndjson data/exports/stockmem_records_eth.ndjson \
+    --dataset-output stockmem/data/real_optimizer_finbert_eth.json \
+    --artifact-output stockmem/config/learned_retriever_finbert.eth.json \
+    --trials 10 \
+    --epochs 40 \
+    --seeds 5 \
+    --selection-metric hybrid
+```
+
+Evaluate the maintained learned+recency `50/50` design with the ETH-trained
+learned metric:
+
+```bash
+docker run --rm \
+  -v "$PWD:/app" \
+  -w /app \
+  --entrypoint /usr/local/bin/python \
+  marketlens-aihub:latest \
+  stockmem/scripts/experimental/evaluate_majority_consensus_retrievers.py \
+    --data data/exports/stockmem_records_eth.ndjson \
+    --weights stockmem/config/weights.auto.json \
+    --artifact stockmem/config/learned_retriever_finbert.eth.json \
+    --out-dir artifacts/eth_finetuned_majority_consensus \
+    --top-k 10 \
+    --min-pool-size 10 \
+    --full-start-date 2018-01-01 \
+    --config eth_learned_recency_50_50:stockmem/config/majority_consensus_retriever.eth.learned_recency_50_50.json
+```
+
+Select the ETH decision head over the ETH-trained retriever:
+
+```bash
+docker run --rm \
+  -v "$PWD:/app" \
+  -w /app \
+  --entrypoint /usr/local/bin/python \
+  marketlens-aihub:latest \
+  stockmem/scripts/experimental/evaluate_consensus_retriever_heads.py \
+    --data data/exports/stockmem_records_eth.ndjson \
+    --weights stockmem/config/weights.auto.json \
+    --artifact stockmem/config/learned_retriever_finbert.eth.json \
+    --config stockmem/config/majority_consensus_retriever.eth.learned_recency_50_50.json \
+    --out-dir artifacts/eth_finetuned_consensus_heads \
+    --top-k 10
+```

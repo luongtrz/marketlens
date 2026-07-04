@@ -1,0 +1,20 @@
+{
+  "name": "eth_learned_recency_50_50",
+  "description": "ETH profile placeholder for learned-memory plus trend-aware recency retrieval. The weights intentionally match the maintained BTC 50/50 design; the learned retriever artifact path is ETH-specific in model_profiles.json.",
+  "config": {
+    "w_fixed": 0.0,
+    "w_learned": 0.5,
+    "w_recency": 0.5,
+    "w_regime": 0.0,
+    "recency_half_life_days": 21.0
+  },
+  "selection": {
+    "asset": "ETH",
+    "status": "prepared_for_finetune",
+    "dataset": "data/exports/stockmem_records_eth.ndjson",
+    "learned_retriever_artifact": "stockmem/config/learned_retriever_finbert.eth.json",
+    "top_k": 10,
+    "label_threshold": 2.0,
+    "objective": "Keep the same learned+recency 50/50 mechanism as BTC, then train the learned metric on ETH-specific history."
+  }
+}

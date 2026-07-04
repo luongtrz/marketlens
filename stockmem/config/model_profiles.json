@@ -1,0 +1,23 @@
+{
+  "default_symbol": "BTC",
+  "profiles": {
+    "BTC": {
+      "dataset": "data/exports/stockmem_records.ndjson",
+      "learned_retriever_artifact": "stockmem/config/learned_retriever_finbert.json",
+      "consensus_retriever_config": "stockmem/config/majority_consensus_retriever.learned_recency_50_50.json",
+      "decision_head": "count_vote_buy3_sell4",
+      "evidence_top_k": 10,
+      "label_threshold": 2.0,
+      "status": "maintained"
+    },
+    "ETH": {
+      "dataset": "data/exports/stockmem_records_eth.ndjson",
+      "learned_retriever_artifact": "stockmem/config/learned_retriever_finbert.eth.json",
+      "consensus_retriever_config": "stockmem/config/majority_consensus_retriever.eth.learned_recency_50_50.json",
+      "decision_head": "pending_eth_validation_selection",
+      "evidence_top_k": 10,
+      "label_threshold": 2.0,
+      "status": "prepared_for_finetune"
+    }
+  }
+}

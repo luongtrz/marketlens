@@ -7,10 +7,11 @@ Use these maintained docs first:
 3. [StockMem methodology](stockmem/methodology.md)
 4. [StockMem experiments](stockmem/experiments.md)
 5. [StockMem trend-aware retrieval](stockmem/trend_aware_retrieval.md)
-6. [StockMem academic paper draft](stockmem/academic_paper.md)
-7. [StockMem reproducibility](stockmem/reproducibility.md)
-8. [AIHub LLM baseline](aihub/llm_baseline.md)
-9. [References](references.md)
+6. [ETH zero-shot StockMem report](stockmem/eth_zero_shot.md)
+7. [StockMem academic paper draft](stockmem/academic_paper.md)
+8. [StockMem reproducibility](stockmem/reproducibility.md)
+9. [AIHub LLM baseline](aihub/llm_baseline.md)
+10. [References](references.md)
 
 Historical reports are preserved in `docs/archive/`. They are useful for audit
 and traceability, but the maintained docs above are the source of truth for the
