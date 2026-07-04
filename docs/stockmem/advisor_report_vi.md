@@ -1,92 +1,86 @@
-# Báo cáo StockMem: Ý tưởng, Cách Thực Hiện, Luồng Dữ Liệu Và Kết Quả
+# Báo Cáo StockMem: Ý Tưởng, Luồng Dữ Liệu, Cách Thực Hiện Và Kết Quả
 
-Tài liệu này dùng để trình bày với giảng viên hướng dẫn về phần StockMem trong
-MarketLens. Mục tiêu là giải thích rõ ý tưởng, cách hệ thống hoạt động, dữ liệu
-đi qua những bước nào, đã triển khai bằng những file nào, và kết quả thực
-nghiệm hiện tại chứng minh được điều gì.
+Tài liệu này tóm tắt phần StockMem trong hệ thống MarketLens để gửi giảng viên
+hướng dẫn. Nội dung tập trung vào bốn điểm: mục tiêu bài toán, ý tưởng kỹ
+thuật, luồng dữ liệu triển khai, và kết quả thực nghiệm hiện tại.
 
-## 1. Tóm Tắt Ngắn Gọn
+## 1. Tóm Tắt
 
-StockMem là một tầng trí nhớ lịch sử có cấu trúc cho bài toán dự đoán hướng đi
-thị trường crypto. Thay vì chỉ đưa dữ liệu hiện tại vào AI rồi yêu cầu mô hình
-ngôn ngữ tự suy luận, StockMem lưu lại các trạng thái thị trường trong quá khứ,
-truy xuất những ngày lịch sử giống với ngày hiện tại, rồi dùng kết quả thực tế
-sau đó của các ngày lịch sử này làm bằng chứng cho quyết định hiện tại.
+StockMem là một tầng **bộ nhớ lịch sử có cấu trúc** cho bài toán dự đoán hướng
+đi của thị trường crypto. Thay vì chỉ đưa dữ liệu hiện tại vào mô hình ngôn ngữ
+và yêu cầu mô hình tự suy luận, StockMem lưu lại các trạng thái thị trường trong
+quá khứ, truy xuất các trạng thái tương tự với ngày hiện tại, sau đó dùng kết
+quả thực tế sau 7 ngày của các trạng thái lịch sử này làm bằng chứng cho quyết
+định hiện tại.
 
-Bài toán hiện tại là dự đoán nhãn D7:
+Bài toán dự đoán được chuẩn hóa thành nhãn D7:
 
 ```text
 BUY  nếu future_return_7d > +2%
 SELL nếu future_return_7d < -2%
-HOLD nếu nằm trong khoảng [-2%, +2%]
+HOLD nếu -2% <= future_return_7d <= +2%
 ```
 
-Kết quả chính:
+Kết quả chính trên tập test `2025-07-01` đến `2026-05-01`:
 
-| Asset | Retriever chính | Decision head | Test rows | Overall DA | Active DA | Coverage | BUY DA | SELL DA | Majority@10 |
+| Asset | Retriever chính | Decision head | Số dòng test | Overall DA | Active DA | Coverage | BUY DA | SELL DA | Majority@10 |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | BTC | `learned_recency_50_50` | `count_vote_buy3_sell4` | 305 | 0.5475 | 0.6826 | 0.9607 | 0.6224 | 0.7114 | 0.5443 |
 | ETH | `eth_learned_recency_50_50_h30` | `mean_learned_weights_buy0.50_sell0.75` | 305 | 0.6000 | 0.6793 | 0.9508 | 0.7077 | 0.6496 | 0.5246 |
 
-Kết luận ngắn: StockMem không chỉ là một mô hình dự đoán đơn lẻ. Nó là một
-pipeline RAG có cấu trúc cho dữ liệu thị trường: lưu memory, truy xuất evidence,
-tổng hợp evidence, rồi ra quyết định. Kết quả cho thấy pipeline này hiệu quả hơn
-naive AI baseline trên BTC và có thể mở rộng sang ETH bằng fine-tuning riêng.
+Kết luận chính: StockMem hoạt động như một pipeline truy xuất bằng chứng lịch
+sử có cấu trúc. Hệ thống cho phép kiểm tra từng prediction thông qua top-10
+evidence records, có cơ chế chống rò rỉ dữ liệu tương lai, và có thể mở rộng từ
+BTC sang ETH bằng cách tạo profile riêng cho từng asset.
 
-## 2. Vấn Đề Cần Giải Quyết
+## 2. Bối Cảnh Và Vấn Đề
 
-Với dữ liệu tài chính, nếu chỉ đưa ngữ cảnh hiện tại cho LLM, mô hình dễ gặp ba
-vấn đề:
+Trong dự đoán tài chính, việc chỉ dùng ngữ cảnh hiện tại thường chưa đủ vì thị
+trường có tính chu kỳ, tính regime, và chịu ảnh hưởng từ các mẫu hình lịch sử.
+Nếu chỉ truyền dữ liệu hiện tại cho mô hình ngôn ngữ, hệ thống có một số hạn
+chế:
 
-1. Không có trí nhớ lịch sử có kiểm soát.
-2. Khó biết ngày hiện tại giống giai đoạn nào trong quá khứ.
-3. Dễ thiên lệch theo ngôn ngữ tin tức hiện tại, đặc biệt là không nhận diện tốt
-   chiều SELL.
+1. Không có cơ chế truy xuất lịch sử rõ ràng.
+2. Khó giải thích vì sao một tín hiệu được đưa ra.
+3. Khó kiểm soát mô hình đã dựa vào bằng chứng nào.
+4. Dễ thiên lệch theo tin tức hoặc trạng thái ngắn hạn hiện tại.
 
-StockMem giải quyết bằng cách biến mỗi ngày trong quá khứ thành một bản ghi
-memory có cấu trúc:
+StockMem được thiết kế để bổ sung một tầng historical memory. Mỗi ngày lịch sử
+được lưu thành một record có cấu trúc. Khi cần dự đoán ngày hiện tại, hệ thống
+tìm các record lịch sử tương tự và sử dụng kết quả D7 đã biết của các record
+đó làm bằng chứng.
 
-```text
-ngày, symbol, snapshot thị trường, vector sự kiện,
-vector factor, vector indicator, vector giá,
-future_return_1d/3d/7d/15d/30d
-```
+## 3. Ý Tưởng Kỹ Thuật
 
-Khi cần dự đoán một ngày mới, hệ thống không hỏi AI một cách trống. Nó hỏi:
+StockMem có thể được xem là một dạng Retrieval-Augmented Reasoning cho dữ liệu
+thị trường. Điểm khác biệt là hệ thống không truy xuất văn bản tự do, mà truy
+xuất các trạng thái thị trường được vector hóa theo nhiều nhóm đặc trưng.
 
-```text
-Trong lịch sử, những ngày nào giống ngày hiện tại?
-Sau các ngày đó 7 ngày, thị trường đã đi lên, đi xuống, hay đi ngang?
-```
-
-## 3. Ý Tưởng Chính
-
-Ý tưởng của StockMem có thể hiểu như một hệ thống Retrieval-Augmented
-Generation/Reasoning cho time series tài chính, nhưng thay vì truy xuất văn bản
-thuần, hệ thống truy xuất các trạng thái thị trường có vector cấu trúc.
-
-Luồng tư duy:
+Luồng ý tưởng:
 
 ```text
-current market state
-  -> tìm các historical states tương tự
-  -> lấy kết quả D7 thật của các historical states
-  -> tạo một evidence set
-  -> decision head tổng hợp evidence
-  -> BUY/HOLD/SELL
+trạng thái thị trường hiện tại
+  -> truy xuất các trạng thái lịch sử tương tự
+  -> lấy outcome D7 của các trạng thái lịch sử
+  -> tạo tập bằng chứng top-k
+  -> decision head tổng hợp bằng chứng
+  -> dự đoán BUY/HOLD/SELL
 ```
 
-Điểm quan trọng là hệ thống tách thành hai phần:
+Pipeline được tách thành hai thành phần chính:
 
-1. **Retriever**: chịu trách nhiệm tìm bằng chứng lịch sử phù hợp.
-2. **Decision head**: chịu trách nhiệm biến bằng chứng thành tín hiệu.
+| Thành phần | Vai trò |
+| --- | --- |
+| Retriever | Tìm các bản ghi lịch sử phù hợp với query hiện tại. |
+| Decision head | Chuyển tập evidence thành tín hiệu BUY/HOLD/SELL. |
 
-Cách tách này giúp dễ kiểm thử. Nếu kết quả chưa tốt, ta biết vấn đề nằm ở
-retrieval hay ở head ra quyết định.
+Cách tách này giúp dễ đánh giá: nếu top-k evidence chưa nhất quán, vấn đề nằm ở
+retriever; nếu evidence tốt nhưng prediction chưa tốt, vấn đề nằm ở decision
+head.
 
 ## 4. Luồng Dữ Liệu Tổng Thể
 
-Luồng dữ liệu đầy đủ:
+Luồng dữ liệu của StockMem:
 
 ```text
 raw market/news/factor data
@@ -96,72 +90,71 @@ raw market/news/factor data
   -> retriever scoring
   -> top-10 evidence records
   -> decision head
-  -> prediction BUY/HOLD/SELL
+  -> BUY/HOLD/SELL prediction
   -> evaluation metrics
   -> report artifacts
 ```
 
-Luồng triển khai hiện tại:
+Luồng hiện tại cho BTC:
 
 ```text
-BTC:
-  data/exports/stockmem_records.ndjson
+data/exports/stockmem_records.ndjson
   -> stockmem/config/learned_retriever_finbert.json
   -> stockmem/config/majority_consensus_retriever.learned_recency_50_50.json
+  -> top-10 evidence
   -> count_vote_buy3_sell4
   -> BTC prediction/evaluation
+```
 
-ETH:
-  data/exports/stockmem_records_eth.ndjson
+Luồng hiện tại cho ETH:
+
+```text
+data/exports/stockmem_records_eth.ndjson
   -> stockmem/config/learned_retriever_finbert.eth.json
   -> stockmem/config/majority_consensus_retriever.eth.learned_recency_50_50_h30.json
+  -> top-10 evidence
   -> mean_learned_weights_buy0.50_sell0.75
   -> ETH prediction/evaluation
 ```
 
-File profile chung:
+File router cho nhiều asset:
 
 ```text
 stockmem/config/model_profiles.json
 ```
 
-File này giúp endpoint biết symbol nào dùng artifact nào. BTC và ETH không bị
-ép dùng chung một mô hình, nhưng vẫn dùng chung kiến trúc.
+File này quy định mỗi asset dùng dataset, learned retriever artifact, retriever
+config, và decision head nào. Nhờ đó BTC và ETH có thể dùng chung kiến trúc
+nhưng khác profile.
 
-## 5. Các Loại Dữ Liệu Trong Một Memory Record
+## 5. Cấu Trúc Một StockMem Record
 
-Một `StockMemRecord` có các nhóm thông tin chính:
+Một record trong StockMem gồm các nhóm dữ liệu chính:
 
 | Thành phần | Ý nghĩa | Công dụng |
 | --- | --- | --- |
-| `date`, `symbol` | Ngày và asset. | Lọc đúng thị trường và đúng thời điểm. |
+| `date`, `symbol` | Ngày và asset. | Lọc đúng thị trường và đúng thời gian. |
 | `market_snapshot` | Trạng thái thị trường tại ngày đó. | Nguồn cho indicator, price, regime. |
-| `event_vec` | Vector hóa sự kiện/tin tức. | Hỗ trợ learned retriever hiểu ngữ cảnh sự kiện. |
-| `factor_vec` | Vector factor và taxonomy sự kiện. | So sánh ngữ cảnh thị trường/factor. |
-| `indicator_vec` | Chỉ báo kỹ thuật/sentiment ngắn gọn. | So sánh trạng thái kỹ thuật. |
-| `price_vec` | Biến động giá, volume, range. | So sánh market-state và xu hướng. |
-| `future_return_7d` | Return thật sau 7 ngày. | Tạo nhãn BUY/HOLD/SELL khi đánh giá và khi dùng record lịch sử làm evidence. |
+| `event_vec` | Vector sự kiện/tin tức. | Hỗ trợ learned retriever hiểu bối cảnh sự kiện. |
+| `factor_vec` | Vector factor và taxonomy. | So sánh bối cảnh thị trường/factor. |
+| `indicator_vec` | Chỉ báo kỹ thuật/sentiment dạng rút gọn. | So sánh trạng thái kỹ thuật. |
+| `price_vec` | Biến động giá, volume, range. | So sánh market state và xu hướng. |
+| `future_return_7d` | Return thực tế sau 7 ngày. | Tạo nhãn BUY/HOLD/SELL cho đánh giá và evidence lịch sử. |
 
-File định nghĩa record:
+Các file liên quan:
 
-```text
-stockmem/src/models.py
-```
+| File | Công dụng |
+| --- | --- |
+| `stockmem/src/models.py` | Định nghĩa `StockMemRecord`, `SimilarRecord` và các kiểu dữ liệu chính. |
+| `stockmem/src/search/embedder.py` | Chuyển record thành các vector block. |
+| `stockmem/src/search/event_memory.py` | Tạo trạng thái event theo ngày khi cần. |
+| `stockmem/src/search/taxonomy.py` | Quy ước taxonomy/factor cho đặc trưng sự kiện. |
 
-File tạo vector:
-
-```text
-stockmem/src/search/embedder.py
-stockmem/src/search/event_memory.py
-stockmem/src/search/taxonomy.py
-```
-
-## 6. Cách Truy Xuất Bằng Chứng
+## 6. Cách Truy Xuất Evidence
 
 ### 6.1 Fixed kNN
 
-Phiên bản ban đầu dùng fixed kNN. Mỗi query và candidate được so sánh bằng
-weighted cosine similarity trên ba block:
+Phiên bản nền tảng dùng weighted cosine similarity trên ba block:
 
 ```text
 score(q,c) =
@@ -193,15 +186,14 @@ Các file liên quan:
 | `stockmem/config/weights.auto.json` | Fixed-kNN weights cho BTC. |
 | `stockmem/config/weights.eth.auto.json` | Fixed-kNN weights cho ETH. |
 | `stockmem/src/search/searcher.py` | Logic search runtime. |
-| `stockmem/scripts/optimize_weights.py` | Script tune weights. |
+| `stockmem/scripts/optimize_weights.py` | Script tune fixed weights. |
 
-Fixed kNN có ưu điểm là ổn định và deterministic: cùng input, cùng weights, cùng
-candidate pool thì kết quả giống nhau.
+Fixed kNN có ưu điểm là ổn định và dễ giải thích. Cùng query, cùng candidate
+pool và cùng weights sẽ cho cùng ranking.
 
 ### 6.2 Learned Retriever
 
-Learned retriever học một metric thay vì dùng weights thủ công. Công thức tổng
-quát:
+Learned retriever học một metric thay vì chỉ dùng trọng số thủ công. Công thức:
 
 ```text
 score(q,c) = sum_b alpha_b * cos(D_b q_b, D_b c_b)
@@ -224,15 +216,15 @@ Các file chính:
 | `stockmem/scripts/train_learned_retriever.py` | Train learned retriever. |
 | `stockmem/scripts/retrain_finbert_retriever.py` | Fine-tune retriever từ NDJSON; dùng cho ETH. |
 
-Sau khi artifact được tạo, learned retriever cũng deterministic. Truy vấn 100
-lần với cùng dữ liệu và cùng artifact sẽ ra cùng ranking.
+Sau khi artifact đã được tạo, learned retriever cũng deterministic. Nếu chạy
+cùng input và cùng artifact nhiều lần, ranking không thay đổi.
 
 ### 6.3 Learned + Recency Retriever
 
-Kết quả thực nghiệm cho thấy pure learned retrieval chưa đủ tốt. Lý do là thị
-trường có tính liên tục theo thời gian: các ngày gần hiện tại thường có thông
-tin regime/trend quan trọng. Vì vậy pipeline hiện tại dùng learned retriever
-kết hợp recency:
+Kết quả thực nghiệm cho thấy pure learned retrieval chưa đủ mạnh. Lý do là thị
+trường có tính liên tục theo thời gian; các ngày gần hiện tại thường chứa
+thông tin regime/trend quan trọng. Vì vậy pipeline hiện tại dùng learned
+similarity kết hợp recency:
 
 ```text
 score(q,c) =
@@ -252,24 +244,22 @@ ETH:
 0.5 * ETH learned_similarity + 0.5 * recency(half_life=30d)
 ```
 
-Các file config:
+Config chính:
 
 ```text
 stockmem/config/majority_consensus_retriever.learned_recency_50_50.json
 stockmem/config/majority_consensus_retriever.eth.learned_recency_50_50_h30.json
 ```
 
-Ý nghĩa: mô hình vừa học sự tương đồng lịch sử, vừa aware trend gần đây. Đây là
-điểm cân bằng giữa “chỉ nhìn quá khứ xa” và “chỉ chạy theo gần đây”.
+Ý nghĩa: retriever vừa giữ khả năng tìm mẫu hình lịch sử, vừa có nhận thức về
+xu hướng gần đây.
 
 ## 7. Decision Head
 
-Retriever chỉ trả về evidence. Decision head mới là phần biến evidence thành
-tín hiệu.
+Retriever chỉ trả về tập evidence. Decision head chuyển evidence thành tín
+hiệu.
 
-### BTC head
-
-BTC dùng:
+BTC dùng head:
 
 ```text
 count_vote_buy3_sell4
@@ -283,18 +273,11 @@ BUY  nếu buy_count  >= 3 và buy_count  >  sell_count
 HOLD nếu không thỏa hai điều kiện trên
 ```
 
-Input là top-10 evidence từ `learned_recency_50_50`.
-
-### ETH head
-
-ETH dùng:
+ETH dùng head:
 
 ```text
 mean_learned_weights_buy0.50_sell0.75
 ```
-
-Input là top-10 evidence từ `eth_learned_recency_50_50_h30`. Head này được chọn
-trên validation sau khi fine-tune retriever riêng cho ETH.
 
 File chọn/tune head:
 
@@ -302,22 +285,23 @@ File chọn/tune head:
 stockmem/scripts/experimental/evaluate_consensus_retriever_heads.py
 ```
 
-## 8. Cách Kiểm Soát Leakage
+Các head được chọn trên validation split, sau đó mới báo cáo kết quả trên test
+split.
 
-Đây là phần rất quan trọng để bảo vệ tính đúng đắn của thí nghiệm.
+## 8. Kiểm Soát Rò Rỉ Dữ Liệu Tương Lai
 
-Khi dự đoán ngày `t`, hệ thống chỉ được dùng record lịch sử mà kết quả D7 đã
-biết tại thời điểm `t`.
+Để tránh dùng thông tin tương lai, khi dự đoán ngày `t`, hệ thống chỉ được dùng
+record lịch sử mà kết quả D7 đã biết tại thời điểm `t`.
 
-Quy tắc:
+Quy tắc matured pool:
 
 ```text
 candidate.date < query.date
 candidate.date + 7 days <= query.date
 ```
 
-Nếu candidate quá gần query, future_return_7d của candidate chưa “mature”, nên
-không được dùng làm evidence.
+Nếu candidate quá gần query, future_return_7d của candidate chưa thể biết tại
+thời điểm query, nên candidate đó không được dùng làm evidence.
 
 File xử lý split và matured pool:
 
@@ -333,9 +317,11 @@ validation: 2025-01-01 đến 2025-06-23
 test:       2025-07-01 đến 2026-05-01
 ```
 
-Test set có 305 rows. Validation set có 174 rows.
+Tập validation có 174 dòng. Tập test có 305 dòng.
 
-## 9. Các Script Chính
+## 9. Các Script Và Artifact Chính
+
+Script chính:
 
 | Script | Chức năng |
 | --- | --- |
@@ -344,47 +330,39 @@ Test set có 305 rows. Validation set có 174 rows.
 | `stockmem/scripts/experimental/evaluate_majority_consensus_retrievers.py` | Đánh giá retriever bằng `Majority@10`. |
 | `stockmem/scripts/experimental/evaluate_consensus_retriever_heads.py` | Chọn decision head trên validation. |
 | `stockmem/scripts/experimental/train_majority_consensus_retriever.py` | Tune fusion weights cho learned/recency/fixed/regime. |
-| `stockmem/scripts/retrain_finbert_retriever.py` | Fine-tune learned retriever, đã dùng cho ETH. |
-| `aihub/scripts/evaluate_naive_llm_baseline.py` | Baseline AI ngây thơ chỉ dùng context hiện tại, không dùng StockMem. |
+| `stockmem/scripts/retrain_finbert_retriever.py` | Fine-tune learned retriever; đã dùng cho ETH. |
+| `aihub/scripts/evaluate_naive_llm_baseline.py` | Baseline LLM chỉ dùng context hiện tại, không dùng StockMem. |
 | `stockmem/scripts/run_submission_reproduction.py` | Orchestrator chạy lại các thí nghiệm chính. |
-
-## 10. Các Artifact Và Báo Cáo Chính
-
-| File | Vai trò |
-| --- | --- |
-| `docs/stockmem/data_flow.md` | Mô tả chi tiết luồng dữ liệu và file liên quan. |
-| `docs/stockmem/experiment_metrics_catalog.md` | Catalog số liệu các thí nghiệm đã chạy. |
-| `docs/stockmem/experiments.md` | Tóm tắt kết quả và diễn giải thí nghiệm. |
-| `docs/stockmem/multi_asset_stockmem_report.md` | Báo cáo BTC/ETH multi-asset. |
-| `docs/stockmem/eth_zero_shot.md` | Báo cáo ETH zero-shot. |
-| `docs/stockmem/eth_finetune.md` | Báo cáo ETH fine-tune. |
-| `docs/stockmem/reproducibility.md` | Lệnh Docker để reproduce. |
 
 Artifact kết quả chính:
 
 | Artifact | Nội dung |
 | --- | --- |
-| `artifacts/current_context_ai_eval/summary.json` | Naive LLM baseline. |
+| `artifacts/current_context_ai_eval/summary.json` | Baseline LLM không dùng historical retrieval. |
 | `artifacts/learned_strict_test_v3/summary.json` | Strict fixed/learned comparison. |
 | `artifacts/majority_consensus_retriever_eval_20260703/summary.json` | BTC majority retrieval audit. |
 | `artifacts/consensus_retriever_heads_20260703/summary.json` | BTC decision-head search. |
 | `artifacts/eth_zero_shot_consensus_heads_20260704/summary.json` | ETH zero-shot consensus result. |
 | `artifacts/eth_learned_recency_h30_consensus_heads_20260704/summary.json` | ETH maintained fine-tuned result. |
 
-## 11. Thí Nghiệm 1: Naive AI Baseline
+Tài liệu hỗ trợ:
 
-Mục tiêu: kiểm tra nếu chỉ đưa context hiện tại cho AI thì kết quả như thế nào.
+| File | Vai trò |
+| --- | --- |
+| `docs/stockmem/data_flow.md` | Luồng dữ liệu chi tiết. |
+| `docs/stockmem/experiment_metrics_catalog.md` | Catalog số liệu thí nghiệm. |
+| `docs/stockmem/experiments.md` | Diễn giải kết quả chính. |
+| `docs/stockmem/multi_asset_stockmem_report.md` | Báo cáo BTC/ETH. |
+| `docs/stockmem/reproducibility.md` | Lệnh Docker để reproduce. |
 
-Naive AI nhận:
+## 10. Thí Nghiệm Và Kết Quả
 
-```text
-current market candle,
-yesterday change percent,
-1-day news sentiment,
-một số raw news title rút gọn
-```
+### 10.1 Baseline LLM Không Dùng Truy Xuất Lịch Sử
 
-Naive AI không nhận historical retrieval evidence.
+Mục tiêu là kiểm tra nếu chỉ dùng context hiện tại thì kết quả như thế nào.
+Baseline này nhận market candle hiện tại, biến động gần nhất, sentiment một
+ngày và một số tiêu đề tin tức rút gọn. Baseline không nhận evidence lịch sử từ
+StockMem.
 
 Kết quả BTC test:
 
@@ -394,14 +372,11 @@ Kết quả BTC test:
 | `fixed_knn_rolling_stable` | 305 | 0.3180 | 0.4236 | 0.7508 | 0.6295 | 0.2492 | 0.1213 |
 | `knn_returns` | 305 | 0.2918 | 0.4146 | 0.6721 | 0.5574 | 0.3279 | 0.1148 |
 
-Ý nghĩa: naive AI rất ít phát SELL (`SELL rate = 0.0262`). Điều này cho thấy
-AI chỉ nhìn context hiện tại có xu hướng tránh dự đoán downside, trong khi
-StockMem có thể dùng lịch sử để nhận diện SELL tốt hơn.
+Diễn giải: baseline LLM không dùng truy xuất lịch sử có tỷ lệ phát SELL rất
+thấp (`SELL rate = 0.0262`). Điều này cho thấy current-context prompting không
+đủ để tạo quyết định downside ổn định.
 
-## 12. Thí Nghiệm 2: Strict Fixed/Learned Comparison
-
-Mục tiêu: so sánh fixed kNN, learned retriever, learned head trong setup strict
-ban đầu.
+### 10.2 Strict Fixed/Learned Comparison
 
 Kết quả BTC test:
 
@@ -412,18 +387,17 @@ Kết quả BTC test:
 | `learned_retriever_fixed_head` | 305 | 0.3148 | 0.4182 | 0.7213 | 0.8459 |
 | `learned_finbert_rolling_stable` | 305 | 0.3410 | 0.4393 | 0.7836 | 0.8459 |
 
-Diễn giải: learned retriever cải thiện một số metric retrieval như Hit@5,
-nhưng không tự động làm decision tốt hơn. Learned head kết hợp fixed retriever
-là hướng tốt hơn trong strict setup cũ. Sau đó, pipeline chuyển sang đánh giá
-bằng evidence-consensus vì Hit@5 quá dễ.
+Diễn giải: learned retriever cải thiện một số chỉ số retrieval như Hit@5,
+nhưng không tự động cải thiện decision accuracy. Kết quả này dẫn đến việc tách
+retriever evaluation khỏi decision-head evaluation.
 
-## 13. Thí Nghiệm 3: Majority@10 Evidence Retrieval
+### 10.3 Majority@10 Evidence Retrieval
 
-Vấn đề của Hit@5 là chỉ cần top-5 có một record cùng hướng là đã được tính tốt.
-Metric này quá dễ. Vì vậy dùng metric chặt hơn:
+Metric `Hit@5` tương đối dễ vì chỉ cần có một record cùng hướng trong top-k.
+Do đó hệ thống dùng thêm metric chặt hơn:
 
 ```text
-Majority@10 = ít nhất 5/10 evidence record có cùng D7 class với query
+Majority@10 = ít nhất 5/10 evidence records có cùng D7 class với query
 ```
 
 Kết quả BTC:
@@ -435,19 +409,12 @@ Kết quả BTC:
 | `recency_only` | 0.6264 | 0.5180 | 0.5075 |
 | `learned_recency_50_50` | 0.5920 | 0.5443 | 0.5106 |
 
-Ý nghĩa: pure learned không đủ. Pure recency mạnh vì thị trường có trend
-continuity. Nhưng model cuối cùng chọn `learned_recency_50_50` vì nó vừa giữ
-memory lịch sử vừa có trend awareness và đạt test/full-history tốt.
+Diễn giải: pure learned retrieval chưa đủ. Recency là tín hiệu mạnh do thị
+trường có tính liên tục theo xu hướng. Pipeline cuối cùng chọn
+`learned_recency_50_50` vì kết hợp được learned historical similarity với trend
+awareness.
 
-## 14. Thí Nghiệm 4: Consensus Decision Head
-
-Sau khi chọn retriever, hệ thống chọn head để tổng hợp top-10 evidence.
-
-BTC head tốt nhất:
-
-```text
-count_vote_buy3_sell4
-```
+### 10.4 Consensus Decision Head Cho BTC
 
 Kết quả:
 
@@ -456,14 +423,13 @@ Kết quả:
 | Validation | 174 | 0.6379 | 0.7658 | 0.9080 | 0.7614 | 0.0345 | 0.7544 | 0.5920 |
 | Test | 305 | 0.5475 | 0.6826 | 0.9607 | 0.6224 | 0.0000 | 0.7114 | 0.5443 |
 
-Điểm mạnh: SELL DA rất tốt (`0.7114`). Điểm yếu: HOLD DA bằng `0.0000`, nghĩa
-là mô hình hiện tại nên được mô tả là directional decision system, không phải
-balanced three-class classifier.
+Điểm mạnh là SELL DA cao (`0.7114`). Hạn chế là HOLD DA thấp (`0.0000`), nên
+mô hình hiện tại nên được mô tả là hệ thống directional decision có coverage
+cao, không phải classifier ba lớp cân bằng.
 
-## 15. Thí Nghiệm 5: ETH Zero-Shot
+### 10.5 ETH Zero-Shot
 
-Mục tiêu: kiểm tra artifact BTC có chuyển sang ETH được không trước khi train
-riêng.
+ETH được đánh giá trước bằng artifact BTC để kiểm tra khả năng chuyển giao.
 
 ETH data:
 
@@ -475,17 +441,16 @@ ETH data:
 | Validation rows | 174 |
 | Test rows | 305 |
 
-ETH zero-shot với BTC learned-recency pipeline:
+Kết quả ETH zero-shot:
 
 | Profile | n | Overall DA | Active DA | Coverage | BUY DA | HOLD DA | SELL DA | Majority@10 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | BTC artifact on ETH | 305 | 0.5344 | 0.6014 | 0.9705 | 0.5769 | 0.0789 | 0.6204 | 0.4754 |
 
-Ý nghĩa: ngay cả khi chưa fine-tune ETH, StockMem vẫn chuyển được một phần sang
-ETH. Điều này ủng hộ hướng multi-asset, nhưng kết quả chưa tối ưu nên cần
-fine-tune riêng.
+Diễn giải: artifact BTC vẫn tạo được tín hiệu trên ETH. Điều này cho thấy cơ
+chế StockMem có khả năng chuyển giao, nhưng kết quả chưa phải tối ưu cho ETH.
 
-## 16. Thí Nghiệm 6: ETH Fine-Tuning
+### 10.6 ETH Fine-Tuning
 
 ETH fine-tuning tạo artifact riêng:
 
@@ -517,76 +482,73 @@ SELL DA:     0.6204 -> 0.6496
 Majority@10: 0.4754 -> 0.5246
 ```
 
-Ý nghĩa: fine-tuning riêng cho ETH có tác dụng rõ trên pipeline cuối cùng. Đây
-là bằng chứng rằng kiến trúc StockMem có thể mở rộng multi-asset nhưng nên có
-profile riêng cho từng asset.
+Diễn giải: fine-tuning riêng cho ETH cải thiện pipeline cuối cùng. Điều này ủng
+hộ thiết kế multi-asset theo profile riêng thay vì dùng một artifact chung cho
+tất cả asset.
 
-## 17. Những Gì Kết Quả Hiện Tại Chứng Minh Được
+## 11. Những Kết Luận Có Thể Báo Cáo
 
-Các kết luận có thể trình bày tương đối chắc:
+Các kết luận hiện tại nên được trình bày ở mức vừa phải:
 
-1. **Structured StockMem tốt hơn naive AI prompting** trong bối cảnh BTC test.
-   Naive AI thiếu historical evidence và gần như không phát SELL.
-2. **StockMem hoạt động như một RAG có cấu trúc**, không chỉ là một classifier.
-   Evidence top-10 có thể audit được.
-3. **Pure learned retrieval chưa đủ**, nhưng learned retrieval kết hợp recency
-   là hướng tốt hơn.
-4. **Recency là tín hiệu quan trọng**, nhưng không nên nói mô hình chỉ dùng
-   recency. Pipeline cuối vẫn giữ learned similarity để bám vào memory lịch sử.
-5. **ETH zero-shot có tín hiệu tốt**, chứng minh cơ chế không chỉ dành cho BTC.
-6. **ETH fine-tuning cải thiện pipeline cuối**, chứng minh cần asset-specific
-   profile.
+1. StockMem hiệu quả hơn baseline LLM chỉ dùng context hiện tại trên BTC test.
+2. StockMem cung cấp evidence lịch sử có thể audit được cho từng prediction.
+3. Pure learned retrieval chưa đủ; learned similarity cần kết hợp recency/trend
+   awareness.
+4. ETH zero-shot cho thấy cơ chế có khả năng chuyển giao.
+5. ETH fine-tuning cải thiện rõ pipeline cuối cùng.
+6. BTC và ETH nên dùng profile riêng trong cùng một kiến trúc chung.
 
-## 18. Hạn Chế Hiện Tại
+## 12. Hạn Chế
 
-Các hạn chế nên nói thẳng trong báo cáo:
+Các hạn chế cần nêu rõ:
 
-1. HOLD classification còn yếu. BTC maintained head có HOLD DA `0.0000`; ETH
-   cũng chỉ `0.0526`.
-2. Recency là tín hiệu mạnh, nên mô hình có rủi ro khi thị trường đảo chiều.
-3. Dataset test hiện tại là 305 rows, đủ cho đồ án ứng dụng nhưng chưa phải quy
-   mô rất lớn.
-4. Kết quả hiện tại tập trung vào directional accuracy/evidence quality, chưa
-   phải tối ưu PnL giao dịch.
-5. Một số thí nghiệm cũ như hybrid reranking và head-aligned retriever là kết
-   quả âm, nên chỉ nên dùng để chứng minh quá trình nghiên cứu, không dùng làm
+1. HOLD classification còn yếu. BTC test HOLD DA là `0.0000`, ETH test HOLD DA
+   là `0.0526`.
+2. Recency là tín hiệu mạnh, nên mô hình có rủi ro trong các giai đoạn đảo
+   chiều nhanh.
+3. Tập test hiện tại có 305 dòng, phù hợp cho đánh giá đồ án ứng dụng nhưng
+   chưa đủ để khẳng định như một hệ thống giao dịch hoàn chỉnh.
+4. Kết quả hiện tại tập trung vào directional accuracy và evidence quality,
+   chưa tối ưu trực tiếp lợi nhuận giao dịch.
+5. Một số thí nghiệm như hybrid reranking và head-aligned retriever là kết quả
+   âm; chúng nên được dùng để chứng minh quá trình nghiên cứu, không dùng làm
    claim chính.
 
-## 19. Điểm Mạnh Khi Bảo Vệ Đồ Án
+## 13. Điểm Mạnh Của Phần StockMem
 
-Các điểm nên nhấn mạnh:
+Các điểm có thể nhấn mạnh khi trình bày:
 
-1. Pipeline có khả năng audit: mỗi prediction có thể xem top-10 evidence.
-2. Có leakage control bằng matured pool.
-3. Có baseline naive AI để chứng minh không phải chỉ cần prompt LLM là đủ.
-4. Có ablation và negative result, cho thấy quá trình nghiên cứu trung thực.
-5. Có multi-asset extension từ BTC sang ETH.
-6. Có profile router để triển khai nhiều asset trong một kiến trúc chung.
+1. Có luồng dữ liệu rõ ràng từ raw record đến prediction.
+2. Mỗi prediction có thể truy vết top-10 evidence records.
+3. Có kiểm soát rò rỉ dữ liệu tương lai bằng matured pool.
+4. Có baseline không dùng retrieval để so sánh.
+5. Có ablation và negative results, thể hiện quá trình thử nghiệm đầy đủ.
+6. Có mở rộng multi-asset từ BTC sang ETH.
 7. Có Docker/reproducibility docs để chạy lại thí nghiệm.
 
-## 20. Kết Luận Đề Xuất Khi Trình Bày
+## 14. Câu Kết Luận Đề Xuất
 
-Câu kết luận chính:
+Phiên bản đầy đủ:
 
 ```text
 StockMem là một tầng historical memory có cấu trúc cho dự đoán hướng đi crypto.
-Thay vì để AI suy luận trực tiếp từ dữ liệu hiện tại, hệ thống truy xuất các
-trạng thái thị trường tương tự trong quá khứ, tổng hợp kết quả D7 của các trạng
-thái đó, rồi ra tín hiệu BUY/HOLD/SELL bằng decision head đã chọn trên
-validation. Kết quả cho thấy StockMem vượt naive current-context AI trên BTC,
-đạt active DA khoảng 68% trên BTC/ETH, và có thể mở rộng multi-asset bằng
-fine-tuning riêng cho từng asset.
+Thay vì để mô hình suy luận trực tiếp từ dữ liệu hiện tại, hệ thống truy xuất
+các trạng thái thị trường tương tự trong quá khứ, tổng hợp outcome D7 của các
+trạng thái đó, rồi đưa ra tín hiệu BUY/HOLD/SELL bằng decision head được chọn
+trên validation. Kết quả cho thấy StockMem vượt baseline LLM không dùng truy
+xuất lịch sử trên BTC, đạt active DA khoảng 68% trên BTC/ETH, và có thể mở rộng
+sang ETH bằng fine-tuning riêng cho từng asset.
 ```
 
-Mô tả ngắn hơn nếu cần nói trong slide:
+Phiên bản ngắn cho slide:
 
 ```text
 StockMem = structured market memory + learned/recency retrieval + evidence
-consensus head. Điểm mạnh là prediction có bằng chứng lịch sử, deterministic,
-audit được, và có thể mở rộng từ BTC sang ETH.
+consensus head. Điểm mạnh là dự đoán có bằng chứng lịch sử, deterministic,
+audit được, và mở rộng được từ BTC sang ETH bằng asset-specific profile.
 ```
 
-## 21. File Nên Mở Khi Thầy Hỏi
+## 15. File Nên Mở Khi Cần Giải Thích Thêm
 
 | Câu hỏi | File nên mở |
 | --- | --- |
@@ -596,4 +558,3 @@ audit được, và có thể mở rộng từ BTC sang ETH.
 | ETH fine-tune ra sao? | `docs/stockmem/eth_finetune.md` |
 | Chạy lại thí nghiệm thế nào? | `docs/stockmem/reproducibility.md` |
 | Paper học thuật dài hơn? | `docs/stockmem/academic_paper.md` |
-
