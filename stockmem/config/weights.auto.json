@@ -1,24 +1,28 @@
 {
-  "optimized_at": "2026-06-23T01:42:24.825784+00:00",
+  "optimized_at": "2026-07-08T02:51:20.292034+00:00",
   "horizon": "7d",
-  "n_records": 2877,
+  "n_records": 5777,
   "warmup": 250,
   "k": 5,
   "trials": 80,
+  "evaluation_protocol": {
+    "version": "maturity_guard_v1",
+    "maturity_guard": true
+  },
   "stable_selection": {
     "selection_mode": "median_top_trials",
     "top_k_requested": 10,
     "top_k_used": 10
   },
   "weights": {
-    "w1_factor": 0.6846920901629276,
-    "w2_indicator": 0.19261347699748183,
-    "w3_price": 0.12269443283959038
+    "w1_factor": 0.6341842414320797,
+    "w2_indicator": 0.15279139422977933,
+    "w3_price": 0.21302436433814098
   },
   "metrics": {
-    "da": 0.5333079558431671,
-    "sharpe": 0.1701560297141012,
-    "combined": 0.3540159794487205
+    "da": 0.5250588022435317,
+    "sharpe": 0.17334647256074148,
+    "combined": 0.3497045758582673
   },
-  "best_score": 0.36130378346927783
+  "best_score": 0.35459341290293694
 }
