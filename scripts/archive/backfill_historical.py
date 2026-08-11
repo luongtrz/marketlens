@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import random
 from collections import defaultdict
 from dataclasses import dataclass
@@ -24,8 +25,8 @@ import httpx
 # ── Config ──────────────────────────────────────────────────────────────────
 PG_DSN = "postgresql://postgres:pass@localhost:5432/postgres"
 SUPABASE_URL = "https://esctepjpgpjgrcymnabx.supabase.co"
-SUPABASE_KEY = ""
-GROQ_KEY = ""
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+GROQ_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = "llama-3.1-8b-instant"
 BINANCE_URL = "https://api.binance.com/api/v3/klines"
 
